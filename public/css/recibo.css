@@ -1,0 +1,43 @@
+
+        /* Oculta los elementos no deseados al imprimir */
+        @media print {
+            body { 
+                margin: 20; 
+                padding: 100; 
+                /* Asegura que el recibo ocupe todo el espacio en el papel */
+            }
+        }
+
+        /* Estilo del contenedor principal */
+        .recibo-container {
+            position: relative;
+            /* Establece el tamaño de la imagen de fondo */
+            width: 900px; /* Ajusta este valor al ancho de tu imagen */
+            height: 330px; /* Ajusta este valor a la altura de tu imagen */
+            margin: 0 auto; /* Centra el recibo */
+            background-image: url('/images/Recibo.jpg');
+            background-size: cover;
+            background-repeat: no-repeat;
+        }
+
+        /* Estilo general para el texto superpuesto */
+        .recibo-data {
+            position: absolute;
+            font-size: 13px;
+            font-family: Arial, sans-serif;
+            font-weight: bold;
+            color: black;
+            white-space: nowrap; /* Evita saltos de línea inesperados */
+        }
+        
+        /* Posiciones específicas (DEBES AJUSTAR ESTOS VALORES) */
+        #data-pv-cliente { top: 200px; left: 620px; font-size: 18px; }
+        #data-numero-recibo { top: 75px; left: 630px; font-size: 18px; }
+        #data-monto-letras { top: 180px; left: 180px; }
+        #data-nombre-cliente { top: 110px; left: 100px; }
+        #data-nombre-cliente2 { top: 110px; left: 510px; }
+        #data-concepto { top: 210px; left: 180px; }
+        #data-monto-usd { top: 120px; left: 550px; }
+        #data-fecha-dia { top: 300px; left: 100px; } 
+        #data-fecha-mes { top: 300px; left: 210px; } 
+        #data-fecha-anio { top: 300px; left: 350px; } 
