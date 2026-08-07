@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AbonoController;
 use App\Http\Controllers\GraficoController;
+use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -18,11 +19,21 @@ use Illuminate\Support\Facades\Route;
 Route::get('abono/{abono_id}/imprimir', [AbonoController::class, 'imprimirRecibo'])->name('imprimirRecibo');
 
 Route::get('/', function () {
+    return redirect()->route('login');
+});
+
+
+Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
+Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+
+
+Route::middleware(['auth'])->group(function () {
+    
+Route::get('/inicio', function () {
     return view('inicio');
-});
-Route::get('/login', function () {
-    return view('auth.login');
-});
+})->name('inicio');
+
 Route::get('/clientes', function () {
     return view('clientes');
 });
@@ -47,4 +58,6 @@ Route::prefix('abono/{cliente}')->name('abono.')->group(function () {
 Route::prefix('abono/{cliente}')->name('abono.')->group(function () {
     
     Route::post('/', [App\Http\Controllers\AbonoController::class, 'store'])->name('store'); 
+});
+
 });
