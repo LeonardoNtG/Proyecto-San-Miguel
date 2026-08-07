@@ -86,7 +86,7 @@ class AbonoController extends Controller
      */
    public function store(Request $request, Cliente $cliente)
 {
-    // 1. Validar (El campo de imagen es 'nullable')
+    // Validar (El campo de imagen es 'nullable')
     $validatedData = $request->validate([
         'monto_abonado' => 'required|numeric|min:0.01',
         'fecha_pago' => 'required|date',
@@ -99,19 +99,22 @@ class AbonoController extends Controller
     if (!$venta) {
         return back()->with('error', 'No se encontró una venta activa para este cliente.');
     }
+    if ($venta && $venta->estado_contrato === 'Rescindido') {
+        return back()->with('error', 'Operación denegada: No se pueden registrar abonos en un contrato rescindido.');
+    }
     
     DB::beginTransaction();
     try {
         $rutaRecibo = null;
 
-        // 2. Manejo Condicional de la Subida de Archivos
+        // Manejo Condicional de la Subida de Archivos
         if ($request->hasFile('ruta_recibo')) {
             // Guardar la imagen en el disco 'public' dentro de una carpeta 'abonos_recibos'
             $rutaRecibo = $request->file('ruta_recibo')->store('abonos_recibos', 'public');
             // La variable $rutaRecibo ahora contiene la ruta dentro del storage (ej: abonos_recibos/imagen_hash.jpg)
         }
 
-        // 3. Crear el Abono
+        // Crear el Abono
         Abono::create([
             'id_venta' => $venta->id_venta,
             'fecha_pago' => $validatedData['fecha_pago'],
@@ -121,7 +124,7 @@ class AbonoController extends Controller
             'ruta_recibo' => $rutaRecibo, // Se guarda la ruta o null
         ]);
 
-        // 4. (Opcional) Lógica de actualización de estado si se liquida el saldo
+        // (Opcional) Lógica de actualización de estado si se liquida el saldo
         // ...
 
         DB::commit();
