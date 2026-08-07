@@ -24,7 +24,7 @@
 
     <div class="login-container">
 
-        <img src="img/logo.png" class="logo" alt="Proyecto San Miguel">
+        <img src="{{ asset('images/logo.png') }}" class="logo" alt="Proyecto San Miguel">
 
         <h2>Sistema de Gestión </h2>
                 {{-- Errores de Validación --}}
