@@ -50,7 +50,7 @@
                                 
                                 {{-- ASUMIMOS UNA VENTA ACTIVA POR CLIENTE --}}
                                 @php
-                                    // Tomamos la primera venta (asumiendo que solo gestionamos la venta activa)
+                                    // Tomamos la primera venta 
                                     $ventaActiva = $cliente->ventas->first(); 
                                 @endphp
 
@@ -58,8 +58,8 @@
                                     <td>
                                         <span class="badge 
                                             @if($ventaActiva->estado_contrato == 'Vigente') bg-success text-white
-                                            @elseif($ventaActiva->estado_contrato == 'Finalizado') bg-info text-white
-                                            @else bg-danger text-white
+                                             @elseif($ventaActiva->estado_contrato == 'Finalizado') bg-info text-white
+                                             @else bg-danger text-white
                                             @endif">
                                             {{ $ventaActiva->estado_contrato }}
                                         </span>
@@ -72,7 +72,20 @@
                                 @endif
 
                                 <td>
-                                    {{-- Botón Abonar: Llevará al formulario de abonos --}}
+                                {{-- Botón Abonar: Llevará al formulario de abonos --}}
+                                    @php 
+                            $venta = $cliente->ventas->first(); 
+                            $esRescindido = ($venta && $venta->estado_contrato === 'Rescindido');
+                       @endphp
+
+                            @if($esRescindido)
+                             {{-- Alerta visual cuando el contrato está muerto --}}
+                                <div class="alert alert-danger d-flex align-items-center mt-3 shadow-sm" role="alert">
+                                 <div>
+                                     <div class="small">Cuenta Cerrada / Contrato Rescindido</div>
+                                </div>
+                            </div>
+                         @else
                                     <a href="{{ route('abono.create', ['cliente' => $cliente->id_cliente]) }}" class="btn btn-sm btn-success" title="Registrar Abono">
                                         <i class="fas fa-hand-holding-usd"></i> Abonar
                                     </a>
@@ -82,6 +95,7 @@
                                     </a>
                                 </td>
                             </tr>
+                            @endif
                         @empty
                             <tr>
                                 <td colspan="7" class="text-center">No se encontraron clientes registrados o que coincidan con la búsqueda.</td>
