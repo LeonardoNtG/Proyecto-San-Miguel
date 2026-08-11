@@ -61,3 +61,7 @@ Route::prefix('abono/{cliente}')->name('abono.')->group(function () {
 });
 
 });
+
+Route::get('/errores/post', function () {
+    return view('errores.post');
+});
