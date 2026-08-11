@@ -62,8 +62,8 @@
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">Opciones de Clientes:  </h6>
                         <a class="collapse-item" href="{{ route('registro.index') }}" >Vista general</a>
-                        <a class="collapse-item" href="cards.html">Cuotas</a>
-                        <a class="collapse-item" href="register.html">Estados de cuentas</a>
+                        <a class="collapse-item" href="{{ asset('/errores/post') }}">Cuotas</a>
+                        <a class="collapse-item" href="{{ asset('/errores/post') }}">Estados de cuentas</a>
                     </div>
                 </div>
             </li>

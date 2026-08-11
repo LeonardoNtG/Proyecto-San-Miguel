@@ -57,11 +57,11 @@
                     placeholder="Ingrese su contraseña">
 
                 <button
-                    type="password" name="password" id="password"
+                    type="button" 
                     id="togglePassword"
                     class="eye">
 
-                    <i class="fa-regular fa-eye"></i>
+                    <i class="fa-regular fa-eye" id="eyeIcon"></i>
 
                 </button>
 
@@ -86,11 +86,11 @@
 
     </div>
 
-    <script src="js/script.js"></script>
+    
     <!-- Scripts -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ asset('js/login.js') }}"></script>
-
+<script src="js/login.js"></script>
 </body>
 
 </html>
