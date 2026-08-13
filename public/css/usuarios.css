@@ -1,0 +1,37 @@
+/* Tarjeta y bordes redondeados */
+.card-custom {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* Tabla */
+.table thead th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+    font-weight: 600;
+    padding-top: 12px;
+    padding-bottom: 12px;
+}
+
+/* Generador de Avatar circular con la inicial */
+.avatar-circle {
+    width: 36px;
+    height: 36px;
+    background-color: #0d6efd;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.9rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Badge suave para sesión activa */
+.bg-soft-primary {
+    background-color: rgba(13, 110, 253, 0.1);
+    font-size: 0.7rem;
+}

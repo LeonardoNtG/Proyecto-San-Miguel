@@ -4,7 +4,7 @@ use App\Http\Controllers\AbonoController;
 use App\Http\Controllers\GraficoController;
 use App\Http\Controllers\AuthController;
 use Illuminate\Support\Facades\Route;
-
+use App\Http\Controllers\UsuarioController;
 
 /*
 |--------------------------------------------------------------------------
@@ -60,8 +60,13 @@ Route::prefix('abono/{cliente}')->name('abono.')->group(function () {
     Route::post('/', [App\Http\Controllers\AbonoController::class, 'store'])->name('store'); 
 });
 
+
+Route::resource('usuarios', UsuarioController::class);
+
 });
 
 Route::get('/errores/post', function () {
     return view('errores.post');
+
+    
 });
