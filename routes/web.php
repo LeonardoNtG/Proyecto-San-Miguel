@@ -60,8 +60,11 @@ Route::prefix('abono/{cliente}')->name('abono.')->group(function () {
     Route::post('/', [App\Http\Controllers\AbonoController::class, 'store'])->name('store'); 
 });
 
+Route::middleware(['auth', 'role:admin'])->group(function () {
 
-Route::resource('usuarios', UsuarioController::class);
+    Route::resource('usuarios', UsuarioController::class);
+
+});
 
 });
 

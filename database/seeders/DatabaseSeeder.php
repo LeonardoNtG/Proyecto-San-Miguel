@@ -15,7 +15,7 @@ class DatabaseSeeder extends Seeder
         public function run()
     {
          $this->call([
-        // ... otros seeders ...
+        RoleSeeder::class,
         BloqueLoteSeeder::class, 
         ]);
     }

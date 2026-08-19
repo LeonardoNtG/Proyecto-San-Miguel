@@ -1,6 +1,6 @@
 @extends('template') 
 
-@section('titulo', 'Listado de Clientes') 
+@section('titulo', 'Edicion de usuarios') 
 
 @section('contenido') 
 
@@ -67,7 +67,7 @@
                         <div class="alert alert-info border-0 shadow-sm d-flex align-items-center mb-4 py-2 px-3" role="alert">
                             <i class="fas fa-info-circle me-2 fa-lg"></i>
                             <div class="small">
-                                Deja los campos de contraseña en blanco si **no deseas cambiar** la clave actual del usuario.
+                                Deja los campos de contraseña en blanco si *no deseas cambiar* la clave actual del usuario.
                             </div>
                         </div>
 
@@ -110,6 +110,54 @@
 
                         <hr class="text-muted my-4">
 
+                        {{-- Selección de Rol --}}
+                        <div class="mb-3">
+                                <label for="role" class="form-label">Rol</label>
+                                @if(auth()->id() === $usuario->id)
+
+                            <select class="form-select" disabled>
+
+                                @foreach($roles as $rol)
+
+                                    @if($usuario->hasRole($rol->name))
+
+                                        <option selected>
+                                         {{ ucfirst($rol->name) }}
+                                        </option>
+
+                                    @endif
+
+                                @endforeach
+
+                            </select>
+
+                            <input type="hidden" name="role" value="admin">
+
+                                <div class="form-text">
+                                    <i class="fas fa-lock me-1"></i>
+                                 No puedes cambiar tu propio rol de administrador.
+                                </div>
+
+                            @else
+
+                                <select name="role" id="role" class="form-select" required>
+
+                                    @foreach($roles as $rol)
+
+                                        <option value="{{ $rol->name }}"
+                                            {{ $usuario->hasRole($rol->name) ? 'selected' : '' }}>
+
+                                            {{ ucfirst($rol->name) }}
+
+                                        </option>
+
+                                    @endforeach
+
+                                </select>
+
+                            @endif
+                        <hr class="text-muted my-4">                   
+
                         {{-- Botones de Acción --}}
                         <div class="d-flex justify-content-end gap-2">
                             <a href="{{ route('usuarios.index') }}" class="btn btn-light px-4">Cancelar</a>
@@ -131,18 +179,15 @@
 @endsection
 
 @section('scripts')
-    <script>
-            <script src="{{ asset('js/jqueryEM.js') }}"></script>
 
-    <!-- Custom scripts for all pages-->
+    <script src="{{ asset('js/jqueryEM.js') }}"></script>
+
     <script src="{{ asset('js/sbAdmin2M.js') }}"></script>
 
-    <!-- Page level plugins -->
     <script src="{{ asset('js/chartM.js') }}"></script>
 
-    <!-- Page level custom scripts -->
     <script src="{{ asset('js/chartAD.js') }}"></script>
+
     <script src="{{ asset('js/chartPD.js') }}"></script>
-    </script>
-    
+
 @endsection

@@ -41,57 +41,143 @@
                         <tr>
                             <th class="ps-4">Usuario</th>
                             <th>Correo Electrónico</th>
+                            <th>Rol</th>
                             <th>Fecha de Registro</th>
                             <th class="text-end pe-4">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody>
-                        @forelse($usuarios as $user)
-                            <tr>
-                                <td class="ps-4">
-                                    <div class="d-flex align-items-center">
-                                        <div class="avatar-circle me-3">
-                                            {{ strtoupper(substr($user->name, 0, 1)) }}
-                                        </div>
-                                        <div>
-                                            <span class="fw-semibold text-dark d-block">{{ $user->name }}</span>
-                                            @if(auth()->id() === $user->id)
-                                                <span class="badge bg-soft-primary text-primary border border-primary-subtle rounded-pill">Tú (Sesión activa)</span>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </td>
-                                <td class="text-secondary">{{ $user->email }}</td>
-                                <td class="text-muted small">
-                                    {{ $user->created_at ? $user->created_at->format('d/m/Y H:i') : 'N/A' }}
-                                </td>
-                                <td class="text-end pe-4">
-                                    <div class="btn-group" role="group">
-                                        <a href="{{ route('usuarios.edit', $user->id) }}" class="btn btn-sm btn-outline-secondary" title="Editar credenciales">
-                                            <i class="fas fa-pen"></i>
-                                        </a>
+                <tbody>
+    @forelse($usuarios as $user)
 
-                                        @if(auth()->id() !== $user->id)
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-outline-danger btn-eliminar" 
-                                                    data-id="{{ $user->id }}" 
-                                                    data-nombre="{{ $user->name }}"
-                                                    title="Eliminar usuario">
-                                                <i class="fas fa-trash-alt"></i>
-                                            </button>
-                                        @endif
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="text-center py-5 text-muted">
-                                    <i class="fas fa-users-slash fa-2x mb-2 d-block"></i>
-                                    No hay otros usuarios registrados en el sistema.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
+        <tr>
+
+            {{-- Usuario --}}
+            <td class="ps-4">
+                <div class="d-flex align-items-center">
+
+                    <div class="avatar-circle me-3">
+                        {{ strtoupper(substr($user->name, 0, 1)) }}
+                    </div>
+
+                    <div>
+                        <span class="fw-semibold text-dark d-block">
+                            {{ $user->name }}
+                        </span>
+
+                        @if(auth()->id() === $user->id)
+                            <span class="badge bg-soft-primary text-primary border border-primary-subtle rounded-pill">
+                                Tú (Sesión activa)
+                            </span>
+                        @endif
+                    </div>
+
+                </div>
+            </td>
+
+
+            {{-- Correo --}}
+            <td class="text-secondary">
+                {{ $user->email }}
+            </td>
+
+
+            {{-- Rol --}}
+            <td>
+
+                @forelse($user->roles as $rol)
+
+                    @if($rol->name === 'admin')
+
+                        <span class="badge bg-danger">
+                            <i class="fas fa-user-shield me-1"></i>
+                            Administrador
+                        </span>
+
+                    @elseif($rol->name === 'usuario')
+
+                        <span class="badge bg-primary">
+                            <i class="fas fa-user me-1"></i>
+                            Usuario
+                        </span>
+
+                    @else
+
+                        <span class="badge bg-secondary">
+                            {{ ucfirst($rol->name) }}
+                        </span>
+
+                    @endif
+
+                @empty
+
+                    <span class="text-muted small">
+                        Sin rol
+                    </span>
+
+                @endforelse
+
+            </td>
+
+
+            {{-- Fecha --}}
+            <td class="text-muted small">
+                {{ $user->created_at
+                    ? $user->created_at->format('d/m/Y H:i')
+                    : 'N/A'
+                }}
+            </td>
+
+
+            {{-- Acciones --}}
+            <td class="text-end pe-4">
+
+                <div class="btn-group" role="group">
+
+                    <a href="{{ route('usuarios.edit', $user->id) }}"
+                       class="btn btn-sm btn-outline-secondary"
+                       title="Editar usuario">
+
+                        <i class="fas fa-pen"></i>
+
+                    </a>
+
+
+                    @if(auth()->id() !== $user->id)
+
+                        <button type="button"
+                                class="btn btn-sm btn-outline-danger btn-eliminar"
+                                data-id="{{ $user->id }}"
+                                data-nombre="{{ $user->name }}"
+                                title="Eliminar usuario">
+
+                            <i class="fas fa-trash-alt"></i>
+
+                        </button>
+
+                    @endif
+
+                </div>
+
+            </td>
+
+        </tr>
+
+         @empty
+
+             <tr>
+
+                    <td colspan="5" class="text-center py-5 text-muted">
+
+                        <i class="fas fa-users-slash fa-2x mb-2 d-block"></i>
+
+                        No hay usuarios registrados en el sistema.
+
+                 </td>
+
+             </tr>
+
+            @endforelse
+                </tbody>
                 </table>
             </div>
         </div>
@@ -131,18 +217,15 @@
 @endsection
 
 @section('scripts')
-    <script>
-            <script src="{{ asset('js/jqueryEM.js') }}"></script>
 
-    <!-- Custom scripts for all pages-->
+    <script src="{{ asset('js/jqueryEM.js') }}"></script>
+
     <script src="{{ asset('js/sbAdmin2M.js') }}"></script>
 
-    <!-- Page level plugins -->
     <script src="{{ asset('js/chartM.js') }}"></script>
 
-    <!-- Page level custom scripts -->
     <script src="{{ asset('js/chartAD.js') }}"></script>
+
     <script src="{{ asset('js/chartPD.js') }}"></script>
-    </script>
-    
+
 @endsection
