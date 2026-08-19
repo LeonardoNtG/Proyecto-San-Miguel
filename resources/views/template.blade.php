@@ -31,7 +31,7 @@
         <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
 
             <!-- Sidebar - Brand -->
-            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="index.html">
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="{{ asset('/inicio') }}">
                 <div class="sidebar-brand-icon rotate-n-15">
                     <i class="fa-solid fa-book"></i>
                 </div>
@@ -61,28 +61,15 @@
                 <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">Opciones de Clientes:  </h6>
-                        <a class="collapse-item" href="{{ route('registro.index') }}" >Vista general</a>
-                        <a class="collapse-item" href="{{ asset('/errores/post') }}">Cuotas</a>
-                        <a class="collapse-item" href="{{ asset('/errores/post') }}">Estados de cuentas</a>
+                        <a class="collapse-item" href="{{ route('registro.index') }}" >Abonos</a>
+                        <a class="collapse-item" href="{{ asset('/errores/post') }}">Estados de cuenta</a>
+                        <a class="collapse-item" href="{{ asset('/errores/post') }}">Archivos</a>
                     </div>
                 </div>
             </li>
 
             <!-- Nav Item - Utilities Collapse Menu -->
-            <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseUtilities"
-                    aria-expanded="true" aria-controls="collapseUtilities">
-                    <i class="fa-solid fa-dollar-sign"></i>
-                    <span>Ingresos</span>
-                </a>
-                <div id="collapseUtilities" class="collapse" aria-labelledby="headingUtilities"
-                    data-parent="#accordionSidebar">
-                    <div class="bg-white py-2 collapse-inner rounded">
-                        <a class="collapse-item" href="utilities-color.html">Abonar</a>
-                        <a class="collapse-item" href="{{ route('dashboard.grafico') }}">Graficos</a>
-                    </div>
-                </div>
-            </li>
+
 
             <!-- Divider -->
             <hr class="sidebar-divider">
@@ -101,25 +88,28 @@
                 </a>
                 <div id="collapsePages" class="collapse" aria-labelledby="headingPages" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
-                        <h6 class="collapse-header">Reportes</h6>
-                        <a class="collapse-item" href="login.html">Generales</a>
-                        <a class="collapse-item" href="{{ route('reportes.index') }}">Salidas</a>
+                        <h6 class="collapse-header" href="{{ asset('/errores/post') }}">Reportes</h6>
+                        <a class="collapse-item" href="{{ asset('/errores/post') }}">Archivos</a>
+                        <a class="collapse-item" href="{{ route('reportes.index') }}">Egresos</a>
+                        <a class="collapse-item" href="{{ route('dashboard.grafico') }}">Graficos</a>
                     </div>
                 </div>
             </li>
 
             <!-- Nav Item - Charts -->
             <li class="nav-item">
-                <a class="nav-link" href="charts.html">
+                <a class="nav-link" href="{{ asset('/errores/post') }}">
                     <i class="fas fa-fw fa-chart-area"></i>
                     <span>Lotes</span></a>
             </li>
 
             <!-- Nav Item - Tables -->
             <li class="nav-item">
+                @role('admin')
                 <a class="nav-link" href="{{ route('usuarios.index') }}">
                     <i class="fas fa-fw fa-table"></i>
                     <span>Configuraciones</span></a>
+                    @endrole
             </li>
 
             <!-- Divider -->
@@ -184,8 +174,6 @@
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
                                 data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                 <span class="mr-2 d-none d-lg-inline text-gray-600 small">Usuario</span>
-                                <img class="img-profile rounded-circle"
-                                    src="img/undraw_profile.svg">
                             </a>
                             <!-- Dropdown - User Information -->
                             <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"

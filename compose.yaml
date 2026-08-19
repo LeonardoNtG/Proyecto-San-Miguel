@@ -23,6 +23,7 @@ services:
             - sail
         depends_on:
             - mysql
+            
     mysql:
         image: 'mysql:8.4'
         ports:
@@ -48,9 +49,24 @@ services:
                 - '-p${DB_PASSWORD}'
             retries: 3
             timeout: 5s
+
+    phpmyadmin:
+        image: 'phpmyadmin:latest'
+        restart: unless-stopped
+        ports:
+            - '8080:80'
+        environment:
+            PMA_HOST: mysql
+            PMA_PORT: 3306
+        depends_on:
+            - mysql
+        networks:
+            - sail
 networks:
     sail:
         driver: bridge
 volumes:
     sail-mysql:
         driver: local
+
+        

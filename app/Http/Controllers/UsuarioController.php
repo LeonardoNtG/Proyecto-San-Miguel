@@ -1,9 +1,10 @@
 <?php
 
 namespace App\Http\Controllers;
-use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Request;
+use App\Models\User;
+use Spatie\Permission\Models\Role;
 
 class UsuarioController extends Controller
 {
@@ -14,7 +15,8 @@ class UsuarioController extends Controller
      */
     public function index()
     {
-        $usuarios = User::paginate(10);
+        $usuarios = User::with('roles')->paginate(10);
+
         return view('usuarios.index', compact('usuarios'));
     }
 
@@ -24,9 +26,11 @@ class UsuarioController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function create()
-    {
-       return view('usuarios.create');
-    }
+{
+    $roles = Role::all();
+
+    return view('usuarios.create', compact('roles'));
+}
 
     /**
      * Store a newly created resource in storage.
@@ -34,21 +38,26 @@ class UsuarioController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-    public function store(Request $request)
+    public function store(Request $request, User $usuario)
     {
         $request->validate([
             'name'     => 'required|string|max:255',
             'email'    => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
+            'role'     => 'required|exists:roles,name',
         ]);
 
-        User::create([
+        $usuario = User::create([
             'name'     => $request->name,
             'email'    => $request->email,
             'password' => Hash::make($request->password),
         ]);
 
-        return redirect()->route('usuarios.index')->with('success', 'Usuario creado correctamente.');
+        $usuario->assignRole($request->role);
+
+        return redirect()
+            ->route('usuarios.index')
+            ->with('success', 'Usuario creado correctamente.');
     }
 
     /**
@@ -70,7 +79,9 @@ class UsuarioController extends Controller
      */
     public function edit(User $usuario)
     {
-        return view('usuarios.edit', compact('usuario'));
+        $roles = Role::all();
+
+        return view('usuarios.edit', compact('usuario', 'roles'));
     }
 
     /**
@@ -83,20 +94,32 @@ class UsuarioController extends Controller
     public function update(Request $request, User $usuario)
     {
         $request->validate([
-            'name'  => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $usuario->id,
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|string|email|max:255|unique:users,email,' . $usuario->id,
             'password' => 'nullable|string|min:8|confirmed',
+            'role' => 'required|exists:roles,name',
         ]);
 
         $usuario->name = $request->name;
         $usuario->email = $request->email;
 
-        // Solo actualiza la contraseña si el campo no viene vacío
+        if (
+        auth()->id() === $usuario->id &&
+        $usuario->hasRole('admin') &&
+        $request->role !== 'admin'
+     ) {
+        return back()
+            ->withInput()
+            ->with('error', 'No puedes quitarte el rol de administrador a ti mismo.');
+        }
+
+
         if ($request->filled('password')) {
             $usuario->password = Hash::make($request->password);
         }
 
         $usuario->save();
+        $usuario->syncRoles($request->role);
 
         return redirect()->route('usuarios.index')->with('success', 'Usuario actualizado correctamente.');
     }
@@ -109,7 +132,6 @@ class UsuarioController extends Controller
      */
     public function destroy(User $usuario)
     {
-        // Evitar que el usuario se elimine a sí mismo
         if (auth()->id() === $usuario->id) {
             return back()->with('error', 'No puedes eliminar tu propia cuenta activa.');
         }

@@ -1,6 +1,6 @@
 @extends('template') 
 
-@section('titulo', 'Listado de Clientes') 
+@section('titulo', 'Agregar Usuarios') 
 
 @section('contenido') 
 
@@ -104,7 +104,27 @@
                         </div>
 
                         <hr class="text-muted my-4">
+                        {{-- Selección de Rol --}}
+                        <div class="mb-3">
+                            <label for="role" class="form-label">Rol</label>
 
+                            <select name="role" id="role" class="form-select" required>
+                                <option value="">Seleccione un rol</option>
+
+                                @foreach($roles as $rol)
+                                    <option value="{{ $rol->name }}"
+                                        {{ old('role') == $rol->name ? 'selected' : '' }}>
+                                        {{ ucfirst($rol->name) }}
+                                    </option>
+                             @endforeach
+                            </select>
+
+                         @error('role')
+                                <div class="text-danger">
+                                 {{ $message }}
+                                </div>
+                         @enderror
+                        </div>
                         {{-- Botones de Acción --}}
                         <div class="d-flex justify-content-end gap-2">
                             <a href="{{ route('usuarios.index') }}" class="btn btn-light px-4">Cancelar</a>
@@ -125,18 +145,15 @@
 @endsection
 
 @section('scripts')
-    <script>
-            <script src="{{ asset('js/jqueryEM.js') }}"></script>
 
-    <!-- Custom scripts for all pages-->
+    <script src="{{ asset('js/jqueryEM.js') }}"></script>
+
     <script src="{{ asset('js/sbAdmin2M.js') }}"></script>
 
-    <!-- Page level plugins -->
     <script src="{{ asset('js/chartM.js') }}"></script>
 
-    <!-- Page level custom scripts -->
     <script src="{{ asset('js/chartAD.js') }}"></script>
+
     <script src="{{ asset('js/chartPD.js') }}"></script>
-    </script>
-    
+
 @endsection

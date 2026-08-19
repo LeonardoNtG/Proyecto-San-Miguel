@@ -10,9 +10,8 @@ class AuthController extends Controller
     // Muestra la vista de Login
     public function showLogin()
     {
-        // Si el usuario ya está autenticado, lo redirigimos al dashboard
         if (Auth::check()) {
-            return redirect()->route('dashboard.grafico');
+            return redirect()->route('inicio');
         }
         return view('auth.login');
     }
