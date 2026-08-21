@@ -73,7 +73,7 @@ class ClienteController extends Controller
         'pv_num' => 'required|string|unique:clientes,pv_num|max:20',
         'expediente_num' => 'required|string|unique:clientes,expediente_num|max:20',    
         'nombres_apellidos' => 'required|string|max:255', // ¿Estás enviando este campo?
-        'identificacion' => 'required|string|unique:clientes,identificacion|max:30',
+        'identificacion' => 'required|string|max:30', // Sin unique: una persona puede tener varios contratos
         'lotes_ids' => 'required|array|min:1|max:20', // NUEVA VALIDACIÓN
         'lotes_ids.*' => 'integer|exists:lotes,id_lote', // Asegura que los IDs sean válidos
         'extension_value' => 'required|numeric|min:0', // Validar el campo oculto
@@ -103,26 +103,25 @@ class ClienteController extends Controller
             'precio_final' => $request->precio_final,
             'plazo_meses' => $request->plazo_meses,
             'estado_contrato' => 'Vigente',
-            'extension_lote' => $request->extension_value, 
+            'extension_lote' => $request->extension_value,
             'cuota_mensual' => $request->cuota_mensual,
-            'total_lotes_vendidos' => count($request->lotes_ids), 
         ]);
-        
-        //  ASOCIA MÚLTIPLES LOTES A LA VENTA (Relación Many-to-Many)
-        $venta->lotes()->sync($request->lotes_ids); 
-        
+
+        // ASOCIA LOS LOTES A LA VENTA (un lote pertenece a una única venta)
+        Lote::whereIn('id_lote', $request->lotes_ids)->update([
+            'id_venta' => $venta->id_venta,
+            'estado' => 'Vendido',
+        ]);
+
         // CREA EL PRIMER ABONO (Igual)
         Abono::create([
-                'id_venta' => $venta->id_venta,                     
-                'fecha_pago' => $request->fecha_ultimo_abono ?? now(), 
-                'monto_abonado' => $request->primer_abono,          
-                'tipo_pago' => 'Prima/Primer Abono',                 
+                'id_venta' => $venta->id_venta,
+                'fecha_pago' => $request->fecha_ultimo_abono ?? now(),
+                'monto_abonado' => $request->primer_abono,
+                'tipo_pago' => 'Prima/Primer Abono',
                 'referencia' => 'Registro Inicial de Venta',
-        ]); 
+        ]);
 
-        // ACTUALIZA EL ESTADO DE CADA LOTE VENDIDO
-        Lote::whereIn('id_lote', $request->lotes_ids)->update(['estado' => 'Vendido']);
-        
         DB::commit();
 
         return redirect()->route('registro.index')->with('success', 'Cliente y Ventas de múltiples lotes registrados exitosamente.');

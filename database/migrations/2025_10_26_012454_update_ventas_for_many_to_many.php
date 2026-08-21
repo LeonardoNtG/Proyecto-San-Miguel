@@ -13,18 +13,13 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::table('ventas', function (Blueprint $table) {
-            // 1. ELIMINAR la clave foránea y la columna id_lote
-            // Nota: Debes eliminar el índice UNIQUE si existe antes de eliminar la columna.
-            // Laravel manejará esto si la restricción se creó mediante 'foreign'.
-            $table->dropForeign(['id_lote']); // Elimina la restricción FOREIGN KEY
-            $table->dropColumn('id_lote');    // Elimina la columna
-
-            // 2. AGREGAR la nueva columna
-            $table->unsignedSmallInteger('total_lotes_vendidos')
-                  ->default(1)
-                  ->after('plazo_meses');
-        });
+        if (Schema::hasColumn('ventas', 'id_lote')) {
+            Schema::table('ventas', function (Blueprint $table) {
+                $table->dropForeign(['id_lote']);
+                $table->dropUnique(['id_lote']);
+                $table->dropColumn('id_lote');
+            });
+        }
     }
 
     /**
@@ -34,13 +29,11 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::table('ventas', function (Blueprint $table) {
-            // Revertir: Volver a agregar la columna id_lote y su clave foránea
-            $table->unsignedInteger('id_lote')->nullable();
-            $table->foreign('id_lote')->references('id_lote')->on('lotes');
-            
-            // Revertir: Eliminar la nueva columna
-            $table->dropColumn('total_lotes_vendidos');
-        });
+        if (!Schema::hasColumn('ventas', 'id_lote')) {
+            Schema::table('ventas', function (Blueprint $table) {
+                $table->unsignedInteger('id_lote')->unique();
+                $table->foreign('id_lote')->references('id_lote')->on('lotes');
+            });
+        }
     }
 };

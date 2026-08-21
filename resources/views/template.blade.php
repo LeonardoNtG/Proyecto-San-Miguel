@@ -89,7 +89,7 @@
                 <div id="collapsePages" class="collapse" aria-labelledby="headingPages" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header" href="{{ asset('/errores/post') }}">Reportes</h6>
-                        <a class="collapse-item" href="{{ asset('/errores/post') }}">Archivos</a>
+                        <a class="collapse-item" href="{{ route('reportes.financiero') }}">Archivos</a>
                         <a class="collapse-item" href="{{ route('reportes.index') }}">Egresos</a>
                         <a class="collapse-item" href="{{ route('dashboard.grafico') }}">Graficos</a>
                     </div>
