@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Venta extends Model
 {
+    
     use HasFactory;
     protected $table = 'ventas';
 
@@ -31,17 +32,22 @@ class Venta extends Model
         return $this->belongsTo(Cliente::class, 'id_cliente', 'id_cliente');
     }
 
-    // Relación: Una Venta pertenece a un Lote (Many-to-One)
+    // Relación: Una Venta puede tener muchos Lotes, pero un Lote pertenece a una sola Venta (One-to-Many)
     public function lotes()
-{
-    // Argumentos: Modelo, nombre de la tabla pivote, foreign key del modelo actual, foreign key del modelo relacionado
-    return $this->belongsToMany(Lote::class, 'lote_venta', 'id_venta', 'id_lote');
-}
+    {
+        return $this->hasMany(Lote::class, 'id_venta', 'id_venta');
+    }
 
     // Relación: Una Venta tiene muchos Abonos (One-to-Many)
     public function abonos()
     {
         // La clave foránea en la tabla 'abonos' es 'id_venta'
         return $this->hasMany(Abono::class, 'id_venta', 'id_venta');
+    }
+
+    // Cantidad de lotes asociados a esta venta (usado en las vistas)
+    public function getTotalLotesVendidosAttribute()
+    {
+        return $this->lotes()->count();
     }
 }

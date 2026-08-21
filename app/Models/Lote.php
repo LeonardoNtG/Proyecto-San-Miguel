@@ -16,6 +16,7 @@ class Lote extends Model
     // 3. Campos que pueden ser asignados masivamente
     protected $fillable = [
         'id_bloque',
+        'id_venta',
         'numero_lote',
         'area_metros',
         'precio_base',
@@ -29,14 +30,14 @@ class Lote extends Model
         return $this->belongsTo(Bloque::class, 'id_bloque', 'id_bloque');
     }
     
-    // 5. Relación: Un Lote puede tener varias Ventas (aunque lo normal es solo una venta 'Vigente' o 'Finalizada')
-    
-     public function ventas()
+    // 5. Relación: Un Lote pertenece a una única Venta (Many-to-One)
+    public function venta()
     {
-         return $this->belongsToMany(Venta::class, 'lote_venta', 'id_lote', 'id_venta');
+        return $this->belongsTo(Venta::class, 'id_venta', 'id_venta');
     }
+    
     public function getLotesByBloque($bloque_id)
-{
+    {
     $lotes = Lote::where('id_bloque', $bloque_id)
                   // FILTRO CLAVE: Solo devuelve lotes disponibles
                   ->where('estado', 'Disponible') 

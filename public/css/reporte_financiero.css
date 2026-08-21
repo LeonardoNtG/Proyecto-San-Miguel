@@ -1,0 +1,340 @@
+/* ============================================================
+   REPORTE FINANCIERO — variables de color (paleta del sistema)
+   ============================================================ */
+
+:root {
+    --rf-primary: #4e73df;
+    --rf-primary-dark: #2e59d9;
+    --rf-success: #1cc88a;
+    --rf-danger: #e74a3b;
+    --rf-warning: #f6c23e;
+    --rf-info: #36b9cc;
+    --rf-dark: #5a5c69;
+    --rf-gray: #858796;
+    --rf-light: #f8f9fc;
+    --rf-border: #e3e6f0;
+}
+
+
+/* ============================================================
+   ENCABEZADO DE PÁGINA
+   ============================================================ */
+
+.rf-page-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.rf-page-header h1 {
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: var(--rf-dark);
+    margin: 0;
+}
+
+.rf-page-header .rf-subtitulo {
+    color: var(--rf-gray);
+    font-size: 0.9rem;
+    margin-top: 0.15rem;
+}
+
+.rf-acciones-exportar .btn {
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+
+/* ============================================================
+   BARRA DE FILTROS
+   ============================================================ */
+
+.rf-filtros {
+    background: #fff;
+    border: 1px solid var(--rf-border);
+    border-left: 4px solid var(--rf-primary);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.rf-filtros label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    color: var(--rf-gray);
+    margin-bottom: 0.3rem;
+}
+
+.rf-filtros select,
+.rf-filtros .form-select {
+    border-radius: 0.4rem;
+    border: 1px solid #d1d3e2;
+    font-size: 0.9rem;
+}
+
+.rf-filtros select:focus {
+    border-color: var(--rf-primary);
+    box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.2);
+}
+
+.rf-filtros .btn-primary {
+    background-color: var(--rf-primary);
+    border-color: var(--rf-primary);
+}
+
+.rf-filtros .btn-primary:hover {
+    background-color: var(--rf-primary-dark);
+    border-color: var(--rf-primary-dark);
+}
+
+
+/* ============================================================
+   TARJETAS RESUMEN (KPIs)
+   ============================================================ */
+
+.rf-kpis {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 1200px) {
+    .rf-kpis {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 700px) {
+    .rf-kpis {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.rf-kpi {
+    background: #fff;
+    border: 1px solid var(--rf-border);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+    padding: 1rem 1.1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    border-left-width: 0.28rem;
+    border-left-style: solid;
+    opacity: 0;
+    transform: translateY(8px);
+    animation: rf-fade-in 0.35s ease forwards;
+}
+
+.rf-kpi:nth-child(1) { border-left-color: var(--rf-success); animation-delay: 0.02s; }
+.rf-kpi:nth-child(2) { border-left-color: var(--rf-danger);  animation-delay: 0.08s; }
+.rf-kpi:nth-child(3) { border-left-color: var(--rf-primary); animation-delay: 0.14s; }
+.rf-kpi:nth-child(4) { border-left-color: var(--rf-info);    animation-delay: 0.20s; }
+.rf-kpi:nth-child(5) { border-left-color: var(--rf-warning); animation-delay: 0.26s; }
+
+@keyframes rf-fade-in {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.rf-kpi-icono {
+    flex: 0 0 auto;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.rf-kpi:nth-child(1) .rf-kpi-icono { background: rgba(28, 200, 138, 0.12); color: var(--rf-success); }
+.rf-kpi:nth-child(2) .rf-kpi-icono { background: rgba(231, 74, 59, 0.12); color: var(--rf-danger); }
+.rf-kpi:nth-child(3) .rf-kpi-icono { background: rgba(78, 115, 223, 0.12); color: var(--rf-primary); }
+.rf-kpi:nth-child(4) .rf-kpi-icono { background: rgba(54, 185, 204, 0.12); color: var(--rf-info); }
+.rf-kpi:nth-child(5) .rf-kpi-icono { background: rgba(246, 194, 62, 0.15); color: #b98307; }
+
+.rf-kpi-texto {
+    min-width: 0;
+}
+
+.rf-kpi-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    color: var(--rf-gray);
+    margin: 0 0 0.15rem;
+}
+
+.rf-kpi-valor {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--rf-dark);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+
+/* ============================================================
+   CUADROS / TABLAS
+   ============================================================ */
+
+.rf-cuadro {
+    background: #fff;
+    border: 1px solid var(--rf-border);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+    margin-bottom: 1.5rem;
+    overflow: hidden;
+}
+
+.rf-cuadro-header {
+    padding: 0.85rem 1.15rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--rf-border);
+}
+
+.rf-cuadro-header h2 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--rf-dark);
+    margin: 0;
+}
+
+.rf-cuadro-header.rf-header-ingresos { border-top: 3px solid var(--rf-success); }
+.rf-cuadro-header.rf-header-gastos { border-top: 3px solid var(--rf-danger); }
+
+.rf-badge-total {
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.35rem 0.75rem;
+    border-radius: 2rem;
+}
+
+.rf-badge-total.rf-ok { background: rgba(28, 200, 138, 0.12); color: #0f8a5f; }
+.rf-badge-total.rf-bad { background: rgba(231, 74, 59, 0.12); color: #b8291b; }
+
+.rf-tabla-wrap {
+    max-height: 420px;
+    overflow: auto;
+}
+
+table.rf-tabla {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+}
+
+table.rf-tabla thead th {
+    position: sticky;
+    top: 0;
+    background: var(--rf-light);
+    color: var(--rf-gray);
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.03em;
+    font-weight: 700;
+    padding: 0.65rem 0.9rem;
+    border-bottom: 2px solid var(--rf-border);
+    text-align: left;
+    white-space: nowrap;
+}
+
+table.rf-tabla tbody td {
+    padding: 0.55rem 0.9rem;
+    border-bottom: 1px solid var(--rf-border);
+    color: #3a3b45;
+    vertical-align: middle;
+}
+
+table.rf-tabla tbody tr:hover {
+    background: rgba(78, 115, 223, 0.045);
+}
+
+table.rf-tabla td.rf-num,
+table.rf-tabla th.rf-num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+table.rf-tabla .rf-monto-ingreso {
+    color: #0f8a5f;
+    font-weight: 700;
+}
+
+table.rf-monto-gasto {
+    color: #b8291b;
+    font-weight: 700;
+}
+
+.rf-vacio {
+    text-align: center;
+    color: var(--rf-gray);
+    padding: 1.5rem;
+    font-style: italic;
+}
+
+.rf-pv-badge {
+    display: inline-block;
+    background: var(--rf-light);
+    border: 1px solid var(--rf-border);
+    color: var(--rf-gray);
+    border-radius: 0.3rem;
+    padding: 0.05rem 0.4rem;
+    font-size: 0.72rem;
+    margin-left: 0.35rem;
+}
+
+
+/* ============================================================
+   PIE / FIRMAS (solo en pantalla, para previsualizar el PDF)
+   ============================================================ */
+
+.rf-firmas {
+    display: flex;
+    justify-content: space-between;
+    gap: 2rem;
+    margin: 2.5rem 0 1rem;
+    padding: 0 1rem;
+}
+
+.rf-firma {
+    flex: 1;
+    text-align: center;
+    border-top: 1px solid var(--rf-dark);
+    padding-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--rf-gray);
+    font-weight: 600;
+}
+
+
+/* ============================================================
+   RESPONSIVE / IMPRESIÓN
+   ============================================================ */
+
+@media print {
+    #accordionSidebar,
+    .topbar,
+    .rf-filtros,
+    .rf-acciones-exportar,
+    .scroll-to-top {
+        display: none !important;
+    }
+}

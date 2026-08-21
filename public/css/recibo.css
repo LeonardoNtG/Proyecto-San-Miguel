@@ -1,43 +1,474 @@
+/* ============================================================
+   CONFIGURACIÓN DE LA HOJA
+   ============================================================ */
 
-        /* Oculta los elementos no deseados al imprimir */
-        @media print {
-            body { 
-                margin: 20; 
-                padding: 100; 
-                /* Asegura que el recibo ocupe todo el espacio en el papel */
-            }
-        }
+@page {
+    size: letter landscape;
+    margin: 0;
+}
 
-        /* Estilo del contenedor principal */
-        .recibo-container {
-            position: relative;
-            /* Establece el tamaño de la imagen de fondo */
-            width: 900px; /* Ajusta este valor al ancho de tu imagen */
-            height: 330px; /* Ajusta este valor a la altura de tu imagen */
-            margin: 0 auto; /* Centra el recibo */
-            background-image: url('/images/Recibo.jpg');
-            background-size: cover;
-            background-repeat: no-repeat;
-        }
 
-        /* Estilo general para el texto superpuesto */
-        .recibo-data {
-            position: absolute;
-            font-size: 13px;
-            font-family: Arial, sans-serif;
-            font-weight: bold;
-            color: black;
-            white-space: nowrap; /* Evita saltos de línea inesperados */
-        }
-        
-        /* Posiciones específicas (DEBES AJUSTAR ESTOS VALORES) */
-        #data-pv-cliente { top: 200px; left: 620px; font-size: 18px; }
-        #data-numero-recibo { top: 75px; left: 630px; font-size: 18px; }
-        #data-monto-letras { top: 180px; left: 180px; }
-        #data-nombre-cliente { top: 110px; left: 100px; }
-        #data-nombre-cliente2 { top: 110px; left: 510px; }
-        #data-concepto { top: 210px; left: 180px; }
-        #data-monto-usd { top: 120px; left: 550px; }
-        #data-fecha-dia { top: 300px; left: 100px; } 
-        #data-fecha-mes { top: 300px; left: 210px; } 
-        #data-fecha-anio { top: 300px; left: 350px; } 
+/* ============================================================
+   CONFIGURACIÓN GENERAL
+   ============================================================ */
+
+html,
+body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: white;
+}
+
+
+/* ============================================================
+   CONTENEDOR DE LA PÁGINA
+   ============================================================ */
+
+.pagina-recibo {
+    width: 100%;
+    min-height: 100vh;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    margin: 0;
+    padding: 0;
+}
+
+
+/* ============================================================
+   IMAGEN / FORMATO DEL RECIBO
+   ============================================================ */
+
+/*
+ * Imagen original:
+ *
+ * 1265 × 464 px
+ *
+ * Relación:
+ *
+ * 1265 / 464 = 2.726
+ */
+
+.recibo-container {
+    position: relative;
+
+    /*
+     * Ocupa prácticamente todo el ancho disponible.
+     */
+    width: 100%;
+
+    /*
+     * Mantiene la proporción original de Recibo.jpg.
+     */
+    aspect-ratio: 1265 / 464;
+
+    /*
+     * Evita que el navegador deforme la imagen.
+     */
+    max-width: 100%;
+
+    /*
+     * Imagen de fondo.
+     */
+    background-image: url('/images/Recibo.jpg');
+
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: center center;
+
+    margin: 7 auto;
+}
+
+
+/* ============================================================
+   ESTILO GENERAL DE LOS DATOS
+   ============================================================ */
+
+.recibo-data {
+    position: absolute;
+
+    font-family: Arial, sans-serif;
+
+    font-size: 13px;
+    font-weight: bold;
+
+    color: #000;
+
+    white-space: nowrap;
+
+    line-height: 1;
+}
+
+
+/* ============================================================
+   ============================================================
+   RECIBO IZQUIERDO
+   ============================================================
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   NÚMERO DE RECIBO
+   ------------------------------------------------------------ */
+
+.recibo-izq-numero {
+    /*
+     * Campo "POR C$"
+     */
+    top: 15%;
+    left: 37%;
+
+    font-size: 15px;
+    color:  #FF0000;
+}
+
+
+/* ------------------------------------------------------------
+   PV / REFERENCIA
+   ------------------------------------------------------------ */
+
+.recibo-izq-pv {
+    /*
+     * Campo "POR US"
+     */
+    top: 47%;
+    left: 26.4%;
+
+    font-size: 13px;
+}
+
+
+/* ------------------------------------------------------------
+   NOMBRE DEL CLIENTE
+   ------------------------------------------------------------ */
+
+.recibo-izq-nombre {
+    top: 33.5%;
+    left: 12%;
+
+    font-size: 15px;
+}
+
+
+/* ------------------------------------------------------------
+   MONTO
+   ------------------------------------------------------------ */
+
+.recibo-izq-monto {
+    top: 25.8%;
+    left: 33%;
+
+    font-size: 15px;
+}
+
+
+/* ------------------------------------------------------------
+   MONTO EN LETRAS
+   ------------------------------------------------------------ */
+
+.recibo-izq-letras {
+    top: 40.4%;
+    left: 11%;
+
+    font-size: 13px;
+}
+
+
+/* ------------------------------------------------------------
+   CONCEPTO
+   ------------------------------------------------------------ */
+
+.recibo-izq-concepto {
+    top: 47%;
+    left: 13%;
+
+    font-size: 14px;
+}
+
+/* ------------------------------------------------------------
+   DETALLE DEL LOTE Y MONTOS (2 líneas, entre "En concepto de"
+   y la fecha, para no encimarse con nada del recibo impreso)
+   ------------------------------------------------------------ */
+
+.recibo-izq-detalle1 {
+    top: 52%;
+    left: 3.1%;
+    max-width: 40%;
+
+    font-size: 11px;
+    white-space: normal;
+}
+
+.recibo-izq-detalle2 {
+    top: 52%;
+    left: 11%;
+    max-width: 40%;
+
+    font-size: 11px;
+    white-space: normal;
+}
+
+.recibo-izq-detalle3 {
+    top: 59%;
+    left: 3.1%;
+    max-width: 40%;
+
+    font-size: 11px;
+    white-space: normal;
+}
+
+
+/* ------------------------------------------------------------
+   FECHA - DÍA
+   ------------------------------------------------------------ */
+
+.recibo-izq-dia {
+    top: 66%;
+    left: 8%;
+
+    font-size: 13px;
+}
+
+
+/* ------------------------------------------------------------
+   FECHA - MES
+   ------------------------------------------------------------ */
+
+.recibo-izq-mes {
+    top: 66%;
+    left: 25.5%;
+
+    font-size: 13px;
+}
+
+
+/* ------------------------------------------------------------
+   FECHA - AÑO
+   ------------------------------------------------------------ */
+
+.recibo-izq-anio {
+    top: 66%;
+    left: 38%;
+
+    font-size: 13px;
+}
+
+
+/* ============================================================
+   ============================================================
+   RECIBO DERECHO
+   ============================================================
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   NÚMERO DE RECIBO
+   ------------------------------------------------------------ */
+
+.recibo-der-numero {
+    top: 15%;
+    left: 90%;
+
+    font-size: 15px;
+    color:  #FF0000;
+}
+
+
+/* ------------------------------------------------------------
+   PV / REFERENCIA
+   ------------------------------------------------------------ */
+
+.recibo-der-pv {
+    top: 46%;
+    left: 71.3%;
+
+    font-size: 14px;
+}
+
+
+/* ------------------------------------------------------------
+   NOMBRE DEL CLIENTE
+   ------------------------------------------------------------ */
+
+.recibo-der-nombre {
+    top: 33%;
+    left: 56.8%;
+
+    font-size: 15px;
+}
+
+
+/* ------------------------------------------------------------
+   MONTO
+   ------------------------------------------------------------ */
+
+.recibo-der-monto {
+    top: 26%;
+    left: 88%;
+
+    font-size: 14px;
+}
+
+
+/* ------------------------------------------------------------
+   MONTO EN LETRAS
+   ------------------------------------------------------------ */
+
+.recibo-der-letras {
+    top: 40%;
+    left: 55%;
+
+    font-size: 13px;
+}
+
+
+/* ------------------------------------------------------------
+   CONCEPTO
+   ------------------------------------------------------------ */
+
+.recibo-der-concepto {
+    top: 46%;
+    left: 57.5%;
+
+    font-size: 14px;
+}
+
+
+/* ------------------------------------------------------------
+   DETALLE DEL LOTE Y MONTOS (2 líneas, entre "En concepto de"
+   y la fecha, para no encimarse con nada del recibo impreso)
+   ------------------------------------------------------------ */
+
+.recibo-der-detalle1 {
+    top: 52.6%;
+    left: 47.8%;
+    max-width: 40%;
+
+    font-size: 12px;
+    white-space: normal;
+}
+
+.recibo-der-detalle2 {
+    top: 52.6%;
+    left: 56%;
+    max-width: 40%;
+
+    font-size: 12px;
+    white-space: normal;
+}
+
+.recibo-der-detalle3 {
+    top: 59%;
+    left: 47.8%;
+    max-width: 40%;
+
+    font-size: 12px;
+    white-space: normal;
+}
+
+
+/* ------------------------------------------------------------
+   FECHA - DÍA
+   ------------------------------------------------------------ */
+
+.recibo-der-dia {
+    top: 65.5%;
+    left: 53%;
+
+    font-size: 15px;
+}
+
+
+/* ------------------------------------------------------------
+   FECHA - MES
+   ------------------------------------------------------------ */
+
+.recibo-der-mes {
+    top: 65.5%;
+    left: 73%;
+
+    font-size: 15px;
+}
+
+
+/* ------------------------------------------------------------
+   FECHA - AÑO
+   ------------------------------------------------------------ */
+
+.recibo-der-anio {
+    top: 66%;
+    left: 88%;
+
+    font-size: 15px;
+}
+
+
+/* ============================================================
+   IMPRESIÓN
+   ============================================================ */
+
+@media print {
+
+    html,
+    body {
+        width: 100%;
+        height: 100%;
+
+        margin: 0;
+        padding: 0;
+    }
+
+    .pagina-recibo {
+        width: 100%;
+        height: 100vh;
+        min-height: 0;
+
+        display: flex;
+
+        justify-content: center;
+        align-items: center;
+
+        margin: 0;
+        padding: 0;
+    }
+
+    .recibo-container {
+        width: 100%;
+
+        /*
+         * Mantener proporción de la imagen.
+         */
+        aspect-ratio: 1265 / 464;
+
+        margin: 0;
+        padding: 0;
+
+        /*
+         * Evita que la imagen se recorte.
+         */
+        background-size: 100% 100%;
+        background-repeat: no-repeat;
+
+        /*
+         * Mantiene los colores/imágenes al imprimir.
+         */
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /*
+     * Evita que el navegador agregue espacios
+     * inesperados después del recibo.
+     */
+    body {
+        overflow: hidden;
+    }
+}

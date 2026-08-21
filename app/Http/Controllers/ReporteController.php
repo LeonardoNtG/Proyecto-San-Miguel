@@ -7,9 +7,202 @@ use App\Models\Abono;
 use App\Models\Salida;
 use App\Models\CierreCaja;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReporteController extends Controller
 {
+    /**
+     * Muestra la vista interactiva del Reporte Financiero (filtros + tablas).
+     */
+    public function financiero(Request $request)
+    {
+        $data = $this->datosFinancieros($request);
+
+        return view('reportes.financiero', $data);
+    }
+
+    /**
+     * Genera el Reporte Financiero en PDF respetando los mismos filtros.
+     */
+    public function financieroPdf(Request $request)
+    {
+        $data = $this->datosFinancieros($request);
+
+        $pdf = Pdf::loadView('reportes.financiero_pdf', $data)
+            ->setPaper('letter', 'portrait');
+
+        return $pdf->download('reporte-financiero-' . $data['rangoArchivo'] . '.pdf');
+    }
+
+    /**
+     * Genera el Reporte Financiero en Excel (.xls) respetando los mismos filtros.
+     */
+    public function financieroExcel(Request $request)
+    {
+        $data = $this->datosFinancieros($request);
+
+        $html = view('reportes.financiero_excel', $data)->render();
+
+        $nombreArchivo = 'reporte-financiero-' . $data['rangoArchivo'] . '.xls';
+
+        return response($html, 200, [
+            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $nombreArchivo . '"',
+        ]);
+    }
+
+    /**
+     * Calcula los totales, listados y opciones de filtro del Reporte Financiero
+     * de acuerdo al periodo solicitado (día actual, mes, año completo o año hasta hoy).
+     */
+    private function datosFinancieros(Request $request): array
+    {
+        $periodo = $request->get('periodo', 'mes');
+        $anio = (int) $request->get('anio', now()->year);
+        $mes = (int) $request->get('mes', now()->month);
+        $fechaSeleccionada = $request->get('fecha', now()->format('Y-m-d'));
+
+        if (!in_array($periodo, ['hoy', 'dia', 'mes', 'anio', 'ytd'], true)) {
+            $periodo = 'mes';
+        }
+        if ($mes < 1 || $mes > 12) {
+            $mes = now()->month;
+        }
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fechaSeleccionada) || !strtotime($fechaSeleccionada)) {
+            $fechaSeleccionada = now()->format('Y-m-d');
+        }
+
+        switch ($periodo) {
+            case 'hoy':
+                $inicio = Carbon::today()->startOfDay();
+                $fin = Carbon::today()->endOfDay();
+                $anio = $inicio->year;
+                $etiquetaPeriodo = 'Día de hoy, ' . $inicio->locale('es')->translatedFormat('d \d\e F \d\e Y');
+                break;
+
+            case 'dia':
+                $inicio = Carbon::parse($fechaSeleccionada)->startOfDay();
+                $fin = Carbon::parse($fechaSeleccionada)->endOfDay();
+                $anio = $inicio->year;
+                $etiquetaPeriodo = $inicio->locale('es')->translatedFormat('d \d\e F \d\e Y');
+                break;
+
+            case 'anio':
+                $inicio = Carbon::create($anio, 1, 1)->startOfDay();
+                $fin = Carbon::create($anio, 12, 31)->endOfDay();
+                $etiquetaPeriodo = 'Año completo ' . $anio;
+                break;
+
+            case 'ytd':
+                $inicio = Carbon::create($anio, 1, 1)->startOfDay();
+                $fin = $anio === now()->year
+                    ? Carbon::today()->endOfDay()
+                    : Carbon::create($anio, 12, 31)->endOfDay();
+                $etiquetaPeriodo = 'Del 1 de enero al ' . $fin->locale('es')->translatedFormat('d \d\e F') . ' de ' . $anio;
+                break;
+
+            case 'mes':
+            default:
+                $periodo = 'mes';
+                $inicio = Carbon::create($anio, $mes, 1)->startOfDay();
+                $fin = $inicio->copy()->endOfMonth()->endOfDay();
+                $etiquetaPeriodo = ucfirst($inicio->locale('es')->translatedFormat('F \d\e Y'));
+                break;
+        }
+
+        $abonos = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
+            ->whereBetween('fecha_pago', [$inicio->format('Y-m-d'), $fin->format('Y-m-d')])
+            ->orderBy('fecha_pago')
+            ->orderBy('created_at')
+            ->get();
+
+        $salidas = Salida::whereBetween('fecha', [$inicio->format('Y-m-d'), $fin->format('Y-m-d')])
+            ->orderBy('fecha')
+            ->orderBy('created_at')
+            ->get();
+
+        $totalIngresos = (float) $abonos->sum('monto_abonado');
+        $totalGastos = (float) $salidas->sum('monto');
+        $balanceNeto = $totalIngresos - $totalGastos;
+
+        // Efectivo que venía arrastrado (sin cerrar) antes de iniciar el periodo filtrado
+        $saldoAnterior = $this->calcularSaldoAnterior($inicio->format('Y-m-d'));
+        $totalConSaldoAnterior = $saldoAnterior + $totalIngresos;
+
+        $clientesAbonaron = $abonos->pluck('venta.cliente.id_cliente')->filter()->unique()->count();
+
+        $filasAbonos = $abonos->map(function ($abono) {
+            $venta = $abono->venta;
+            $cliente = $venta->cliente ?? null;
+            $lotes = $venta->lotes ?? collect();
+
+            $lotesTexto = $lotes->isNotEmpty()
+                ? $lotes->map(fn ($lote) => ($lote->bloque->nombre ?? 'N/A') . '-' . $lote->numero_lote)->implode(', ')
+                : 'N/A';
+
+            $bloquesTexto = $lotes->isNotEmpty()
+                ? $lotes->pluck('bloque.nombre')->filter()->unique()->implode(', ')
+                : 'N/A';
+
+            return [
+                'fecha' => Carbon::parse($abono->fecha_pago)->format('d/m/Y'),
+                'hora' => $abono->created_at ? $abono->created_at->format('h:i A') : '-',
+                'cliente' => $cliente->nombres_apellidos ?? 'Cliente Desconocido',
+                'pv' => $cliente->pv_num ?? '-',
+                'bloques' => $bloquesTexto,
+                'lotes' => $lotesTexto,
+                'monto' => (float) $abono->monto_abonado,
+                'tipo' => $abono->tipo_pago,
+                'referencia' => $abono->referencia ?: '-',
+            ];
+        })->values();
+
+        $filasSalidas = $salidas->map(function ($salida) {
+            return [
+                'fecha' => $salida->fecha ? Carbon::parse($salida->fecha)->format('d/m/Y') : '-',
+                'hora' => $salida->created_at ? $salida->created_at->format('h:i A') : '-',
+                'descripcion' => $salida->descripcion,
+                'monto' => (float) $salida->monto,
+            ];
+        })->values();
+
+        return [
+            'periodo' => $periodo,
+            'anio' => $anio,
+            'mes' => $mes,
+            'fechaSeleccionada' => $fechaSeleccionada,
+            'etiquetaPeriodo' => $etiquetaPeriodo,
+            'inicio' => $inicio,
+            'fin' => $fin,
+            'totalIngresos' => $totalIngresos,
+            'totalGastos' => $totalGastos,
+            'balanceNeto' => $balanceNeto,
+            'saldoAnterior' => $saldoAnterior,
+            'totalConSaldoAnterior' => $totalConSaldoAnterior,
+            'clientesAbonaron' => $clientesAbonaron,
+            'cantidadAbonos' => $abonos->count(),
+            'cantidadSalidas' => $salidas->count(),
+            'filasAbonos' => $filasAbonos,
+            'filasSalidas' => $filasSalidas,
+            'aniosDisponibles' => $this->aniosDisponibles(),
+            'rangoArchivo' => $inicio->format('Ymd') . '-' . $fin->format('Ymd'),
+            'generadoEl' => now()->locale('es')->translatedFormat('d/m/Y h:i A'),
+        ];
+    }
+
+    /**
+     * Lista de años disponibles para el filtro (desde el primer abono registrado hasta el año actual).
+     */
+    private function aniosDisponibles(): array
+    {
+        $anioActual = (int) now()->year;
+        $primeraFecha = Abono::min('fecha_pago');
+        $primerAnio = $primeraFecha ? Carbon::parse($primeraFecha)->year : $anioActual;
+        $desde = min($primerAnio, $anioActual);
+
+        return range($anioActual, $desde);
+    }
+
     /**
      * Show the form for creating a new resource.
      *
@@ -20,11 +213,11 @@ class ReporteController extends Controller
     {
         // Gestionar la fecha (por defecto hoy)
         $fecha = $request->get('fecha', Carbon::today()->format('Y-m-d'));
-        $fechaAyer = Carbon::parse($fecha)->subDay()->format('Y-m-d');
 
-        // Obtener Saldo Inicial (Cierre de ayer)
-        $cierreAyer = CierreCaja::where('fecha', $fechaAyer)->first();
-        $saldoInicial = $cierreAyer ? $cierreAyer->saldo_final : 0;
+        // Efectivo Anterior: saldo del último cierre + todo lo abonado/gastado
+        // en los días posteriores que aún no se han cerrado (por si se saltó
+        // algún "Realizar Cierre de Caja").
+        $saldoInicial = $this->calcularSaldoAnterior($fecha);
 
         // Calcula Ingresos (Abonos registrados hoy)
         $ingresosHoy = Abono::whereDate('fecha_pago', $fecha)->sum('monto_abonado');
@@ -80,10 +273,14 @@ class ReporteController extends Controller
 
     public function cerrarCaja(Request $request)
     {
+        $request->validate([
+            'fecha' => 'required|date',
+        ]);
+
         // Este método guarda el estado final del día para que mañana sea el inicial
         $fecha = $request->fecha;
 
-        $saldoInicial = CierreCaja::where('fecha', Carbon::parse($fecha)->subDay()->format('Y-m-d'))->value('saldo_final') ?? 0;
+        $saldoInicial = $this->calcularSaldoAnterior($fecha);
         $ingresos = Abono::whereDate('fecha_pago', $fecha)->sum('monto_abonado');
         $egresos = Salida::whereDate('fecha', $fecha)->sum('monto');
         $saldoFinal = ($saldoInicial + $ingresos) - $egresos;
@@ -99,6 +296,37 @@ class ReporteController extends Controller
         );
 
         return redirect()->back()->with('success', 'Caja cerrada correctamente para esta fecha.');
+    }
+
+    /**
+     * Saldo que se arrastra hacia $fecha: el efectivo rara vez permanece en
+     * caja de un cierre a otro (se retira/deposita al cerrar), así que un
+     * "Realizar Cierre de Caja" ya realizado deja el saldo en $0 para el
+     * día siguiente. Solo se acumulan los abonos y salidas de los días
+     * posteriores al último cierre que todavía NO se han cerrado (aunque
+     * hayan pasado varios días sin usar "Realizar Cierre de Caja").
+     */
+    private function calcularSaldoAnterior(string $fecha): float
+    {
+        $ultimoCierre = CierreCaja::where('fecha', '<', $fecha)->orderByDesc('fecha')->first();
+
+        $saldo = 0.0;
+        $desde = $ultimoCierre ? Carbon::parse($ultimoCierre->fecha)->addDay()->format('Y-m-d') : null;
+        $hasta = Carbon::parse($fecha)->subDay()->format('Y-m-d');
+
+        if (!$desde || $desde <= $hasta) {
+            $ingresosPendientes = Abono::when($desde, fn ($q) => $q->where('fecha_pago', '>=', $desde))
+                ->where('fecha_pago', '<=', $hasta)
+                ->sum('monto_abonado');
+
+            $egresosPendientes = Salida::when($desde, fn ($q) => $q->where('fecha', '>=', $desde))
+                ->where('fecha', '<=', $hasta)
+                ->sum('monto');
+
+            $saldo += (float) $ingresosPendientes - (float) $egresosPendientes;
+        }
+
+        return $saldo;
     }
 
     public function show($id)
@@ -137,6 +365,9 @@ class ReporteController extends Controller
      */
     public function destroy($id)
     {
-        //
+        $salida = Salida::findOrFail($id);
+        $salida->delete();
+
+        return redirect()->back()->with('success', 'Salida eliminada correctamente.');
     }
 }

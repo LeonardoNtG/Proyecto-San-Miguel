@@ -133,6 +133,7 @@
                             <select class="form-select" id="tipo_pago" name="tipo_pago" required>
                                 <option value="Mensualidad">Mensualidad</option>
                                 <option value="Extraordinario">Extraordinario</option>
+                                <option value="Transeferncia">Transferencia</option>
                                 <option value="Prima/Inicial" disabled>Prima/Inicial (Ya registrada)</option>
                             </select>
                         </div>

@@ -90,7 +90,7 @@ class AbonoController extends Controller
     $validatedData = $request->validate([
         'monto_abonado' => 'required|numeric|min:0.01',
         'fecha_pago' => 'required|date',
-        'tipo_pago' => ['required', Rule::in(['Mensualidad', 'Extraordinario'])],
+        'tipo_pago' => ['required', Rule::in(['Mensualidad', 'Extraordinario','Transeferncia'])],
         'referencia' => 'nullable|string|max:255',
         'ruta_recibo' => 'nullable|image|max:2048', // max: 2MB
     ]);
@@ -194,36 +194,225 @@ class AbonoController extends Controller
         }
     }
 
-    public function imprimirRecibo($abono_id)
-{
-   // Carga el Abono e inmediatamente carga la Venta y el Cliente relacionado
-    $abono = Abono::with('venta.cliente')->findOrFail($abono_id);
-    
-    $cliente = $abono->venta->cliente ?? null;
-    
-    // Crea un objeto genérico si el cliente no se encontró (Seguridad)
-    if (!$cliente) {
-        $cliente = (object) ['nombres_apellidos' => 'Cliente Desconocido'];
-    }
+         public function imprimirRecibo($abono_id)
+        {
+        // Carga el Abono e inmediatamente carga la Venta y el Cliente relacionado
+         $abono = Abono::with('venta.cliente','venta.lotes.bloque','venta.abonos')->findOrFail($abono_id);
 
-    // Procesa el monto a letras (mantener la seguridad)
-    $monto_en_letras = method_exists($this, 'convertirMontoALetras') 
-                       ? $this->convertirMontoALetras($abono->monto_abonado) 
-                       : 'CANTIDAD EN PALABRAS N/A';
+         $venta = $abono->venta;
+
+         $cliente = $abono->venta->cliente ?? null;
+
+         // Crea un objeto genérico si el cliente no se encontró (Seguridad)
+         if (!$cliente) {
+             $cliente = (object) ['nombres_apellidos' => 'Cliente Desconocido'];
+         }
+
+            // Una venta puede tener varios lotes: se listan todos (Bloque-Lote) en el recibo
+            $lotesTexto = $venta->lotes->isNotEmpty()
+                ? $venta->lotes->map(function ($lote) {
+                    return ($lote->bloque->nombre ?? 'N/A') . '-' . $lote->numero_lote;
+                })->implode(', ')
+                : 'N/A';
+
+            $valor_total = (float) $venta->precio_final;
+        
+             $total_abonado = (float) $venta->abonos->sum('monto_abonado');
+
+             $saldo_pendiente = max(
+                 0,
+                $valor_total - $total_abonado
+                );
+
+                 $abonos_realizados = $venta->abonos->count();
+
+                $abonos_faltantes = max(
+                 0,
+                $venta->plazo_meses - $abonos_realizados
+                );
+         // Procesa el monto a letras (mantener la seguridad)
+         $monto_en_letras = method_exists($this, 'convertirMontoALetras') 
+                              ? $this->convertirMontoALetras($abono->monto_abonado) 
+                              : 'CANTIDAD EN PALABRAS N/A';
     
-    return view('abonos.recibo_imprimir', [
+              return view('abonos.recibo_imprimir', [
+
+        // Abono actual
         'pago' => $abono,
-        'cliente' => $cliente, 
-        'monto_en_letras' => $monto_en_letras
+
+        // Cliente
+        'cliente' => $cliente,
+
+        // Venta
+        'venta' => $venta,
+
+        // Lotes asociados a la venta (texto "Bloque-Lote, Bloque-Lote, ...")
+        'lotes_texto' => $lotesTexto,
+
+        // Datos económicos
+        'valor_total' => $valor_total,
+        'total_abonado' => $total_abonado,
+        'saldo_pendiente' => $saldo_pendiente,
+        'abonos_faltantes' => $abonos_faltantes,
+
+        // Monto actual en letras
+        'monto_en_letras' => $monto_en_letras,
     ]);
 }
 
-// Tendrías que definir esta función en algún lugar (puede ser en el controlador 
-// o en un Helper) o usar una librería de terceros.
-private function convertirMontoALetras($monto_en_letras) {
-    // Ejemplo muy simple y no funcional para propósitos de ilustración:
-    // if ($monto == 200) return 'Doscientos dólares'; 
-    // ... Implementa tu lógica aquí o usa un paquete como 'kwn/number-to-words'
-    return 'CANTIDAD EN PALABRAS AQUÍ';
+
+        private function convertirMontoALetras($monto)
+{
+    $monto = number_format((float) $monto, 2, '.', '');
+
+    [$entero, $decimal] = explode('.', $monto);
+
+    $entero = (int) $entero;
+    $decimal = (int) $decimal;
+
+    $texto = strtoupper(
+        $this->numeroALetras($entero)
+    );
+
+    if ($decimal > 0) {
+
+        $texto .= ' DÓLARES CON '
+            . strtoupper($this->numeroALetras($decimal))
+            . ' CENTAVOS';
+
+    } else {
+
+        $texto .= ' DÓLARES';
+
+    }
+
+    return $texto;
 }
+
+        
+        private function numeroALetras($numero)
+        {
+    $unidades = [
+        '',
+        'uno',
+        'dos',
+        'tres',
+        'cuatro',
+        'cinco',
+        'seis',
+        'siete',
+        'ocho',
+        'nueve',
+        'diez',
+        'once',
+        'doce',
+        'trece',
+        'catorce',
+        'quince',
+        'dieciséis',
+        'diecisiete',
+        'dieciocho',
+        'diecinueve',
+        'veinte'
+    ];
+
+    $decenas = [
+        '',
+        '',
+        'veinte',
+        'treinta',
+        'cuarenta',
+        'cincuenta',
+        'sesenta',
+        'setenta',
+        'ochenta',
+        'noventa'
+    ];
+
+    $centenas = [
+        '',
+        'ciento',
+        'doscientos',
+        'trescientos',
+        'cuatrocientos',
+        'quinientos',
+        'seiscientos',
+        'setecientos',
+        'ochocientos',
+        'novecientos'
+    ];
+
+    if ($numero == 0) {
+        return 'cero';
+    }
+
+    if ($numero < 21) {
+        return $unidades[$numero];
+    }
+
+    if ($numero < 100) {
+
+        if ($numero % 10 == 0) {
+            return $decenas[(int) ($numero / 10)];
+        }
+
+        if ($numero < 30) {
+            return 'veinti' . $unidades[$numero - 20];
+        }
+
+        return $decenas[(int) ($numero / 10)]
+            . ' y '
+            . $unidades[$numero % 10];
+    }
+
+    if ($numero < 1000) {
+
+        if ($numero == 100) {
+            return 'cien';
+        }
+
+        return $centenas[(int) ($numero / 100)]
+            . ($numero % 100 != 0
+                ? ' ' . $this->numeroALetras($numero % 100)
+                : '');
+    }
+
+    if ($numero < 1000000) {
+
+        $miles = intdiv($numero, 1000);
+        $resto = $numero % 1000;
+
+        if ($miles == 1) {
+            $texto = 'mil';
+        } else {
+            $texto = $this->numeroALetras($miles) . ' mil';
+        }
+
+        if ($resto > 0) {
+            $texto .= ' ' . $this->numeroALetras($resto);
+        }
+
+        return $texto;
+    }
+
+    if ($numero < 1000000000) {
+
+        $millones = intdiv($numero, 1000000);
+        $resto = $numero % 1000000;
+
+        if ($millones == 1) {
+            $texto = 'un millón';
+        } else {
+            $texto = $this->numeroALetras($millones) . ' millones';
+        }
+
+        if ($resto > 0) {
+            $texto .= ' ' . $this->numeroALetras($resto);
+        }
+
+        return $texto;
+    }
+
+    return 'cantidad demasiado grande';
+        }
 }
