@@ -165,13 +165,11 @@
     <h1>Reporte Financiero</h1>
     <div class="rfpdf-subtitulo">{{ $etiquetaPeriodo }}</div>
 
-    @if ($saldoAnterior > 0)
-        <div class="rfpdf-saldo-anterior">
-            Saldo Anterior (sin cerrar): <strong>${{ number_format($saldoAnterior, 2) }}</strong>
-            &nbsp;&mdash;&nbsp;
-            Total Disponible (Saldo Anterior + Ingresos del Periodo): <strong>${{ number_format($totalConSaldoAnterior, 2) }}</strong>
-        </div>
-    @endif
+    <div class="rfpdf-saldo-anterior">
+        Saldo Anterior (sin cerrar): <strong>${{ number_format($saldoAnterior, 2) }}</strong>
+        &nbsp;&mdash;&nbsp;
+        Total Disponible (Saldo Anterior + Ingresos del Periodo): <strong>${{ number_format($totalConSaldoAnterior, 2) }}</strong>
+    </div>
 
     <table class="rfpdf-resumen">
         <tr>

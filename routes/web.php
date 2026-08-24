@@ -16,20 +16,20 @@ use App\Http\Controllers\UsuarioController;
 | contains the "web" middleware group. Now create something great!
 |
 */
-Route::get('abono/{abono_id}/imprimir', [AbonoController::class, 'imprimirRecibo'])->name('imprimirRecibo');
-
 Route::get('/', function () {
     return redirect()->route('login');
 });
 
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+Route::post('/login', [AuthController::class, 'login'])->name('login.post')->middleware('throttle:5,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 
 Route::middleware(['auth'])->group(function () {
-    
+
+Route::get('abono/{abono_id}/imprimir', [AbonoController::class, 'imprimirRecibo'])->name('imprimirRecibo');
+
 Route::get('/inicio', function () {
     return view('inicio');
 })->name('inicio');
@@ -45,6 +45,30 @@ Route::resource('registro', App\Http\Controllers\ClienteController::class)->para
 
 Route::get('/api/bloques/{bloque}/lotes', [App\Http\Controllers\LoteController::class, 'getLotesByBloque'])
     ->name('api.lotes.by.bloque');
+
+Route::get('/api/proyectos/{proyecto}/bloques', [App\Http\Controllers\BloqueController::class, 'getBloquesByProyecto'])
+    ->where('proyecto', '.*')
+    ->name('api.bloques.by.proyecto');
+
+// Bloques y Lotes: gestión (alta/edición) restringida a administradores.
+// Las rutas /api/bloques/.../lotes y /api/proyectos/.../bloques quedan fuera
+// de este grupo a propósito: las necesita cualquier usuario autenticado para
+// registrar clientes/ventas en "/registro/create".
+Route::middleware(['role:admin'])->group(function () {
+    Route::resource('bloques', App\Http\Controllers\BloqueController::class);
+
+    Route::prefix('bloques/{bloque}/lotes')->name('lotes.')->group(function () {
+        Route::get('/', [App\Http\Controllers\LoteController::class, 'index'])->name('index');
+        Route::get('crear', [App\Http\Controllers\LoteController::class, 'create'])->name('create');
+        Route::post('/', [App\Http\Controllers\LoteController::class, 'store'])->name('store');
+    });
+
+    Route::prefix('lotes')->name('lotes.')->group(function () {
+        Route::get('{lote}/editar', [App\Http\Controllers\LoteController::class, 'edit'])->name('edit');
+        Route::put('{lote}', [App\Http\Controllers\LoteController::class, 'update'])->name('update');
+        Route::delete('{lote}', [App\Http\Controllers\LoteController::class, 'destroy'])->name('destroy');
+    });
+});
 
 Route::prefix('reportes')->name('reportes.')->group(function () {
     Route::get('financiero', [App\Http\Controllers\ReporteController::class, 'financiero'])->name('financiero');
@@ -73,10 +97,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
 });
 
-});
-
 Route::get('/errores/post', function () {
     return view('errores.post');
+});
 
-    
 });

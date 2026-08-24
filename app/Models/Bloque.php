@@ -16,6 +16,7 @@ class Bloque extends Model
     // Campos que pueden ser asignados masivamente (Mass Assignable)
     protected $fillable = [
         'nombre',
+        'proyecto',
         'descripcion',
     ];
 

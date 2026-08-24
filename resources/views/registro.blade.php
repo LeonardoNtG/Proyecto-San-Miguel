@@ -97,37 +97,44 @@
                 <h5 class="mb-3 text-info">Detalles de la Promesa de Venta</h5>
                 
                 <div class="row">
-                    {{-- Bloque (Select dinámico) --}}
+                    {{-- Proyecto (Select) --}}
                     <div class="col-md-3 mb-3">
-                        <label for="bloque" class="form-label">Bloque</label>
-                        <select class="form-select" id="bloque_select" name="bloque_id" required>
-                            <option value="">Seleccione Bloque</option>
-                            @isset($bloques)
-                                @foreach($bloques as $bloque)
-                                    <option value="{{ $bloque->id_bloque }}" @selected(old('bloque_id') == $bloque->id_bloque)>B-{{ $bloque->nombre }}</option>
+                        <label for="proyecto_select" class="form-label">Proyecto</label>
+                        <select class="form-select" id="proyecto_select" required>
+                            <option value="">Seleccione Proyecto</option>
+                            @isset($proyectos)
+                                @foreach ($proyectos as $proyecto)
+                                    <option value="{{ $proyecto }}" @selected(old('proyecto_seleccionado') == $proyecto)>{{ $proyecto }}</option>
                                 @endforeach
                             @endisset
                         </select>
                     </div>
-                    
+
+                    {{-- Bloque (Select dinámico, depende del Proyecto) --}}
+                    <div class="col-md-3 mb-3">
+                        <label for="bloque" class="form-label">Bloque</label>
+                        <select class="form-select" id="bloque_select" name="bloque_id" required disabled>
+                            <option value="">Seleccione un Proyecto primero</option>
+                        </select>
+                    </div>
+
          <div class="col-md-6 mb-3">
             <label for="lotes_seleccionados" class="form-label">Lotes Seleccionados (Máx. 20)</label>
              <select class="form-select" id="lote_select" name="lotes_ids[]" multiple required disabled size="6 ">
                  <option value="">Seleccione un Bloque primero</option>
             </select>
         </div>
-    
+        </div>
+
+        <div class="row">
           <div class="col-md-3 mb-3">
                 <label for="extension" class="form-label">Extensión TOTAL (m² o v²)</label>
                <input type="text" class="form-control" id="extension_lote" name="extension" placeholder="Se calcula automáticamente" readonly required>
                <input type="hidden" id="extension_lote_value" name="extension_value"> {{-- Campo oculto para el valor numérico --}}
          </div>
-        </div>
-
-        <div class="row">
          <div class="col-md-4 mb-3">
                <label for="monto_lote" class="form-label">Monto TOTAL de Lotes (USD)</label>
-               <input type="number" step="0.01" class="form-control" id="monto_lote" name="precio_final" value="{{ old('precio_final') }}" required>
+               <input type="number" step="0.01" class="form-control" id="monto_lote" name="precio_final" placeholder="Se sugiere según los lotes elegidos" value="{{ old('precio_final') }}" required>
          </div>
          <div class="col-md-4 mb-3">
               <label for="plazo_cuotas" class="form-label">Plazo Total (Meses)</label>
@@ -135,7 +142,7 @@
          </div>
          <div class="col-md-4 mb-3">
              <label for="cuotas" class="form-label">Valor de Cuota Mensual (USD)</label>
-               <input type="number" step="0.01" class="form-control" id="cuotas" name="cuota_mensual" value="{{ old('cuota_mensual') }}" required>
+               <input type="number" step="0.01" class="form-control" id="cuotas" name="cuota_mensual" placeholder="Se calcula según monto, prima y plazo" value="{{ old('cuota_mensual') }}" required>
           </div>
                     <div class="col-md-3 mb-3">
                         <label for="primer_abono" class="form-label">Primer Abono/Prima (USD)</label>
@@ -163,27 +170,84 @@
 @section('scripts')
 <script>
 $(document).ready(function() {
+
+    function calcularCuota() {
+        var monto = parseFloat($('#monto_lote').val()) || 0;
+        var plazo = parseInt($('#plazo_cuotas').val()) || 0;
+        var prima = parseFloat($('#primer_abono').val()) || 0;
+
+        // La prima cuenta como el primer pago del plazo total; el resto del
+        // saldo se reparte entre los meses restantes para que llegue a $0.
+        if (monto > 0 && plazo > 1) {
+            var cuota = (monto - prima) / (plazo - 1);
+            $('#cuotas').val((cuota > 0 ? cuota : 0).toFixed(2));
+        }
+    }
+
+    $('#proyecto_select').change(function() {
+        var proyecto = $(this).val();
+        var bloqueSelect = $('#bloque_select');
+        var loteSelect = $('#lote_select');
+
+        bloqueSelect.html('<option value="">Cargando bloques...</option>').prop('disabled', true);
+        loteSelect.html('<option value="">Seleccione un Bloque primero</option>').prop('disabled', true);
+        $('#extension_lote').val('');
+        $('#extension_lote_value').val('');
+        $('#monto_lote').val('');
+        calcularCuota();
+
+        if (proyecto) {
+            var ajaxUrl = '{{ url("api/proyectos") }}' + '/' + encodeURIComponent(proyecto) + '/bloques';
+
+            $.ajax({
+                url: ajaxUrl,
+                type: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    bloqueSelect.html('<option value="">Seleccione Bloque</option>');
+
+                    if (data.length > 0) {
+                        $.each(data, function(key, bloque) {
+                            bloqueSelect.append('<option value="' + bloque.id_bloque + '">B-' + bloque.nombre + '</option>');
+                        });
+                        bloqueSelect.prop('disabled', false);
+                    } else {
+                        bloqueSelect.html('<option value="">No hay bloques en este proyecto</option>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    bloqueSelect.html('<option value="">Error al cargar bloques</option>');
+                    console.error("AJAX Error:", error, status, xhr.responseText);
+                }
+            });
+        } else {
+            bloqueSelect.html('<option value="">Seleccione un Proyecto primero</option>');
+        }
+    });
+
     $('#bloque_select').change(function() {
         var bloqueId = $(this).val();
         var loteSelect = $('#lote_select');
-        var extensionInput = $('#extension_lote');
 
         loteSelect.html('<option value="">Cargando lotes...</option>').prop('disabled', true);
-        extensionInput.val('');
+        $('#extension_lote').val('');
+        $('#extension_lote_value').val('');
+        $('#monto_lote').val('');
+        calcularCuota();
 
         if (bloqueId) {
             var ajaxUrl = '{{ url("api/bloques") }}' + '/' + bloqueId + '/lotes';
-            
+
             $.ajax({
-                url: ajaxUrl, 
+                url: ajaxUrl,
                 type: 'GET',
                 dataType: 'json',
                 success: function(data) {
                     loteSelect.html('<option value="">Seleccione uno o más Lotes</option>');
-                    
+
                     if (data.length > 0) {
                         $.each(data, function(key, lote) {
-                            loteSelect.append('<option value="' + lote.id_lote + '" data-extension="' + lote.area_metros + '">' + lote.numero_lote + '</option>');
+                            loteSelect.append('<option value="' + lote.id_lote + '" data-extension="' + lote.area_metros + '" data-precio="' + lote.precio_base + '">' + lote.numero_lote + '</option>');
                         });
                         loteSelect.prop('disabled', false);
                     } else {
@@ -200,17 +264,28 @@ $(document).ready(function() {
 
     $('#lote_select').change(function() {
         var totalExtension = 0;
-        
+        var totalMonto = 0;
+
         $(this).find('option:selected').each(function() {
-            var extension = parseFloat($(this).data('extension')); 
+            var extension = parseFloat($(this).data('extension'));
+            var precio = parseFloat($(this).data('precio'));
             if (!isNaN(extension)) {
                 totalExtension += extension;
+            }
+            if (!isNaN(precio)) {
+                totalMonto += precio;
             }
         });
 
         $('#extension_lote').val(totalExtension.toFixed(2) + ' vrs2');
         $('#extension_lote_value').val(totalExtension.toFixed(2));
+        $('#monto_lote').val(totalMonto.toFixed(2));
+        calcularCuota();
     });
+
+    // El monto, el plazo y la prima siguen siendo editables: recalculan la
+    // cuota sugerida, pero el usuario puede ajustarla manualmente después.
+    $('#monto_lote, #plazo_cuotas, #primer_abono').on('input', calcularCuota);
 });
 </script>
             <script src="{{ asset('js/jqueryEM.js') }}"></script>

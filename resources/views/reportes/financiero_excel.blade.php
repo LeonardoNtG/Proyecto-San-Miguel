@@ -26,7 +26,6 @@
     <tr><td class="rfx-subtitulo" colspan="8">{{ $etiquetaPeriodo }} &mdash; Generado el {{ $generadoEl }}</td></tr>
     <tr><td colspan="8">&nbsp;</td></tr>
 
-    @if ($saldoAnterior > 0)
     <tr>
         <td class="rfx-saldo-anterior" colspan="8">
             Saldo Anterior (sin cerrar): {{ number_format($saldoAnterior, 2, '.', '') }}
@@ -35,7 +34,6 @@
         </td>
     </tr>
     <tr><td colspan="8">&nbsp;</td></tr>
-    @endif
 
     <tr>
         <td class="rfx-resumen-label">Total Ingresos</td>

@@ -63,11 +63,12 @@
                     @if($venta)
                         <div class="row">
                             <div class="col-md-6">
-                                <p><strong>Estado Contrato:</strong> 
+                                <p><strong>Estado Contrato:</strong>
                                     <span class="badge bg-{{ $venta->estado_contrato == 'Vigente' ? 'success' : ($venta->estado_contrato == 'Finalizado' ? 'info' : 'danger') }} text-white">
                                         {{ $venta->estado_contrato }}
                                     </span>
                                 </p>
+                                <p><strong>Proyecto:</strong> {{ $venta->proyecto ?? 'N/A' }}</p>
                                 <p><strong>Precio Final:</strong> ${{ number_format($venta->precio_final, 2) }}</p>
                                 <p><strong>Plazo (Meses):</strong> {{ $venta->plazo_meses }}</p>
                                 <p><strong>Cuota Mensual:</strong> ${{ number_format($venta->cuota_mensual, 2) }}</p>

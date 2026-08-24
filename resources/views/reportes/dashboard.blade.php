@@ -1,149 +1,198 @@
-@extends('template') {{-- Hereda la plantilla principal --}}
+@extends('template')
 
-@section('titulo', 'Inicio') {{-- Define el contenido de la sección 'titulo' --}}
-
+@section('titulo', 'Gráficos y Estadísticas')
 
 @section('contenido')
-<link rel="stylesheet" href="reporte.css">
-<div class="container py-4">
-    <h2 class="mb-4 fw-bold text-dark">Avance del Sistema: Análisis Mensual</h2>
 
-    <div class="row mb-4">
-    <div class="col-md-3">
-        <div class="card-widget shadow-sm">
-            <div class="widget-icon bg-success-light text-success">
-                <i class="fas fa-hand-holding-usd"></i>
+<link rel="stylesheet" href="{{ asset('css/reporte_financiero.css') }}">
+<link rel="stylesheet" href="{{ asset('css/graficos.css') }}">
+
+<div class="rf-page-header">
+    <div>
+        <h1><i class="fas fa-chart-line me-2 text-primary"></i> Gráficos y Estadísticas</h1>
+        <div class="rf-subtitulo">{{ $etiquetaGrupo }} &middot; Generado el {{ $generadoEl }}</div>
+    </div>
+    <div class="rf-acciones-exportar d-flex gap-2">
+        <button type="button" id="gr-btn-imprimir" class="btn btn-danger">
+            <i class="fas fa-file-pdf me-1"></i> Imprimir PDF
+        </button>
+    </div>
+</div>
+
+{{-- ================================================= --}}
+{{-- FILTROS --}}
+{{-- ================================================= --}}
+<div class="rf-filtros">
+    <form id="gr-form-filtros" method="GET" action="{{ route('dashboard.grafico') }}">
+        <div class="row g-3 align-items-end">
+            <div class="col-6 col-md-3">
+                <label for="gr-agrupacion">Agrupar por</label>
+                <select id="gr-agrupacion" name="agrupacion" class="form-select">
+                    <option value="dia" @selected($agrupacion === 'dia')>Día</option>
+                    <option value="mes" @selected($agrupacion === 'mes')>Mes</option>
+                    <option value="anio" @selected($agrupacion === 'anio')>Año (histórico)</option>
+                </select>
             </div>
-            <div class="widget-content">
-                <span class="widget-label">Ingresos (2024)</span>
-                <h4 class="widget-value">${{ number_format($totalIngresosAnio, 2) }}</h4>
+
+            <div class="col-6 col-md-3 {{ $agrupacion === 'anio' ? 'd-none' : '' }}" id="gr-grupo-anio">
+                <label for="gr-anio">Año</label>
+                <select id="gr-anio" name="anio" class="form-select">
+                    @foreach ($aniosDisponibles as $anioOpcion)
+                        <option value="{{ $anioOpcion }}" @selected($anio === $anioOpcion)>{{ $anioOpcion }}</option>
+                    @endforeach
+                </select>
             </div>
+
+            <div class="col-6 col-md-3 {{ $agrupacion === 'dia' ? '' : 'd-none' }}" id="gr-grupo-mes">
+                <label for="gr-mes">Mes</label>
+                <select id="gr-mes" name="mes" class="form-select">
+                    @foreach ($nombresMeses as $numero => $nombre)
+                        <option value="{{ $numero }}" @selected($mes === $numero)>{{ $nombre }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+    </form>
+</div>
+
+{{-- ================================================= --}}
+{{-- KPIs --}}
+{{-- ================================================= --}}
+<div class="rf-kpis">
+    <div class="rf-kpi">
+        <div class="rf-kpi-icono"><i class="fas fa-hand-holding-usd"></i></div>
+        <div class="rf-kpi-texto">
+            <p class="rf-kpi-label">Ingresos ({{ $etiquetaGrupo }})</p>
+            <p class="rf-kpi-valor" data-gr-contador="{{ $totalIngresos }}" data-gr-moneda>$0.00</p>
+        </div>
+    </div>
+    <div class="rf-kpi">
+        <div class="rf-kpi-icono"><i class="fas fa-money-bill-wave"></i></div>
+        <div class="rf-kpi-texto">
+            <p class="rf-kpi-label">Gastos ({{ $etiquetaGrupo }})</p>
+            <p class="rf-kpi-valor" data-gr-contador="{{ $totalGastos }}" data-gr-moneda>$0.00</p>
+        </div>
+    </div>
+    <div class="rf-kpi">
+        <div class="rf-kpi-icono"><i class="fas fa-balance-scale"></i></div>
+        <div class="rf-kpi-texto">
+            <p class="rf-kpi-label">Balance Neto</p>
+            <p class="rf-kpi-valor" data-gr-contador="{{ $balanceNeto }}" data-gr-moneda>$0.00</p>
+        </div>
+    </div>
+    <div class="rf-kpi">
+        <div class="rf-kpi-icono"><i class="fas fa-users"></i></div>
+        <div class="rf-kpi-texto">
+            <p class="rf-kpi-label">Total Clientes</p>
+            <p class="rf-kpi-valor" data-gr-contador="{{ $totalClientes }}">0</p>
+        </div>
+    </div>
+    <div class="rf-kpi">
+        <div class="rf-kpi-icono"><i class="fas fa-file-signature"></i></div>
+        <div class="rf-kpi-texto">
+            <p class="rf-kpi-label">Total Contratos</p>
+            <p class="rf-kpi-valor" data-gr-contador="{{ $totalContratos }}">0</p>
+        </div>
+    </div>
+</div>
+
+{{-- ================================================= --}}
+{{-- FILA 1: Ingresos vs Gastos + Distribución de Contratos --}}
+{{-- ================================================= --}}
+<div class="gr-grid">
+    <div class="gr-card">
+        <div class="gr-card-header">
+            <h2><i class="fas fa-chart-bar text-primary me-1"></i> Ingresos vs Gastos</h2>
+            <span class="gr-total {{ $balanceNeto >= 0 ? 'gr-ok' : 'gr-bad' }}">Balance: ${{ number_format($balanceNeto, 2) }}</span>
+        </div>
+        <div class="gr-canvas-wrap gr-tall">
+            <canvas id="grChartComparativo"></canvas>
         </div>
     </div>
 
-    <div class="col-md-3">
-        <div class="card-widget shadow-sm">
-            <div class="widget-icon bg-danger-light text-danger">
-                <i class="fas fa-money-bill-wave"></i>
-            </div>
-            <div class="widget-content">
-                <span class="widget-label">Gastos (2024)</span>
-                <h4 class="widget-value">${{ number_format($totalEgresosAnio, 2) }}</h4>
-            </div>
+    <div class="gr-card">
+        <div class="gr-card-header">
+            <h2><i class="fas fa-file-contract text-info me-1"></i> Contratos — Distribución Actual</h2>
         </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="card-widget shadow-sm">
-            <div class="widget-icon bg-primary-light text-primary">
-                <i class="fas fa-vault"></i>
-            </div>
-            <div class="widget-content">
-                <span class="widget-label">Balance Neto</span>
-                <h4 class="widget-value">${{ number_format($balanceNetoAnio, 2) }}</h4>
-            </div>
+        <div class="gr-canvas-wrap gr-donut">
+            <canvas id="grChartDistribucion"></canvas>
         </div>
-    </div>
-
-    <div class="col-md-3">
-        <div class="card-widget shadow-sm">
-            <div class="widget-icon bg-info-light text-info">
-                <i class="fas fa-users"></i>
+        <div class="gr-estado-leyenda">
+            <div>
+                <span class="gr-valor">{{ $totalVigentes }}</span>
+                <span class="gr-etiqueta">Vigentes</span>
             </div>
-            <div class="widget-content">
-                <span class="widget-label">Total Clientes</span>
-                <h4 class="widget-value">{{ $totalClientesTotal }}</h4>
+            <div>
+                <span class="gr-valor">{{ $totalFinalizados }}</span>
+                <span class="gr-etiqueta">Finalizados</span>
+            </div>
+            <div>
+                <span class="gr-valor">{{ $totalRescindidos }}</span>
+                <span class="gr-etiqueta">Rescindidos</span>
             </div>
         </div>
     </div>
 </div>
-    <div class="row">
-        {{-- Gráfica de Dinero (Ingresos vs Egresos) --}}
-        <div class="col-md-8 mb-4">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white fw-bold">Flujo de Caja (Ingresos vs Egresos)</div>
-                <div class="card-body">
-                    <canvas id="chartFlujoCaja" height="130"></canvas>
-                </div>
-            </div>
-        </div>
 
-        {{-- Gráfica de Clientes --}}
-        <div class="col-md-4 mb-4">
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-white fw-bold">Nuevos Clientes</div>
-                <div class="card-body">
-                    <canvas id="chartClientes" height="315"></canvas>
-                </div>
-            </div>
+{{-- ================================================= --}}
+{{-- FILA 2: Ingresos y Gastos por separado --}}
+{{-- ================================================= --}}
+<div class="gr-grid-2">
+    <div class="gr-card">
+        <div class="gr-card-header">
+            <h2><i class="fas fa-arrow-trend-up text-success me-1"></i> Ingresos</h2>
+            <span class="gr-total gr-ok">Total: ${{ number_format($totalIngresos, 2) }}</span>
+        </div>
+        <div class="gr-canvas-wrap">
+            <canvas id="grChartIngresos"></canvas>
+        </div>
+    </div>
+
+    <div class="gr-card">
+        <div class="gr-card-header">
+            <h2><i class="fas fa-arrow-trend-down text-danger me-1"></i> Gastos</h2>
+            <span class="gr-total gr-bad">Total: ${{ number_format($totalGastos, 2) }}</span>
+        </div>
+        <div class="gr-canvas-wrap">
+            <canvas id="grChartGastos"></canvas>
         </div>
     </div>
 </div>
+
+{{-- ================================================= --}}
+{{-- FILA 3: Contratos por Estado, en el tiempo --}}
+{{-- ================================================= --}}
+<div class="gr-card mb-4">
+    <div class="gr-card-header">
+        <h2><i class="fas fa-people-group text-primary me-1"></i> Contratos Nuevos por Estado ({{ $etiquetaGrupo }})</h2>
+        <span class="gr-total gr-neutro">Total Contratos: {{ $totalContratos }}</span>
+    </div>
+    <div class="gr-canvas-wrap gr-tall">
+        <canvas id="grChartContratos"></canvas>
+    </div>
+</div>
+
 @endsection
+
+@php
+    $chartPayload = [
+        'labels' => $labels,
+        'dataIngresos' => $dataIngresos,
+        'dataGastos' => $dataGastos,
+        'dataBalance' => $dataBalance,
+        'dataVigente' => $dataVigente,
+        'dataFinalizado' => $dataFinalizado,
+        'dataRescindido' => $dataRescindido,
+        'totalVigentes' => $totalVigentes,
+        'totalFinalizados' => $totalFinalizados,
+        'totalRescindidos' => $totalRescindidos,
+    ];
+@endphp
+
 @section('scripts')
-{{-- CDN de Chart.js --}}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
-    // 1. Datos del Flujo de Caja (Barras)
-    const ctxFlujo = document.getElementById('chartFlujoCaja');
-    new Chart(ctxFlujo, {
-        type: 'bar',
-        data: {
-            labels: @json($meses),
-            datasets: [{
-                label: 'Ingresos ($)',
-                data: @json($dataIngresos),
-                backgroundColor: 'rgba(46, 204, 113, 0.7)',
-                borderColor: '#2ecc71',
-                borderWidth: 1
-            }, {
-                label: 'Egresos ($)',
-                data: @json($dataEgresos),
-                backgroundColor: 'rgba(231, 76, 60, 0.7)',
-                borderColor: '#e74c3c',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { position: 'bottom' } }
-        }
-    });
-
-    // 2. Datos de Clientes (Línea)
-    const ctxClientes = document.getElementById('chartClientes');
-    new Chart(ctxClientes, {
-        type: 'line',
-        data: {
-            labels: @json($meses),
-            datasets: [{
-                label: 'Clientes Registrados',
-                data: @json($dataClientes),
-                fill: true,
-                backgroundColor: 'rgba(52, 152, 219, 0.2)',
-                borderColor: '#3498db',
-                tension: 0.4,
-                pointRadius: 5
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-        }
-    });
+    window.graficosData = @json($chartPayload);
 </script>
-<script src="{{ asset('js/jqueryEM.js') }}"></script>
-
-        <!-- Custom scripts for all pages-->
-    
-        <script src="{{ asset('js/sbAdmin2M.js') }}"></script>
-
-    <!-- Page level plugins -->
-    <script src="{{ asset('js/chartM.js') }}"></script>
-
-    <!-- Page level custom scripts -->
-    <script src="{{ asset('js/chartAD.js') }}"></script>
-    <script src="{{ asset('js/chartPD.js') }}"></script>
-    </script>
+<script src="{{ asset('js/graficos_dashboard.js') }}"></script>
 @endsection

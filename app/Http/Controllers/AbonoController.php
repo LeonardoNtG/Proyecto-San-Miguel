@@ -92,7 +92,7 @@ class AbonoController extends Controller
         'fecha_pago' => 'required|date',
         'tipo_pago' => ['required', Rule::in(['Mensualidad', 'Extraordinario','Transeferncia'])],
         'referencia' => 'nullable|string|max:255',
-        'ruta_recibo' => 'nullable|image|max:2048', // max: 2MB
+        'ruta_recibo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048', // max: 2MB; se excluye svg/gif (riesgo XSS/animación) a propósito
     ]);
 
     $venta = $cliente->ventas->first();

@@ -96,12 +96,22 @@
                 </div>
             </li>
 
-            <!-- Nav Item - Charts -->
+            <!-- Nav Item - Archivos Collapse Menu (solo Admin: gestiona Bloques y Lotes) -->
+            @role('admin')
             <li class="nav-item">
-                <a class="nav-link" href="{{ asset('/errores/post') }}">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseArchivos"
+                    aria-expanded="true" aria-controls="collapseArchivos">
                     <i class="fas fa-fw fa-chart-area"></i>
-                    <span>Lotes</span></a>
+                    <span>Archivos</span>
+                </a>
+                <div id="collapseArchivos" class="collapse" aria-labelledby="headingArchivos" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <h6 class="collapse-header">Lotificación:</h6>
+                        <a class="collapse-item" href="{{ route('bloques.index') }}">Bloques y Lotes</a>
+                    </div>
+                </div>
             </li>
+            @endrole
 
             <!-- Nav Item - Tables -->
             <li class="nav-item">
