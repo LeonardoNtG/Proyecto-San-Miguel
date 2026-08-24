@@ -65,7 +65,7 @@
                                         </span>
                                     </td>
                                     <td>${{ number_format($ventaActiva->total_abonado, 2) }}</td>
-                                    <td>{{ $ventaActiva->created_at->format('d/M/Y') }}</td> 
+                                    <td>{{ $ventaActiva->created_at->translatedFormat('d/M/Y') }}</td> 
                                 @else
                                     <td colspan="2"><span class="badge bg-secondary text-white">Sin Venta Activa</span></td>
                                     <td>-</td>

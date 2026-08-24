@@ -17,6 +17,7 @@ class Venta extends Model
     // Campos que deben permitir asignación masiva
     protected $fillable = [
         'id_cliente',
+        'proyecto',
         'fecha_venta',
         'precio_final', // Monto total del lote
         'plazo_meses',

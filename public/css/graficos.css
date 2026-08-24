@@ -1,0 +1,150 @@
+/* ============================================================
+   GRÁFICOS — reutiliza los tokens de color de reporte_financiero.css
+   (--rf-primary, --rf-success, --rf-danger, --rf-info, --rf-warning...)
+   ============================================================ */
+
+.gr-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+.gr-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+@media (max-width: 992px) {
+    .gr-grid,
+    .gr-grid-2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.gr-card {
+    background: #fff;
+    border: 1px solid var(--rf-border);
+    border-radius: 0.5rem;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.1);
+    padding: 1.1rem 1.25rem 1.4rem;
+    opacity: 0;
+    transform: translateY(8px);
+    animation: gr-fade-in 0.35s ease forwards;
+}
+
+.gr-card:nth-of-type(1) { animation-delay: 0.02s; }
+.gr-card:nth-of-type(2) { animation-delay: 0.08s; }
+.gr-card:nth-of-type(3) { animation-delay: 0.14s; }
+.gr-card:nth-of-type(4) { animation-delay: 0.20s; }
+.gr-card:nth-of-type(5) { animation-delay: 0.26s; }
+
+@keyframes gr-fade-in {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.gr-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.85rem;
+}
+
+.gr-card-header h2 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--rf-dark);
+    margin: 0;
+}
+
+.gr-card-header .gr-total {
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 0.25rem 0.65rem;
+    border-radius: 2rem;
+}
+
+.gr-total.gr-ok { background: rgba(28, 200, 138, 0.12); color: #0f8a5f; }
+.gr-total.gr-bad { background: rgba(231, 74, 59, 0.12); color: #b8291b; }
+.gr-total.gr-neutro { background: rgba(78, 115, 223, 0.12); color: #2e59d9; }
+
+.gr-canvas-wrap {
+    position: relative;
+    height: 280px;
+}
+
+.gr-canvas-wrap.gr-tall {
+    height: 320px;
+}
+
+.gr-canvas-wrap.gr-donut {
+    height: 220px;
+}
+
+.gr-estado-leyenda {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 0.85rem;
+    text-align: center;
+}
+
+.gr-estado-leyenda .gr-punto {
+    display: inline-block;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    margin-right: 0.3rem;
+}
+
+.gr-estado-leyenda span.gr-valor {
+    display: block;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--rf-dark);
+}
+
+.gr-estado-leyenda span.gr-etiqueta {
+    font-size: 0.72rem;
+    color: var(--rf-gray);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+
+/* ============================================================
+   IMPRESIÓN
+   ============================================================ */
+
+@media print {
+    #accordionSidebar,
+    .topbar,
+    .rf-filtros,
+    .rf-acciones-exportar,
+    .scroll-to-top {
+        display: none !important;
+    }
+
+    .gr-grid,
+    .gr-grid-2 {
+        grid-template-columns: 1fr !important;
+    }
+
+    .gr-card {
+        box-shadow: none;
+        border: 1px solid #ccc;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        margin-bottom: 1rem;
+    }
+
+    .gr-canvas-wrap,
+    .gr-canvas-wrap.gr-tall {
+        height: 260px;
+    }
+}

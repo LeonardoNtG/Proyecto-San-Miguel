@@ -52,11 +52,10 @@ class ClienteController extends Controller
     
     public function create()
     {
-        // Muestra todos los bloques disponibles
-    $bloques = Bloque::all();
+        // Proyectos disponibles (el Bloque y el Lote se cargan luego vía AJAX en cascada)
+        $proyectos = Bloque::whereNotNull('proyecto')->distinct()->orderBy('proyecto')->pluck('proyecto');
 
-    // Pasa los bloques a la vista
-    return view('registro', compact('bloques'));
+        return view('registro', compact('proyectos'));
     }
 
     /**
@@ -95,11 +94,16 @@ class ClienteController extends Controller
         'oficio' => $request->oficio,                       
     ]);
 
+        // Proyecto: se hereda del Bloque de los lotes seleccionados (no se confía en un campo del formulario)
+        $primerLote = Lote::with('bloque')->whereIn('id_lote', $request->lotes_ids)->first();
+        $proyecto = $primerLote?->bloque?->proyecto;
+
         // CREA LA VENTA/PROMESA
-       
+
         $venta = Venta::create([
             'id_cliente' => $cliente->id_cliente,
-            'fecha_venta' => now(), 
+            'proyecto' => $proyecto,
+            'fecha_venta' => now(),
             'precio_final' => $request->precio_final,
             'plazo_meses' => $request->plazo_meses,
             'estado_contrato' => 'Vigente',
