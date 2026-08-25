@@ -26,144 +26,166 @@
     </div>
 @endif
 
-    <h1>Ingrese la Informacion del Cliente</h1>
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-user-plus text-primary"></i> Registro de Cliente y Promesa de Venta</h1>
+</div>
 
-<div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Formulario de Registro de Cliente y Venta de Lote</h6>
+<form action="{{ route('registro.store') }}" method="POST">
+    @csrf
+
+    {{-- SECCIÓN 1: DATOS PERSONALES DEL CLIENTE --}}
+    <div class="card shadow-sm border-left-primary mb-4">
+        <div class="card-header py-3 bg-white">
+            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-user"></i> Datos Personales y de Contacto</h6>
         </div>
-        <div class="card-body">
-            
-            <form action="{{ route('registro.store') }}" method="POST">
-                @csrf
-
-                {{-- ================================================= --}}
-                {{-- SECCIÓN 1: DATOS PERSONALES DEL CLIENTE --}}
-                {{-- ================================================= --}}
-                <h4 class="mb-3 text-info">Datos del Cliente / Representante</h4>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="nombre_completo" class="form-label">Nombre Completo / Representante</label>
-                        <input type="text" class="form-control" id="nombre_completo" name="nombres_apellidos" value="{{ old('nombres_apellidos') }}" required>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="cedula" class="form-label">Cédula</label>
-                        <input type="text" class="form-control" id="cedula" name="identificacion" value="{{ old('identificacion') }}" required>
-                    </div>
-
-                    <div class="col-md-3 mb-3">
-                      <label for="pv_num" class="form-label">N° Promesa Venta (PV)</label>
-                        <input type="text" class="form-control" id="pv_num" name="pv_num" value="{{ old('pv_num') }}" placeholder="Ej: PV-001" required>
-                    </div>
-                 </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="expediente_num" class="form-label">N° de Expediente</label>
-                        <input type="text" class="form-control" id="expediente_num" name="expediente_num" value="{{ old('expediente_num') }}" placeholder="Ej: EXP-005" required>
-                    </div>
+        <div class="card-body bg-light">
+            <div class="row g-3">
+                <div class="col-md-5 mb-3">
+                    <label for="nombre_completo" class="form-label font-weight-bold text-secondary">Nombre Completo / Representante</label>
+                    <input type="text" class="form-control" id="nombre_completo" name="nombres_apellidos" value="{{ old('nombres_apellidos') }}" required>
                 </div>
-
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label for="telefono" class="form-label">Teléfono</label>
-                        <input type="tel" class="form-control" id="telefono" name="telefono" value="{{ old('telefono') }}">
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="estado_civil" class="form-label">Estado Civil</label>
-                        <select class="form-select" id="estado_civil" name="estado_civil" required>
-                            <option value="">Seleccione...</option>
-                            <option value="soltero" @selected(old('estado_civil') == 'soltero')>Soltero(a)</option>
-                            <option value="casado" @selected(old('estado_civil') == 'casado')>Casado(a)</option>
-                            <option value="union_libre" @selected(old('estado_civil') == 'union_libre')>Unión Libre</option>
-                            <option value="divorciado" @selected(old('estado_civil') == 'divorciado')>Divorciado(a)</option>
-                            <option value="viudo" @selected(old('estado_civil') == 'viudo')>Viudo(a)</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label for="oficio" class="form-label">Oficio</label>
-                        <input type="text" class="form-control" id="oficio" name="oficio" value="{{ old('oficio') }}">
-                    </div>
+                <div class="col-md-3 mb-3">
+                    <label for="cedula" class="form-label font-weight-bold text-secondary">Cédula</label>
+                    <input type="text" class="form-control" id="cedula" name="identificacion" value="{{ old('identificacion') }}" placeholder="000-000000-0000A" required>
                 </div>
-
-                <div class="mb-4">
-                    <label for="direccion" class="form-label">Dirección</label>
-                    <textarea class="form-control" id="direccion" name="direccion" rows="2">{{ old('direccion') }}</textarea>
+                <div class="col-md-2 mb-3">
+                    <label for="pv_num" class="form-label font-weight-bold text-secondary">N° PV</label>
+                    <input type="text" class="form-control" id="pv_num" name="pv_num" value="{{ old('pv_num') }}" placeholder="PV-001" required>
                 </div>
-                
-                <hr class="my-4">
-
-                {{-- ================================================= --}}
-                {{-- SECCIÓN 2: DATOS DE LA VENTA / LOTE --}}
-                {{-- ================================================= --}}
-                <h5 class="mb-3 text-info">Detalles de la Promesa de Venta</h5>
-                
-                <div class="row">
-                    {{-- Proyecto (Select) --}}
-                    <div class="col-md-3 mb-3">
-                        <label for="proyecto_select" class="form-label">Proyecto</label>
-                        <select class="form-select" id="proyecto_select" required>
-                            <option value="">Seleccione Proyecto</option>
-                            @isset($proyectos)
-                                @foreach ($proyectos as $proyecto)
-                                    <option value="{{ $proyecto }}" @selected(old('proyecto_seleccionado') == $proyecto)>{{ $proyecto }}</option>
-                                @endforeach
-                            @endisset
-                        </select>
-                    </div>
-
-                    {{-- Bloque (Select dinámico, depende del Proyecto) --}}
-                    <div class="col-md-3 mb-3">
-                        <label for="bloque" class="form-label">Bloque</label>
-                        <select class="form-select" id="bloque_select" name="bloque_id" required disabled>
-                            <option value="">Seleccione un Proyecto primero</option>
-                        </select>
-                    </div>
-
-         <div class="col-md-6 mb-3">
-            <label for="lotes_seleccionados" class="form-label">Lotes Seleccionados (Máx. 20)</label>
-             <select class="form-select" id="lote_select" name="lotes_ids[]" multiple required disabled size="6 ">
-                 <option value="">Seleccione un Bloque primero</option>
-            </select>
-        </div>
-        </div>
-
-        <div class="row">
-          <div class="col-md-3 mb-3">
-                <label for="extension" class="form-label">Extensión TOTAL (m² o v²)</label>
-               <input type="text" class="form-control" id="extension_lote" name="extension" placeholder="Se calcula automáticamente" readonly required>
-               <input type="hidden" id="extension_lote_value" name="extension_value"> {{-- Campo oculto para el valor numérico --}}
-         </div>
-         <div class="col-md-4 mb-3">
-               <label for="monto_lote" class="form-label">Monto TOTAL de Lotes (USD)</label>
-               <input type="number" step="0.01" class="form-control" id="monto_lote" name="precio_final" placeholder="Se sugiere según los lotes elegidos" value="{{ old('precio_final') }}" required>
-         </div>
-         <div class="col-md-4 mb-3">
-              <label for="plazo_cuotas" class="form-label">Plazo Total (Meses)</label>
-              <input type="number" class="form-control" id="plazo_cuotas" name="plazo_meses" value="{{ old('plazo_meses') }}" required>
-         </div>
-         <div class="col-md-4 mb-3">
-             <label for="cuotas" class="form-label">Valor de Cuota Mensual (USD)</label>
-               <input type="number" step="0.01" class="form-control" id="cuotas" name="cuota_mensual" placeholder="Se calcula según monto, prima y plazo" value="{{ old('cuota_mensual') }}" required>
-          </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="primer_abono" class="form-label">Primer Abono/Prima (USD)</label>
-                        <input type="number" step="0.01" class="form-control" id="primer_abono" name="primer_abono" value="{{ old('primer_abono') }}" required>
-                    </div>
-                    <div class="col-md-3 mb-3">
-                        <label for="fecha_ultimo_abono" class="form-label">Fecha de Abonos</label>
-                        <input type="date" class="form-control" id="fecha_ultimo_abono" name="fecha_ultimo_abono" value="{{ old('fecha_ultimo_abono') }}">
-                    </div>
+                <div class="col-md-2 mb-3">
+                    <label for="expediente_num" class="form-label font-weight-bold text-secondary">N° Expediente</label>
+                    <input type="text" class="form-control" id="expediente_num" name="expediente_num" value="{{ old('expediente_num') }}" placeholder="EXP-005" required>
                 </div>
+            </div>
 
-                <hr class="my-4">
-                
-                <button type="submit" class="btn btn-success btn-lg">
-                    <i class="fas fa-save"></i> Guardar Cliente y Registrar Venta
-                </button>
-                <a href="{{ route('registro.index') }}" class="btn btn-secondary btn-lg">Cancelar</a>
-            </form>
-            
+            <div class="row g-3">
+                <div class="col-md-4 mb-3">
+                    <label for="telefono" class="form-label font-weight-bold text-secondary">Teléfono</label>
+                    <input type="tel" class="form-control" id="telefono" name="telefono" value="{{ old('telefono') }}" placeholder="+505 0000-0000">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="estado_civil" class="form-label font-weight-bold text-secondary">Estado Civil</label>
+                    <select class="form-select" id="estado_civil" name="estado_civil" required>
+                        <option value="">Seleccione...</option>
+                        <option value="soltero" @selected(old('estado_civil') == 'soltero')>Soltero(a)</option>
+                        <option value="casado" @selected(old('estado_civil') == 'casado')>Casado(a)</option>
+                        <option value="union_libre" @selected(old('estado_civil') == 'union_libre')>Unión Libre</option>
+                        <option value="divorciado" @selected(old('estado_civil') == 'divorciado')>Divorciado(a)</option>
+                        <option value="viudo" @selected(old('estado_civil') == 'viudo')>Viudo(a)</option>
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="oficio" class="form-label font-weight-bold text-secondary">Oficio</label>
+                    <input type="text" class="form-control" id="oficio" name="oficio" value="{{ old('oficio') }}">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="direccion" class="form-label font-weight-bold text-secondary">Dirección Exacta</label>
+                <textarea class="form-control" id="direccion" name="direccion" rows="2" placeholder="Ingrese la dirección completa del cliente">{{ old('direccion') }}</textarea>
+            </div>
         </div>
     </div>
+
+    {{-- SECCIÓN 2: DATOS DE LA VENTA / LOTE --}}
+    <div class="card shadow-sm border-left-info mb-4">
+        <div class="card-header py-3 bg-white">
+            <h6 class="m-0 font-weight-bold text-info"><i class="fas fa-map-marked-alt"></i> Selección de Lotes</h6>
+        </div>
+        <div class="card-body bg-light">
+            <div class="row g-3">
+                {{-- Proyecto (Select) --}}
+                <div class="col-md-4 mb-3">
+                    <label for="proyecto_select" class="form-label font-weight-bold text-secondary">1. Seleccione Proyecto</label>
+                    <select class="form-select border-info" id="proyecto_select" name="lotificacion_id" required>
+                        <option value="">-- Escoger Proyecto --</option>
+                        @isset($proyectos)
+                            @foreach ($proyectos as $proyecto)
+                                <option value="{{ $proyecto->id }}" @selected(old('lotificacion_id') == $proyecto->id)>{{ $proyecto->nombre }}</option>
+                            @endforeach
+                        @endisset
+                    </select>
+                </div>
+
+                {{-- Bloque (Select dinámico) --}}
+                <div class="col-md-4 mb-3">
+                    <label for="bloque" class="form-label font-weight-bold text-secondary">2. Seleccione Bloque</label>
+                    <select class="form-select border-info" id="bloque_select" name="bloque_id" required disabled>
+                        <option value="">Seleccione un Proyecto primero</option>
+                    </select>
+                </div>
+
+                <div class="col-md-4 mb-3">
+                    <label for="lotes_seleccionados" class="form-label font-weight-bold text-secondary">3. Lotes a Vender (Máx. 20)</label>
+                    <select class="form-select border-info shadow-sm" id="lote_select" name="lotes_ids[]" multiple required disabled style="min-height: 120px;">
+                        <option value="">Seleccione un Bloque primero</option>
+                    </select>
+                    <small class="text-muted">Mantenga presionada la tecla Ctrl (Windows) o Command (Mac) para seleccionar varios lotes.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- SECCIÓN 3: PLAN DE PAGOS --}}
+    <div class="card shadow-sm border-left-success mb-4">
+        <div class="card-header py-3 bg-white">
+            <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-hand-holding-usd"></i> Detalles Financieros (Plan de Pagos)</h6>
+        </div>
+        <div class="card-body bg-light">
+            <div class="row g-3">
+                <div class="col-md-3 mb-3">
+                    <label for="extension" class="form-label font-weight-bold text-secondary">Extensión TOTAL</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control bg-white" id="extension_lote" name="extension" placeholder="0.00" readonly required>
+                        <span class="input-group-text">m²</span>
+                    </div>
+                    <input type="hidden" id="extension_lote_value" name="extension_value">
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="monto_lote" class="form-label font-weight-bold text-secondary">Precio Venta (Total)</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" step="0.01" class="form-control font-weight-bold text-success" id="monto_lote" name="precio_final" placeholder="0.00" value="{{ old('precio_final') }}" required>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="primer_abono" class="form-label font-weight-bold text-secondary">Prima / Enganche</label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input type="number" step="0.01" class="form-control border-success" id="primer_abono" name="primer_abono" placeholder="0.00" value="{{ old('primer_abono') }}" required>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="fecha_ultimo_abono" class="form-label font-weight-bold text-secondary">Fecha del 1° Pago</label>
+                    <input type="date" class="form-control" id="fecha_ultimo_abono" name="fecha_ultimo_abono" value="{{ old('fecha_ultimo_abono') }}">
+                </div>
+            </div>
+
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4 mb-3">
+                    <label for="plazo_cuotas" class="form-label font-weight-bold text-secondary">Plazo de Financiamiento</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="plazo_cuotas" name="plazo_meses" value="{{ old('plazo_meses') }}" required placeholder="Ej: 60">
+                        <span class="input-group-text">Meses</span>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="cuotas" class="form-label font-weight-bold text-secondary">Cuota Mensual Sugerida</label>
+                    <div class="input-group">
+                        <span class="input-group-text text-danger font-weight-bold">$</span>
+                        <input type="number" step="0.01" class="form-control font-weight-bold" style="font-size: 1.1rem; color: #e74a3b;" id="cuotas" name="cuota_mensual" placeholder="0.00" value="{{ old('cuota_mensual') }}" required>
+                    </div>
+                    <small class="text-muted">Monto recalculado automáticamente.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end mb-5">
+        <a href="{{ route('registro.index') }}" class="btn btn-secondary btn-lg mr-3 shadow-sm"><i class="fas fa-times"></i> Cancelar</a>
+        <button type="submit" class="btn btn-success btn-lg shadow-sm px-5"><i class="fas fa-check-circle"></i> Confirmar y Guardar Venta</button>
+    </div>
+</form>
 
 @endsection 
 
@@ -197,7 +219,7 @@ $(document).ready(function() {
         calcularCuota();
 
         if (proyecto) {
-            var ajaxUrl = '{{ url("api/proyectos") }}' + '/' + encodeURIComponent(proyecto) + '/bloques';
+            var ajaxUrl = '{{ url("api/lotificaciones") }}' + '/' + encodeURIComponent(proyecto) + '/bloques';
 
             $.ajax({
                 url: ajaxUrl,

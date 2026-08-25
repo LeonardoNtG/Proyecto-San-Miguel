@@ -25,8 +25,12 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post')->middleware('throttle:5,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+// Portal del Cliente (Público)
+Route::get('/mi-estado/{token}', [\App\Http\Controllers\PortalClienteController::class, 'show'])->name('portal.estado_cuenta');
 
 Route::middleware(['auth'])->group(function () {
+    Route::post('/lotificacion/{id}/activa', [App\Http\Controllers\LotificacionController::class, 'setLotificacionActiva'])->name('lotificacion.setActiva');
+    Route::post('/ventas/{id}/rescindir', [App\Http\Controllers\VentaController::class, 'rescindir'])->name('ventas.rescindir');
 
 Route::get('abono/{abono_id}/imprimir', [AbonoController::class, 'imprimirRecibo'])->name('imprimirRecibo');
 
@@ -43,17 +47,28 @@ Route::get('/dashboard-grafico', [GraficoController::class, 'dashboard'])->name(
 Route::resource('registro', App\Http\Controllers\ClienteController::class)->parameters([
     'registro' => 'cliente',]);
 
+Route::resource('abonos', App\Http\Controllers\AbonoController::class);
+Route::get('abonos/{abono}/imprimir', [App\Http\Controllers\AbonoController::class, 'imprimirRecibo'])->name('abonos.imprimir');
+
+Route::post('cuotas/{cuota}/exonerar-mora', [App\Http\Controllers\CuotaController::class, 'exonerarMora'])->name('cuotas.exonerarMora');
+Route::resource('reservas', App\Http\Controllers\ReservaController::class);
+Route::post('reservas/{reserva}/anular', [App\Http\Controllers\ReservaController::class, 'anular'])->name('reservas.anular');
+Route::get('reservas/{reserva}/formalizar', [App\Http\Controllers\ReservaController::class, 'formalizar'])->name('reservas.formalizar');
+Route::post('reservas/{reserva}/formalizar', [App\Http\Controllers\ReservaController::class, 'procesarFormalizacion'])->name('reservas.procesarFormalizacion');
+
+    Route::get('/estados-de-cuenta', [\App\Http\Controllers\ClienteController::class, 'estadosCuenta'])->name('estados_cuenta');
 Route::get('/api/bloques/{bloque}/lotes', [App\Http\Controllers\LoteController::class, 'getLotesByBloque'])
     ->name('api.lotes.by.bloque');
 
-Route::get('/api/proyectos/{proyecto}/bloques', [App\Http\Controllers\BloqueController::class, 'getBloquesByProyecto'])
-    ->where('proyecto', '.*')
-    ->name('api.bloques.by.proyecto');
+Route::get('/api/lotificaciones/{lotificacion}/bloques', [App\Http\Controllers\BloqueController::class, 'getBloquesByLotificacion'])
+    ->name('api.bloques.by.lotificacion');
 
 // Bloques y Lotes: gestión (alta/edición) restringida a administradores.
 // Las rutas /api/bloques/.../lotes y /api/proyectos/.../bloques quedan fuera
 // de este grupo a propósito: las necesita cualquier usuario autenticado para
 // registrar clientes/ventas en "/registro/create".
+
+// Rutas protegidas
 Route::middleware(['role:admin'])->group(function () {
     Route::resource('bloques', App\Http\Controllers\BloqueController::class);
 
@@ -75,6 +90,7 @@ Route::prefix('reportes')->name('reportes.')->group(function () {
     Route::get('financiero/pdf', [App\Http\Controllers\ReporteController::class, 'financieroPdf'])->name('financiero.pdf');
     Route::get('financiero/excel', [App\Http\Controllers\ReporteController::class, 'financieroExcel'])->name('financiero.excel');
     Route::post('cerrar-caja', [App\Http\Controllers\ReporteController::class, 'cerrarCaja'])->name('cerrarCaja');
+    Route::get('cierre-caja', [App\Http\Controllers\ReportesController::class, 'cierreCaja'])->name('cierre_caja');
 });
 
 Route::resource('reportes', App\Http\Controllers\ReporteController::class);

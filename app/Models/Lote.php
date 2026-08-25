@@ -16,24 +16,33 @@ class Lote extends Model
     // 3. Campos que pueden ser asignados masivamente
     protected $fillable = [
         'id_bloque',
-        'id_venta',
         'numero_lote',
         'area_metros',
         'precio_base',
         'estado',
     ];
 
-    // 4. Relación: Un Lote pertenece a un Bloque (Many-to-One)
-    // El 'foreign key' es el 'id_bloque' en la tabla 'lotes'
     public function bloque()
     {
         return $this->belongsTo(Bloque::class, 'id_bloque', 'id_bloque');
     }
     
-    // 5. Relación: Un Lote pertenece a una única Venta (Many-to-One)
-    public function venta()
+    public function historialLotes()
     {
-        return $this->belongsTo(Venta::class, 'id_venta', 'id_venta');
+        return $this->hasMany(HistorialLote::class, 'id_lote', 'id_lote');
+    }
+
+    public function ventas()
+    {
+        return $this->belongsToMany(Venta::class, 'historial_lotes', 'id_lote', 'id_venta')
+                    ->withPivot('estado', 'fecha_asignacion', 'fecha_liberacion')
+                    ->withTimestamps();
+    }
+    
+    // Obtener la venta activa actual del lote (si tiene)
+    public function getVentaActivaAttribute()
+    {
+        return $this->ventas()->wherePivot('estado', 'Activo')->first();
     }
     
     public function getLotesByBloque($bloque_id)

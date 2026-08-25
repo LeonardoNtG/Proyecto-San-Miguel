@@ -6,23 +6,33 @@
 
 <div class="card shadow mb-4">
         <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Clientes Registrados (Ventas Activas)</h6>
-            <a href="{{ route('registro.create') }}" class="btn btn-primary btn-sm">
-                <i class="fas fa-plus"></i> Registrar Nuevo Cliente
-            </a>
+            <h6 class="m-0 font-weight-bold text-primary">
+                Clientes Registrados 
+                ({{ request('filtro') === 'rescindidos' ? 'Ventas Rescindidas' : 'Ventas Activas' }})
+            </h6>
+            <div>
+                <div class="btn-group mr-2" role="group">
+                    <a href="{{ route('registro.index', ['filtro' => 'activos', 'search' => request('search')]) }}" class="btn btn-sm {{ request('filtro', 'activos') === 'activos' ? 'btn-primary' : 'btn-outline-primary' }}">Activos</a>
+                    <a href="{{ route('registro.index', ['filtro' => 'rescindidos', 'search' => request('search')]) }}" class="btn btn-sm {{ request('filtro') === 'rescindidos' ? 'btn-danger' : 'btn-outline-danger' }}">Rescindidos</a>
+                </div>
+                <a href="{{ route('registro.create') }}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus"></i> Registrar Nuevo Cliente
+                </a>
+            </div>
         </div>
         <div class="card-body">
             
             {{-- Search Bar --}}
             <div class="mb-4">
                 <form method="GET" action="{{ route('registro.index') }}">
+                    <input type="hidden" name="filtro" value="{{ request('filtro', 'activos') }}">
                     <div class="input-group">
                         <input type="text" name="search" class="form-control" 
                                placeholder="Buscar por N° Exp, Nombre o Cédula..." 
                                value="{{ $search ?? '' }}">
                         <button class="btn btn-outline-secondary" type="submit">Buscar</button>
                         @if($search)
-                            <a href="{{ route('registro.index') }}" class="btn btn-outline-danger">Limpiar</a>
+                            <a href="{{ route('registro.index', ['filtro' => request('filtro', 'activos')]) }}" class="btn btn-outline-danger">Limpiar</a>
                         @endif
                     </div>
                 </form>
@@ -89,10 +99,14 @@
                                     <a href="{{ route('abono.create', ['cliente' => $cliente->id_cliente]) }}" class="btn btn-sm btn-success" title="Registrar Abono">
                                         <i class="fas fa-hand-holding-usd"></i> Abonar
                                     </a>
-                                    {{-- Botón Detalles: Llevará a la vista de información completa --}}
                                     <a href="{{ route('registro.show', $cliente->id_cliente) }}" class="btn btn-sm btn-info" title="Ver Detalles">
                                         <i class="fas fa-info-circle"></i> Detalles
                                     </a>
+                                    @if($cliente->token_seguimiento)
+                                    <button type="button" class="btn btn-sm btn-secondary" onclick="navigator.clipboard.writeText('{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}'); alert('¡Enlace del portal copiado!');" title="Copiar Enlace Estado de Cuenta">
+                                        <i class="fas fa-link"></i> Portal
+                                    </button>
+                                    @endif
                                 </td>
                             </tr>
                             @endif

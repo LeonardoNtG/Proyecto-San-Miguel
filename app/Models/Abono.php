@@ -16,12 +16,15 @@ class Abono extends Model
 
     // Campos que pueden ser asignados masivamente
     protected $fillable = [
+        'id_cliente',
         'id_venta',
-        'fecha_pago',
         'monto_abonado',
+        'fecha_pago',
         'tipo_pago',
+        'metodo_pago',
         'referencia',
-        'ruta_recibo',
+        'cuenta_destino',
+        'ruta_recibo'
     ];
     
     // Relación: Un Abono pertenece a una Venta (Many-to-One)

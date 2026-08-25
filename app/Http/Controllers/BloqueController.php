@@ -18,10 +18,10 @@ class BloqueController extends Controller
         return view('bloques.index', compact('bloques'));
     }
 
-    // Devuelve los bloques que pertenecen a un proyecto específico (usado por el formulario de registro de clientes)
-    public function getBloquesByProyecto(string $proyecto)
+    // Devuelve los bloques que pertenecen a una lotificación específica
+    public function getBloquesByLotificacion($lotificacionId)
     {
-        $bloques = Bloque::where('proyecto', $proyecto)
+        $bloques = Bloque::where('lotificacion_id', $lotificacionId)
             ->orderBy('nombre')
             ->get(['id_bloque', 'nombre']);
 
@@ -43,7 +43,7 @@ class BloqueController extends Controller
     {
         $validated = $request->validate([
             'nombre' => 'required|string|max:50|unique:bloques,nombre',
-            'proyecto' => 'required|string|max:100',
+            'lotificacion_id' => 'required|exists:lotificaciones,id',
             'descripcion' => 'nullable|string|max:255',
         ]);
 
@@ -75,7 +75,7 @@ class BloqueController extends Controller
     {
         $validated = $request->validate([
             'nombre' => ['required', 'string', 'max:50', Rule::unique('bloques', 'nombre')->ignore($bloque->id_bloque, 'id_bloque')],
-            'proyecto' => 'required|string|max:100',
+            'lotificacion_id' => 'required|exists:lotificaciones,id',
             'descripcion' => 'nullable|string|max:255',
         ]);
 

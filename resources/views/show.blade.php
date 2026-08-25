@@ -15,14 +15,27 @@
             
             <div class="btn-group" role="group">
                 <a href="{{ route('registro.edit', $cliente->id_cliente) }}" class="btn btn-warning">
-                <i class="fas fa-edit"></i> Editar Cliente/Venta
-             </a>
+                <i class="fas fa-edit"></i> Editar Cliente
+                </a>
+                
+                @if($cliente->token_seguimiento)
+                <a href="{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}" target="_blank" class="btn btn-primary" title="Abrir portal del cliente">
+                    <i class="fas fa-external-link-alt"></i> Portal
+                </a>
+                <button type="button" class="btn btn-info text-white" onclick="navigator.clipboard.writeText('{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}'); alert('¡Enlace del portal copiado al portapapeles!');" title="Copiar enlace para el cliente">
+                    <i class="fas fa-copy"></i> Copiar Link
+                </button>
+                @endif
+                
+                @if(isset($cliente->ventas) && $cliente->ventas->first() && $cliente->ventas->first()->estado_contrato !== 'Rescindido')
+                <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#rescindirModal">
+                    <i class="fas fa-ban"></i> Rescindir Venta
+                </button>
+                @endif
     
-            <button type="button" class="btn btn-danger" 
-                    data-bs-toggle="modal" 
-                    data-bs-target="#deleteModal">
-                <i class="fas fa-trash"></i> Eliminar Cliente
-            </button>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                    <i class="fas fa-trash"></i> Eliminar Cliente
+                </button>
             </div>
         </div>
     </div>
@@ -91,9 +104,94 @@
         </div>
     </div>
     
+    {{-- PLAN DE PAGOS (CUOTAS) --}}
+    @if($venta && $venta->cuotas->count())
+        <div class="card shadow mb-4">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="m-0">Plan de Pagos (Cuotas)</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm">
+                        <thead class="bg-light">
+                            <tr>
+                                <th># Cuota</th>
+                                <th>Fecha Vencimiento</th>
+                                <th>Monto Total</th>
+                                <th>Mora</th>
+                                <th>Saldo Restante</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($venta->cuotas as $cuota)
+                                <tr class="{{ $cuota->estado === 'Pagada' ? 'table-success' : ($cuota->estado === 'Mora' ? 'table-danger' : '') }}">
+                                    <td>{{ $cuota->numero_cuota }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
+                                    <td>${{ number_format($cuota->monto_total, 2) }}</td>
+                                    <td>
+                                        @if($cuota->mora_calculada > 0)
+                                            <span class="text-danger font-weight-bold" title="Mora Calculada: ${{ number_format($cuota->mora_calculada, 2) }} | Pagada: ${{ number_format($cuota->mora_pagada, 2) }} | Exonerada: ${{ number_format($cuota->mora_exonerada, 2) }}">
+                                                ${{ number_format($cuota->mora_pendiente, 2) }}
+                                            </span>
+                                        @else
+                                            $0.00
+                                        @endif
+                                    </td>
+                                    <td>${{ number_format($cuota->saldo_restante, 2) }}</td>
+                                    <td>
+                                        <span class="badge 
+                                            {{ $cuota->estado === 'Pagada' ? 'bg-success' : ($cuota->estado === 'Pendiente' ? 'bg-warning text-dark' : 'bg-danger') }}">
+                                            {{ $cuota->estado }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if($cuota->mora_pendiente > 0)
+                                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#exonerarMoraModal{{ $cuota->id_cuota }}">
+                                                <i class="fas fa-handshake"></i>
+                                            </button>
+                                            
+                                            {{-- Modal para Exonerar Mora --}}
+                                            <div class="modal fade" id="exonerarMoraModal{{ $cuota->id_cuota }}" tabindex="-1" aria-labelledby="exonerarMoraModalLabel{{ $cuota->id_cuota }}" aria-hidden="true">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header bg-danger text-white">
+                                                            <h5 class="modal-title" id="exonerarMoraModalLabel{{ $cuota->id_cuota }}">Negociar Mora - Cuota #{{ $cuota->numero_cuota }}</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                        </div>
+                                                        <form action="{{ route('cuotas.exonerarMora', $cuota->id_cuota) }}" method="POST">
+                                                            @csrf
+                                                            <div class="modal-body text-start">
+                                                                <p>Mora Pendiente Actual: <strong>${{ number_format($cuota->mora_pendiente, 2) }}</strong></p>
+                                                                <div class="mb-3">
+                                                                    <label for="monto_exonerar" class="form-label">Monto a Exonerar / Perdonar ($)</label>
+                                                                    <input type="number" step="0.01" max="{{ $cuota->mora_pendiente }}" class="form-control" name="monto_exonerar" value="{{ $cuota->mora_pendiente }}" required>
+                                                                    <small class="text-muted">Si quieres perdonar toda la mora, deja el valor por defecto. Si el cliente pagará una parte, reduce el monto a perdonar.</small>
+                                                                </div>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                                                                <button type="submit" class="btn btn-danger">Confirmar Exoneración</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    @endif
+
     {{--HISTORIAL DE ABONOS --}}
     @if($venta && $venta->abonos->count())
-        <div class="card shadow mb-4">
+    <div class="card shadow mb-4">
             <div class="card-header bg-primary text-white">
                 <h5 class="m-0">Historial de Pagos (Abonos)</h5>
             </div>
@@ -105,22 +203,39 @@
                 <div class="table-responsive">
                     <table class="table table-striped table-sm">
                         <thead>
-                            <tr>
-                                <th>Fecha Pago</th>
-                                <th>Monto Abonado</th>
-                                <th>Tipo de Pago</th>
-                                <th>Referencia</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($venta->abonos as $abono)
                                 <tr>
-                                    <td>{{ $abono->fecha_pago }}</td>
-                                    <td>${{ number_format($abono->monto_abonado, 2) }}</td>
-                                    <td>{{ $abono->tipo_pago }}</td>
-                                    <td>{{ $abono->referencia }}</td>
+                                    <th>Fecha</th>
+                                    <th>Monto</th>
+                                    <th>Concepto</th>
+                                    <th>Método</th>
+                                    <th>Referencia</th>
+                                    <th>Recibo</th>
                                 </tr>
-                            @endforeach
+                            </thead>
+                            <tbody>
+                                @forelse($venta->abonos as $abono)
+                                <tr>
+                                    <td>{{ \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') }}</td>
+                                    <td class="text-success fw-bold">+${{ number_format($abono->monto_abonado, 2) }}</td>
+                                    <td>{{ $abono->tipo_pago }}</td>
+                                    <td>{{ $abono->metodo_pago ?? 'Efectivo' }}</td>
+                                    <td>
+                                        {{ $abono->referencia ?? '-' }}
+                                        @if($abono->cuenta_destino)
+                                            <br><small class="text-muted"><i class="fas fa-university"></i> {{ $abono->cuenta_destino }}</small>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-print"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="6" class="text-center">No hay abonos registrados.</td>
+                                </tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -151,6 +266,42 @@
             </div>
         </div>
     </div>
+
+    {{-- Modal de Rescisión de Contrato --}}
+    @if($venta && $venta->estado_contrato !== 'Rescindido')
+    <div class="modal fade" id="rescindirModal" tabindex="-1" aria-labelledby="rescindirModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title" id="rescindirModalLabel">Rescindir Contrato</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form action="{{ route('ventas.rescindir', $venta->id_venta) }}" method="POST">
+                    @csrf
+                    <div class="modal-body">
+                        <div class="alert alert-warning">
+                            <strong>Atención:</strong> Esta acción marcará el contrato como "Rescindido" y liberará inmediatamente los siguientes lotes:
+                            <ul>
+                                @foreach($venta->lotes as $lote)
+                                    <li>Lote {{ $lote->numero_lote }} (Pasará a estado Disponible)</li>
+                                @endforeach
+                            </ul>
+                            El historial de que el cliente tuvo estos lotes se mantendrá, pero los lotes podrán ser vendidos a otra persona.
+                        </div>
+                        <div class="mb-3">
+                            <label for="motivo_rescision" class="form-label">Motivo de la rescisión:</label>
+                            <textarea class="form-control" name="motivo_rescision" id="motivo_rescision" rows="3" required placeholder="Falta de pago, mutuo acuerdo, etc."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-warning">Confirmar Rescisión</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
    
 
 @endsection

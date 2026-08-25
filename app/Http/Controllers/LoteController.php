@@ -97,7 +97,7 @@ class LoteController extends Controller
      */
     public function destroy(Lote $lote)
     {
-        if ($lote->estado !== 'Disponible' || $lote->id_venta) {
+        if ($lote->estado !== 'Disponible' || $lote->ventaActiva) {
             return redirect()->route('lotes.index', $lote->id_bloque)
                 ->with('error', 'No se puede eliminar el lote "' . $lote->numero_lote . '": ya está reservado o vendido.');
         }

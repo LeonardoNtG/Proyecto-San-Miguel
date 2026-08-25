@@ -61,9 +61,9 @@
                 <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">Opciones de Clientes:  </h6>
-                        <a class="collapse-item" href="{{ route('registro.index') }}" >Abonos</a>
-                        <a class="collapse-item" href="{{ asset('/errores/post') }}">Estados de cuenta</a>
-                        <a class="collapse-item" href="{{ asset('/errores/post') }}">Archivos</a>
+                        <a class="collapse-item" href="{{ route('registro.index') }}">Clientes / Ventas</a>
+                        <a class="collapse-item" href="{{ route('reservas.index') }}">Reservas</a>
+                        <a class="collapse-item" href="{{ route('estados_cuenta') }}">Estados de cuenta</a>
                     </div>
                 </div>
             </li>
@@ -90,6 +90,7 @@
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header" href="{{ asset('/errores/post') }}">Reportes</h6>
                         <a class="collapse-item" href="{{ route('reportes.financiero') }}">Archivos</a>
+                        <a class="collapse-item" href="{{ route('reportes.cierre_caja') }}">Cierre de Caja</a>
                         <a class="collapse-item" href="{{ route('reportes.index') }}">Egresos</a>
                         <a class="collapse-item" href="{{ route('dashboard.grafico') }}">Graficos</a>
                     </div>
@@ -179,6 +180,45 @@
 
                         <div class="topbar-divider d-none d-sm-block"></div>
 
+                        <!-- Nav Item - Lotificacion Selector -->
+                        @if(isset($userLotificaciones) && $userLotificaciones->count() > 0)
+                        <li class="nav-item dropdown no-arrow mx-1">
+                            <a class="nav-link dropdown-toggle" href="#" id="lotificacionDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fas fa-building fa-fw"></i>
+                                <span class="badge badge-primary badge-counter">
+                                    {{ $userLotificaciones->firstWhere('id', $activeLotificacionId)->nombre ?? 'Seleccione' }}
+                                </span>
+                            </a>
+                            <!-- Dropdown - Lotificaciones -->
+                            <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                                aria-labelledby="lotificacionDropdown">
+                                <h6 class="dropdown-header">
+                                    Tus Lotificaciones
+                                </h6>
+                                @foreach($userLotificaciones as $lot)
+                                    <form action="{{ route('lotificacion.setActiva', $lot->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="dropdown-item d-flex align-items-center">
+                                            <div class="mr-3">
+                                                <div class="icon-circle {{ $activeLotificacionId == $lot->id ? 'bg-success' : 'bg-primary' }}">
+                                                    <i class="fas fa-check text-white" style="{{ $activeLotificacionId == $lot->id ? '' : 'visibility: hidden;' }}"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <span class="{{ $activeLotificacionId == $lot->id ? 'font-weight-bold' : '' }}">
+                                                    {{ $lot->nombre }}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    </form>
+                                @endforeach
+                            </div>
+                        </li>
+                        @endif
+
+                        <div class="topbar-divider d-none d-sm-block"></div>
+
                         <!-- Nav Item - User Information -->
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
@@ -205,7 +245,7 @@
                 </form>
                             </div>
                         </li>
-
+                        </li>
                     </ul>
  
                 </nav>
