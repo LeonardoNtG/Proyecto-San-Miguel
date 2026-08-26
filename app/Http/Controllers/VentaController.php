@@ -47,6 +47,8 @@ class VentaController extends Controller
 
             DB::commit();
 
+            \App\Models\Auditoria::log('Rescindió Contrato', 'Venta', $venta->id_venta, "Motivo: " . $request->motivo_rescision);
+
             return redirect()->back()->with('success', 'La venta ha sido rescindida y los lotes han sido liberados (estado: Disponible).');
         } catch (\Exception $e) {
             DB::rollBack();

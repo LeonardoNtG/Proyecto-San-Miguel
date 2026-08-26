@@ -16,7 +16,6 @@ class Abono extends Model
 
     // Campos que pueden ser asignados masivamente
     protected $fillable = [
-        'id_cliente',
         'id_venta',
         'monto_abonado',
         'fecha_pago',

@@ -37,6 +37,26 @@
         @endforeach
     </div>
 
+    <!-- Resumen Neto -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 bg-danger text-white h-100">
+                <div class="card-body">
+                    <h6 class="text-uppercase mb-1" style="letter-spacing: 1px; font-size: 0.8rem;">Total Egresos (Salidas)</h6>
+                    <h3 class="mb-0 fw-bold">-${{ number_format($totalEgresos, 2) }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow-sm border-0 {{ $flujoNeto >= 0 ? 'bg-success' : 'bg-warning text-dark' }} text-white h-100">
+                <div class="card-body">
+                    <h6 class="text-uppercase mb-1" style="letter-spacing: 1px; font-size: 0.8rem;">Flujo Neto (Caja + Banco)</h6>
+                    <h3 class="mb-0 fw-bold">${{ number_format($flujoNeto, 2) }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Tabla Detallada -->
     <div class="card shadow-sm border-0">
         <div class="card-header bg-white py-3">
@@ -105,6 +125,50 @@
                             <td colspan="7" class="text-center py-4 text-muted">
                                 <i class="fas fa-inbox fa-3x mb-3 text-light"></i>
                                 <h5>No hay ingresos registrados para esta fecha</h5>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla Detallada Egresos -->
+    <div class="card shadow-sm border-0 mt-4">
+        <div class="card-header bg-white py-3 border-danger border-top border-3">
+            <h5 class="mb-0 fw-bold text-danger">Detalle de Egresos del {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Hora</th>
+                            <th>Descripción / Motivo</th>
+                            <th>Método de Pago</th>
+                            <th>Monto</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($salidas as $salida)
+                        <tr>
+                            <td>{{ $salida->created_at->format('H:i A') }}</td>
+                            <td>{{ $salida->descripcion }}</td>
+                            <td>
+                                @if($salida->metodo_pago == 'Efectivo')
+                                    <span class="badge bg-success"><i class="fas fa-money-bill-wave"></i> Efectivo</span>
+                                @else
+                                    <span class="badge bg-info text-dark"><i class="fas fa-exchange-alt"></i> {{ $salida->metodo_pago }}</span>
+                                @endif
+                            </td>
+                            <td class="text-danger fw-bold">-${{ number_format($salida->monto, 2) }}</td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="4" class="text-center py-4 text-muted">
+                                <i class="fas fa-check-circle fa-3x mb-3 text-light"></i>
+                                <h5>No hay egresos registrados para esta fecha</h5>
                             </td>
                         </tr>
                         @endforelse

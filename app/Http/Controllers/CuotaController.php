@@ -30,6 +30,8 @@ class CuotaController extends Controller
             $cuota->save();
 
             DB::commit();
+
+            \App\Models\Auditoria::log('Exoneró Mora', 'Cuota', $cuota->id_cuota, "Monto exonerado: $" . number_format($montoExonerar, 2));
             return redirect()->back()->with('success', 'Mora exonerada correctamente por un monto de $' . number_format($montoExonerar, 2));
         } catch (\Exception $e) {
             DB::rollBack();

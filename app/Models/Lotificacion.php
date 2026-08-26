@@ -14,7 +14,11 @@ class Lotificacion extends Model
     protected $fillable = [
         'nombre',
         'ubicacion',
-        'descripcion'
+        'descripcion',
+        'logo',
+        'ruc',
+        'telefono',
+        'ciudad'
     ];
 
     public function bloques()

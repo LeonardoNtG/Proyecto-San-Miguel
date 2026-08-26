@@ -114,7 +114,6 @@ class AbonoController extends Controller
 
         // Crear el abono base
         $abono = Abono::create([
-            'id_cliente'    => $cliente->id_cliente,
             'id_venta'      => $venta->id_venta,
             'monto_abonado' => $request->monto_abonado,
             'fecha_pago'    => $request->fecha_pago,
@@ -174,6 +173,7 @@ class AbonoController extends Controller
         }
 
         DB::commit();
+        \App\Models\Auditoria::log('Registró Abono', 'Abono', $abono->id_abono, "Monto: $" . number_format($request->monto_abonado, 2) . " - " . $request->metodo_pago);
         return redirect()->back()->with('success', 'Abono registrado exitosamente.');
 
     } catch (\Exception $e) {
@@ -231,7 +231,7 @@ class AbonoController extends Controller
         $registro = Abono::findOrFail($abono);
         
         $registro->delete();
-
+        \App\Models\Auditoria::log('Eliminó Abono', 'Abono', $abono, "Abono ID: " . $abono);
         return redirect()->back()->with('success', 'Abono eliminado correctamente.');
 
         } catch (\Exception $e) {
@@ -243,9 +243,10 @@ class AbonoController extends Controller
          public function imprimirRecibo($abono_id)
         {
         // Carga el Abono e inmediatamente carga la Venta y el Cliente relacionado
-         $abono = Abono::with('venta.cliente','venta.lotes.bloque','venta.abonos')->findOrFail($abono_id);
+         $abono = Abono::with('venta.cliente','venta.lotes.bloque','venta.abonos', 'venta.lotificacion')->findOrFail($abono_id);
 
          $venta = $abono->venta;
+         $lotificacion = $venta->lotificacion;
 
          $cliente = $abono->venta->cliente ?? null;
 
@@ -294,6 +295,9 @@ class AbonoController extends Controller
 
         // Lotes asociados a la venta (texto "Bloque-Lote, Bloque-Lote, ...")
         'lotes_texto' => $lotesTexto,
+        
+        // Lotificación asociada
+        'lotificacion' => $lotificacion,
 
         // Datos económicos
         'valor_total' => $valor_total,

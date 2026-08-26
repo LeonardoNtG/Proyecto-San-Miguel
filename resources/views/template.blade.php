@@ -74,6 +74,7 @@
             <!-- Divider -->
             <hr class="sidebar-divider">
 
+            @role('admin')
             <!-- Heading -->
             <div class="sidebar-heading">
                 Opciones
@@ -93,9 +94,13 @@
                         <a class="collapse-item" href="{{ route('reportes.cierre_caja') }}">Cierre de Caja</a>
                         <a class="collapse-item" href="{{ route('reportes.index') }}">Egresos</a>
                         <a class="collapse-item" href="{{ route('dashboard.grafico') }}">Graficos</a>
+                        <div class="collapse-divider"></div>
+                        <h6 class="collapse-header">Seguridad</h6>
+                        <a class="collapse-item" href="{{ route('auditoria.index') }}">Auditoría</a>
                     </div>
                 </div>
             </li>
+            @endrole
 
             <!-- Nav Item - Archivos Collapse Menu (solo Admin: gestiona Bloques y Lotes) -->
             @role('admin')
@@ -117,10 +122,18 @@
             <!-- Nav Item - Tables -->
             <li class="nav-item">
                 @role('admin')
-                <a class="nav-link" href="{{ route('usuarios.index') }}">
-                    <i class="fas fa-fw fa-table"></i>
-                    <span>Configuraciones</span></a>
-                    @endrole
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseConfig"
+                    aria-expanded="true" aria-controls="collapseConfig">
+                    <i class="fas fa-fw fa-cogs"></i>
+                    <span>Configuraciones</span>
+                </a>
+                <div id="collapseConfig" class="collapse" aria-labelledby="headingConfig" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" href="{{ route('usuarios.index') }}">Usuarios</a>
+                        <a class="collapse-item" href="{{ route('lotificaciones.index') }}">Proyectos (Recibos)</a>
+                    </div>
+                </div>
+                @endrole
             </li>
 
             <!-- Divider -->

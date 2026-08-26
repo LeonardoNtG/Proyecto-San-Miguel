@@ -66,6 +66,7 @@
                 <tr>
                     <th>Hora</th>
                     <th>Descripción / Motivo</th>
+                    <th>Método de Pago</th>
                     <th class="text-end">Monto</th>
                     <th style="width: 80px;" class="text-center">Opciones</th>
                 </tr>
@@ -75,6 +76,7 @@
                     <tr>
                         <td>{{ $salida->created_at->format('H:i A') }}</td>
                         <td>{{ $salida->descripcion }}</td>
+                        <td><span class="badge bg-secondary">{{ $salida->metodo_pago ?? 'Efectivo' }}</span></td>
                         <td class="text-end text-danger">- ${{ number_format($salida->monto, 2) }}</td>
                         <td class="text-center">
                             <button type="button" class="btn btn-sm btn-outline-danger"
@@ -115,6 +117,15 @@
                     <div class="mb-3">
                         <label class="form-label">Motivo de la salida</label>
                         <textarea name="descripcion" class="form-control" rows="3" placeholder="Ej: Pago de recibo de luz, compra de papelería..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Método de Pago</label>
+                        <select name="metodo_pago" class="form-select" required>
+                            <option value="Efectivo" selected>Efectivo (Caja)</option>
+                            <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                            <option value="Cheque">Cheque</option>
+                            <option value="Tarjeta">Tarjeta</option>
+                        </select>
                     </div>
                     <input type="hidden" name="fecha" value="{{ $fecha }}">
                 </div>

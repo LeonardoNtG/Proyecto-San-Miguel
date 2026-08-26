@@ -33,6 +33,12 @@ class ReportesController extends Controller
 
         $totalGeneral = $abonos->sum('monto_abonado');
 
-        return view('reportes.cierre_caja', compact('abonos', 'fecha', 'totales', 'totalGeneral'));
+        // Obtener salidas (egresos) del día
+        $salidas = \App\Models\Salida::whereDate('fecha', $fecha)->get();
+
+        $totalEgresos = $salidas->sum('monto');
+        $flujoNeto = $totalGeneral - $totalEgresos;
+
+        return view('reportes.cierre_caja', compact('abonos', 'salidas', 'fecha', 'totales', 'totalGeneral', 'totalEgresos', 'flujoNeto'));
     }
 }

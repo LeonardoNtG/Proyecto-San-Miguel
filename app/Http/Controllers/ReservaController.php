@@ -102,6 +102,7 @@ class ReservaController extends Controller
             }
 
             DB::commit();
+            \App\Models\Auditoria::log('Anuló Reserva', 'Reserva', $reserva->id_reserva, 'Reserva y lotes liberados');
             return redirect()->back()->with('success', 'Reserva anulada. Lotes liberados.');
         } catch (\Exception $e) {
             DB::rollBack();
@@ -199,6 +200,7 @@ class ReservaController extends Controller
             $reserva->update(['estado' => 'Formalizada']);
 
             DB::commit();
+            \App\Models\Auditoria::log('Formalizó Reserva', 'Reserva', $reserva->id_reserva, 'Formalizada en Venta #'.$venta->id_venta);
             return redirect()->route('clientes.show', $reserva->id_cliente)->with('success', 'Reserva formalizada exitosamente. La venta ha sido registrada.');
         } catch (\Exception $e) {
             DB::rollBack();

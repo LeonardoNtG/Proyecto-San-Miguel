@@ -252,14 +252,18 @@ class ReporteController extends Controller
         $request->validate([
             'monto' => 'required|numeric|min:0.01',
             'descripcion' => 'required|string|max:255',
+            'metodo_pago' => 'required|string',
             'fecha' => 'required|date'
         ]);
 
-        Salida::create([
+        $salida = Salida::create([
             'monto' => $request->monto,
             'descripcion' => $request->descripcion,
+            'metodo_pago' => $request->metodo_pago,
             'fecha' => $request->fecha,
         ]);
+
+        \App\Models\Auditoria::log('Registró Egreso', 'Salida', $salida->id, "Monto: $" . number_format($request->monto, 2));
 
         return redirect()->back()->with('success', 'Salida de efectivo registrada.');
       }
@@ -366,7 +370,10 @@ class ReporteController extends Controller
     public function destroy($id)
     {
         $salida = Salida::findOrFail($id);
+        $monto = $salida->monto;
         $salida->delete();
+        
+        \App\Models\Auditoria::log('Eliminó Egreso', 'Salida', $id, "Monto: $" . number_format($monto, 2));
 
         return redirect()->back()->with('success', 'Salida eliminada correctamente.');
     }

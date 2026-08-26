@@ -83,17 +83,19 @@ Route::middleware(['role:admin'])->group(function () {
         Route::put('{lote}', [App\Http\Controllers\LoteController::class, 'update'])->name('update');
         Route::delete('{lote}', [App\Http\Controllers\LoteController::class, 'destroy'])->name('destroy');
     });
+
+    Route::prefix('reportes')->name('reportes.')->group(function () {
+        Route::get('financiero', [App\Http\Controllers\ReporteController::class, 'financiero'])->name('financiero');
+        Route::get('financiero/pdf', [App\Http\Controllers\ReporteController::class, 'financieroPdf'])->name('financiero.pdf');
+        Route::get('financiero/excel', [App\Http\Controllers\ReporteController::class, 'financieroExcel'])->name('financiero.excel');
+        Route::post('cerrar-caja', [App\Http\Controllers\ReporteController::class, 'cerrarCaja'])->name('cerrarCaja');
+        Route::get('cierre-caja', [App\Http\Controllers\ReportesController::class, 'cierreCaja'])->name('cierre_caja');
+    });
+
+    Route::resource('reportes', App\Http\Controllers\ReporteController::class);
 });
 
-Route::prefix('reportes')->name('reportes.')->group(function () {
-    Route::get('financiero', [App\Http\Controllers\ReporteController::class, 'financiero'])->name('financiero');
-    Route::get('financiero/pdf', [App\Http\Controllers\ReporteController::class, 'financieroPdf'])->name('financiero.pdf');
-    Route::get('financiero/excel', [App\Http\Controllers\ReporteController::class, 'financieroExcel'])->name('financiero.excel');
-    Route::post('cerrar-caja', [App\Http\Controllers\ReporteController::class, 'cerrarCaja'])->name('cerrarCaja');
-    Route::get('cierre-caja', [App\Http\Controllers\ReportesController::class, 'cierreCaja'])->name('cierre_caja');
-});
 
-Route::resource('reportes', App\Http\Controllers\ReporteController::class);
 
 Route::resource('abono', App\Http\Controllers\AbonoController::class);
 
@@ -110,6 +112,9 @@ Route::prefix('abono/{cliente}')->name('abono.')->group(function () {
 Route::middleware(['auth', 'role:admin'])->group(function () {
 
     Route::resource('usuarios', UsuarioController::class);
+    Route::resource('lotificaciones', App\Http\Controllers\LotificacionController::class);
+    
+    Route::get('auditoria', [App\Http\Controllers\AuditoriaController::class, 'index'])->name('auditoria.index');
 
 });
 

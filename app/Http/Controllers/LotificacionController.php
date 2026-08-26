@@ -19,4 +19,39 @@ class LotificacionController extends Controller
 
         abort(403, 'Acceso denegado a esta lotificación.');
     }
+
+    public function index()
+    {
+        $lotificaciones = \App\Models\Lotificacion::all();
+        return view('lotificaciones.index', compact('lotificaciones'));
+    }
+
+    public function edit($id)
+    {
+        $lotificacion = \App\Models\Lotificacion::findOrFail($id);
+        return view('lotificaciones.edit', compact('lotificacion'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'nombre' => 'required|string|max:255',
+            'ruc' => 'nullable|string|max:50',
+            'telefono' => 'nullable|string|max:50',
+            'ciudad' => 'nullable|string|max:100',
+            'logo' => 'nullable|image|max:2048'
+        ]);
+
+        $lotificacion = \App\Models\Lotificacion::findOrFail($id);
+        
+        $data = $request->except('logo');
+
+        if ($request->hasFile('logo')) {
+            $data['logo'] = $request->file('logo')->store('logos', 'public');
+        }
+
+        $lotificacion->update($data);
+
+        return redirect()->route('lotificaciones.index')->with('success', 'Lotificación actualizada exitosamente.');
+    }
 }
