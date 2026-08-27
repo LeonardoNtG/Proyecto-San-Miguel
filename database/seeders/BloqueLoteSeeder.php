@@ -24,19 +24,30 @@ class BloqueLoteSeeder extends Seeder
      */
     public function run()
     {
+        $lotificacion = \App\Models\Lotificacion::firstOrCreate(
+            ['nombre' => 'Lotificación La Campana'],
+            ['ubicacion' => 'Dirección de prueba']
+        );
+
+        // Vincular al admin (User ID 1) para que tenga acceso
+        $admin = \App\Models\User::find(1);
+        if ($admin) {
+            $admin->lotificaciones()->syncWithoutDetaching([$lotificacion->id]);
+        }
+
         $bloquesData = [
-            ['nombre' => 'A', 'proyecto' => 'Lotificación La Campana', 'descripcion' => 'Bloque principal, zona de alta demanda'],
-            ['nombre' => 'B', 'proyecto' => 'Lotificación La Campana', 'descripcion' => 'Bloque intermedio, fácil acceso'],
-            ['nombre' => 'C', 'proyecto' => 'Lotificación La Campana', 'descripcion' => 'Bloque trasero, vistas panorámicas'],
+            ['nombre' => 'A', 'lotificacion_id' => $lotificacion->id, 'descripcion' => 'Bloque principal, zona de alta demanda'],
+            ['nombre' => 'B', 'lotificacion_id' => $lotificacion->id, 'descripcion' => 'Bloque intermedio, fácil acceso'],
+            ['nombre' => 'C', 'lotificacion_id' => $lotificacion->id, 'descripcion' => 'Bloque trasero, vistas panorámicas'],
         ];
 
         $lotesPorBloque = 3;
 
         foreach ($bloquesData as $data) {
-            // 1. Crear el Bloque, o completar 'proyecto'/'descripcion' si ya existía sin ese dato
+            // 1. Crear el Bloque
             $bloque = Bloque::updateOrCreate(
                 ['nombre' => $data['nombre']],
-                ['proyecto' => $data['proyecto'], 'descripcion' => $data['descripcion']]
+                ['lotificacion_id' => $data['lotificacion_id'], 'descripcion' => $data['descripcion']]
             );
 
             // 2. Crear Lotes para el Bloque (solo los que no existan aún)

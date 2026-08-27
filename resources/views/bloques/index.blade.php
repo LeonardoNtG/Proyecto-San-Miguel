@@ -50,7 +50,7 @@
                     @forelse ($bloques as $bloque)
                         <tr>
                             <td class="fw-bold">{{ $bloque->nombre }}</td>
-                            <td>{{ $bloque->proyecto ?: '—' }}</td>
+                            <td>{{ $bloque->lotificacion ? $bloque->lotificacion->nombre : '—' }}</td>
                             <td>{{ $bloque->descripcion ?: '—' }}</td>
                             <td class="text-center">
                                 <span class="badge bg-info text-white">{{ $bloque->lotes_count }}</span>
@@ -98,7 +98,8 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Proyecto</label>
-                        <input type="text" name="proyecto" class="form-control" placeholder="Ej: Lotificación La Campana" maxlength="100" required>
+                        <input type="hidden" name="lotificacion_id" value="{{ $activeLotificacionId }}">
+                        <input type="text" class="form-control" value="{{ $userLotificaciones->firstWhere('id', $activeLotificacionId)->nombre ?? 'N/A' }}" disabled>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Descripción (opcional)</label>

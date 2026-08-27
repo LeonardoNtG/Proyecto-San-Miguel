@@ -107,13 +107,25 @@
                         <label class="form-label">N° de Lote</label>
                         <input type="text" name="numero_lote" class="form-control" placeholder="Ej: {{ $bloque->nombre }}-01" maxlength="10" required>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Área (m²)</label>
-                        <input type="number" step="0.01" min="0.01" name="area_metros" class="form-control" required>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Área (vrs²)</label>
+                            <input type="number" step="0.01" min="0.01" id="area_varas_create" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Área (m²)</label>
+                            <input type="number" step="0.01" min="0.01" id="area_metros_create" name="area_metros" class="form-control" required>
+                        </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Precio Base (USD)</label>
-                        <input type="number" step="0.01" min="0.01" name="precio_base" class="form-control" required>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Precio por vr² (USD)</label>
+                            <input type="number" step="0.01" min="0.01" id="precio_vara_create" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Precio Total Base (USD)</label>
+                            <input type="number" step="0.01" min="0.01" id="precio_base_create" name="precio_base" class="form-control" required>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Estado</label>
@@ -168,13 +180,50 @@
 @endsection
 
 @section('scripts')
-    <script>
     <script src="{{ asset('js/jqueryEM.js') }}"></script>
-
-    <!-- Custom scripts for all pages-->
     <script src="{{ asset('js/sbAdmin2M.js') }}"></script>
-    <script src="{{ asset('js/chartM.js') }}"></script>
-    <script src="{{ asset('js/chartAD.js') }}"></script>
-    <script src="{{ asset('js/chartPD.js') }}"></script>
+    
+    <script>
+    $(document).ready(function() {
+        const factor = 1.418415;
+
+        // Convertir m² a vrs²
+        $('#area_metros_create').on('input', function() {
+            var m2 = parseFloat($(this).val());
+            if (!isNaN(m2)) {
+                var vrs2 = m2 * factor;
+                $('#area_varas_create').val(vrs2.toFixed(2));
+                calcularPrecioBaseCreate();
+            } else {
+                $('#area_varas_create').val('');
+            }
+        });
+
+        // Convertir vrs² a m²
+        $('#area_varas_create').on('input', function() {
+            var vrs2 = parseFloat($(this).val());
+            if (!isNaN(vrs2)) {
+                var m2 = vrs2 / factor;
+                $('#area_metros_create').val(m2.toFixed(2));
+                calcularPrecioBaseCreate();
+            } else {
+                $('#area_metros_create').val('');
+            }
+        });
+
+        // Calcular precio base total a partir del precio por vara y el area en varas
+        $('#precio_vara_create').on('input', function() {
+            calcularPrecioBaseCreate();
+        });
+
+        function calcularPrecioBaseCreate() {
+            var area_varas = parseFloat($('#area_varas_create').val());
+            var precio_vara = parseFloat($('#precio_vara_create').val());
+            if (!isNaN(area_varas) && !isNaN(precio_vara) && area_varas > 0) {
+                var precio_total = area_varas * precio_vara;
+                $('#precio_base_create').val(precio_total.toFixed(2));
+            }
+        }
+    });
     </script>
 @endsection

@@ -13,7 +13,7 @@ class BloqueController extends Controller
      */
     public function index()
     {
-        $bloques = Bloque::withCount('lotes')->orderBy('nombre')->get();
+        $bloques = Bloque::with('lotificacion')->withCount('lotes')->orderBy('nombre')->get();
 
         return view('bloques.index', compact('bloques'));
     }

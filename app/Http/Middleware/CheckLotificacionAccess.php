@@ -17,7 +17,7 @@ class CheckLotificacionAccess
             // Administrador tiene acceso total (bypass a validaciones estrictas por ahora, pero igual necesita contexto)
             // Si el usuario no tiene lotificaciones asignadas, denegar o redireccionar
             if ($user->lotificaciones()->count() === 0) {
-                if ($user->hasRole('admin')) {
+                if ($user->hasRole('Administrador')) {
                     // Si es admin y no tiene lotificaciones, podemos asignarle la primera por defecto como contingencia,
                     // ya lo hicimos en el sync_admin.
                 } else {
@@ -34,7 +34,17 @@ class CheckLotificacionAccess
                     session(['lotificacion_id' => $firstLotificacion->id]);
                     $activeLotificacionId = $firstLotificacion->id;
                 } else {
-                    abort(403, 'No tienes acceso a ninguna lotificación.');
+                    if ($user->hasRole('Administrador')) {
+                        $activeLotificacionId = null;
+                        
+                        // Si no está ya en la ruta de lotificaciones o logout, redirigirlo allá para que cree una
+                        if (!$request->is('lotificaciones*') && !$request->is('logout') && !$request->is('login')) {
+                            return redirect()->route('lotificaciones.index')
+                                ->with('warning', 'Debes crear al menos una lotificación para comenzar a usar el sistema.');
+                        }
+                    } else {
+                        abort(403, 'No tienes acceso a ninguna lotificación.');
+                    }
                 }
             }
 

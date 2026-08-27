@@ -94,7 +94,7 @@
                 </div>
                 <div class="col-md-4 mb-3">
                     <label for="estado_civil" class="form-label font-weight-bold text-secondary">Estado Civil</label>
-                    <select class="form-select" id="estado_civil" name="estado_civil" required>
+                    <select class="custom-select form-control" id="estado_civil" name="estado_civil" required>
                         <option value="">Seleccione...</option>
                         <option value="soltero" @selected(old('estado_civil') == 'soltero')>Soltero(a)</option>
                         <option value="casado" @selected(old('estado_civil') == 'casado')>Casado(a)</option>
@@ -126,7 +126,7 @@
                 {{-- Proyecto (Select) --}}
                 <div class="col-md-4 mb-3">
                     <label for="proyecto_select" class="form-label font-weight-bold text-secondary">1. Seleccione Proyecto</label>
-                    <select class="form-select border-info" id="proyecto_select" name="lotificacion_id" required>
+                    <select class="custom-select form-control border-info" id="proyecto_select" name="lotificacion_id" required>
                         <option value="">-- Escoger Proyecto --</option>
                         @isset($proyectos)
                             @foreach ($proyectos as $proyecto)
@@ -139,14 +139,14 @@
                 {{-- Bloque (Select dinámico) --}}
                 <div class="col-md-4 mb-3">
                     <label for="bloque" class="form-label font-weight-bold text-secondary">2. Seleccione Bloque</label>
-                    <select class="form-select border-info" id="bloque_select" name="bloque_id" required disabled>
+                    <select class="custom-select form-control border-info" id="bloque_select" name="bloque_id" required disabled>
                         <option value="">Seleccione un Proyecto primero</option>
                     </select>
                 </div>
 
                 <div class="col-md-4 mb-3">
                     <label for="lotes_seleccionados" class="form-label font-weight-bold text-secondary">3. Lotes a Vender (Máx. 20)</label>
-                    <select class="form-select border-info shadow-sm select2-multiple" id="lote_select" name="lotes_ids[]" multiple required disabled style="width: 100%;">
+                    <select class="custom-select form-control border-info shadow-sm select2-multiple" id="lote_select" name="lotes_ids[]" multiple required disabled style="width: 100%;">
                         <option value="">Seleccione un Bloque primero</option>
                     </select>
                     <small class="text-muted"><i class="fas fa-info-circle"></i> Haga clic y escriba para buscar los lotes. Puede seleccionar varios.</small>
@@ -370,7 +370,7 @@ $(document).ready(function() {
                         });
                         loteSelect.prop('disabled', false);
                     } else {
-                        loteSelect.html('<option value="">No hay lotes disponibles en este bloque</option>');
+                        loteSelect.html('<option value="">No hay lotes disponibles (vendidos o reservados)</option>');
                     }
                 },
                 error: function(xhr, status, error) {
@@ -413,6 +413,11 @@ $(document).ready(function() {
     // El monto, el plazo y la prima siguen siendo editables: recalculan la
     // cuota sugerida, pero el usuario puede ajustarla manualmente después.
     $('#monto_lote, #plazo_cuotas, #primer_abono').on('input', calcularCuota);
+    
+    // Disparar el evento change si hay un proyecto preseleccionado al cargar la página
+    if ($('#proyecto_select').val()) {
+        $('#proyecto_select').trigger('change');
+    }
 });
 </script>
             <script src="{{ asset('js/jqueryEM.js') }}"></script>

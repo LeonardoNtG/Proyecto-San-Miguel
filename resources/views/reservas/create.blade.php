@@ -72,7 +72,7 @@
             <div class="row g-3">
                 <div class="col-md-4 mb-3">
                     <label for="proyecto_select" class="form-label font-weight-bold text-secondary">1. Seleccione Proyecto</label>
-                    <select class="form-select border-info" id="proyecto_select" name="lotificacion_id" required>
+                    <select class="custom-select form-control border-info" id="proyecto_select" name="lotificacion_id" required>
                         <option value="">-- Escoger Proyecto --</option>
                         @foreach ($proyectos as $proyecto)
                             <option value="{{ $proyecto->id }}">{{ $proyecto->nombre }}</option>
@@ -82,14 +82,14 @@
 
                 <div class="col-md-4 mb-3">
                     <label for="bloque" class="form-label font-weight-bold text-secondary">2. Seleccione Bloque</label>
-                    <select class="form-select border-info" id="bloque_select" name="bloque_id" required disabled>
+                    <select class="custom-select form-control border-info" id="bloque_select" name="bloque_id" required disabled>
                         <option value="">Seleccione un Proyecto primero</option>
                     </select>
                 </div>
 
                 <div class="col-md-4 mb-3">
                     <label for="lotes_seleccionados" class="form-label font-weight-bold text-secondary">3. Lotes a Reservar</label>
-                    <select class="form-select border-info shadow-sm" id="lote_select" name="lotes_ids[]" multiple required disabled style="min-height: 120px;">
+                    <select class="custom-select form-control border-info shadow-sm" id="lote_select" name="lotes_ids[]" multiple required disabled style="min-height: 120px;">
                         <option value="">Seleccione un Bloque primero</option>
                     </select>
                 </div>
@@ -180,12 +180,17 @@ $(document).ready(function() {
                         });
                         loteSelect.prop('disabled', false);
                     } else {
-                        loteSelect.html('<option value="">No hay lotes disponibles en este bloque</option>');
+                        loteSelect.html('<option value="">No hay lotes disponibles (vendidos o reservados)</option>');
                     }
                 }
             });
         }
     });
+
+    // Disparar el evento change si hay un proyecto preseleccionado al cargar la página
+    if ($('#proyecto_select').val()) {
+        $('#proyecto_select').trigger('change');
+    }
 });
 </script>
 <script src="{{ asset('js/jqueryEM.js') }}"></script>

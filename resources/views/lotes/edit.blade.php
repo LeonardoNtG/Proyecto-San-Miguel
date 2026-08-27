@@ -35,12 +35,23 @@
                     <input type="text" name="numero_lote" class="form-control" maxlength="10" value="{{ old('numero_lote', $lote->numero_lote) }}" required>
                 </div>
                 <div class="col-md-3 mb-3">
-                    <label class="form-label">Área (m²)</label>
-                    <input type="number" step="0.01" min="0.01" name="area_metros" class="form-control" value="{{ old('area_metros', $lote->area_metros) }}" required>
+                    <label class="form-label">Área (vrs²)</label>
+                    <input type="number" step="0.01" min="0.01" id="area_varas_edit" class="form-control" value="{{ old('area_metros', $lote->area_metros) * 1.418415 }}">
                 </div>
                 <div class="col-md-3 mb-3">
-                    <label class="form-label">Precio Base (USD)</label>
-                    <input type="number" step="0.01" min="0.01" name="precio_base" class="form-control" value="{{ old('precio_base', $lote->precio_base) }}" required>
+                    <label class="form-label">Área (m²)</label>
+                    <input type="number" step="0.01" min="0.01" id="area_metros_edit" name="area_metros" class="form-control" value="{{ old('area_metros', $lote->area_metros) }}" required>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Precio por vr² (USD)</label>
+                    <input type="number" step="0.01" min="0.01" id="precio_vara_edit" class="form-control" value="{{ old('area_metros', $lote->area_metros) > 0 ? old('precio_base', $lote->precio_base) / (old('area_metros', $lote->area_metros) * 1.418415) : '' }}">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Precio Total Base (USD)</label>
+                    <input type="number" step="0.01" min="0.01" id="precio_base_edit" name="precio_base" class="form-control" value="{{ old('precio_base', $lote->precio_base) }}" required>
                 </div>
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Estado</label>
@@ -63,13 +74,50 @@
 @endsection
 
 @section('scripts')
-    <script>
     <script src="{{ asset('js/jqueryEM.js') }}"></script>
-
-    <!-- Custom scripts for all pages-->
     <script src="{{ asset('js/sbAdmin2M.js') }}"></script>
-    <script src="{{ asset('js/chartM.js') }}"></script>
-    <script src="{{ asset('js/chartAD.js') }}"></script>
-    <script src="{{ asset('js/chartPD.js') }}"></script>
+
+    <script>
+    $(document).ready(function() {
+        const factor = 1.418415;
+
+        // Convertir m² a vrs²
+        $('#area_metros_edit').on('input', function() {
+            var m2 = parseFloat($(this).val());
+            if (!isNaN(m2)) {
+                var vrs2 = m2 * factor;
+                $('#area_varas_edit').val(vrs2.toFixed(2));
+                calcularPrecioBaseEdit();
+            } else {
+                $('#area_varas_edit').val('');
+            }
+        });
+
+        // Convertir vrs² a m²
+        $('#area_varas_edit').on('input', function() {
+            var vrs2 = parseFloat($(this).val());
+            if (!isNaN(vrs2)) {
+                var m2 = vrs2 / factor;
+                $('#area_metros_edit').val(m2.toFixed(2));
+                calcularPrecioBaseEdit();
+            } else {
+                $('#area_metros_edit').val('');
+            }
+        });
+
+        // Calcular precio base total a partir del precio por vara y el area en varas
+        $('#precio_vara_edit').on('input', function() {
+            calcularPrecioBaseEdit();
+        });
+
+        function calcularPrecioBaseEdit() {
+            var area_varas = parseFloat($('#area_varas_edit').val());
+            var precio_vara = parseFloat($('#precio_vara_edit').val());
+            if (!isNaN(area_varas) && !isNaN(precio_vara) && area_varas > 0) {
+                var precio_total = area_varas * precio_vara;
+                $('#precio_base_edit').val(precio_total.toFixed(2));
+            }
+        }
+    });
     </script>
 @endsection

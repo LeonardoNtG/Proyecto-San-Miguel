@@ -47,7 +47,18 @@ class LotificacionController extends Controller
             $data['logo'] = $request->file('logo')->store('logos', 'public');
         }
 
-        \App\Models\Lotificacion::create($data);
+        $lotificacion = \App\Models\Lotificacion::create($data);
+
+        // Asignar esta lotificación automáticamente a todos los administradores (y al creador actual)
+        $admins = \App\Models\User::role('Administrador')->get();
+        foreach($admins as $admin) {
+            $admin->lotificaciones()->syncWithoutDetaching([$lotificacion->id]);
+        }
+        
+        // Si el usuario actual no es admin (muy raro, pero por si acaso), darle acceso también
+        if (!Auth::user()->hasRole('Administrador')) {
+            Auth::user()->lotificaciones()->syncWithoutDetaching([$lotificacion->id]);
+        }
 
         return redirect()->route('lotificaciones.index')->with('success', 'Lotificación creada exitosamente.');
     }

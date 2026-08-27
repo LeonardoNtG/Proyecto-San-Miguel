@@ -112,8 +112,8 @@ class UsuarioController extends Controller
 
         if (
         auth()->id() === $usuario->id &&
-        $usuario->hasRole('admin') &&
-        $request->role !== 'admin'
+        $usuario->hasRole('Administrador') &&
+        $request->role !== 'Administrador'
      ) {
         return back()
             ->withInput()

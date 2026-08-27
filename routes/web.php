@@ -69,7 +69,7 @@ Route::get('/api/lotificaciones/{lotificacion}/bloques', [App\Http\Controllers\B
 // registrar clientes/ventas en "/registro/create".
 
 // Rutas protegidas
-Route::middleware(['role:admin'])->group(function () {
+Route::middleware(['role:Administrador'])->group(function () {
     Route::resource('bloques', App\Http\Controllers\BloqueController::class);
 
     Route::prefix('bloques/{bloque}/lotes')->name('lotes.')->group(function () {
@@ -109,7 +109,7 @@ Route::prefix('abono/{cliente}')->name('abono.')->group(function () {
     Route::post('/', [App\Http\Controllers\AbonoController::class, 'store'])->name('store'); 
 });
 
-Route::middleware(['auth', 'role:admin'])->group(function () {
+Route::middleware(['auth', 'role:Administrador'])->group(function () {
 
     Route::resource('usuarios', UsuarioController::class);
     Route::resource('lotificaciones', App\Http\Controllers\LotificacionController::class);
