@@ -88,12 +88,14 @@
                                                 <i class="fas fa-print"></i>
                                             </a>
                                             
+                                            @can('borrar-abonos')
                                             <button type="button" class="btn btn-sm btn-outline-danger delete-abono" 
                                                     data-bs-toggle="modal" 
                                                     data-bs-target="#deleteModal"
                                                     data-id="{{ $abono->id_abono }}" title="Borrar Abono">
                                                 <i class="fas fa-trash-alt"></i>
                                             </button>
+                                            @endcan
                                         </td>
                                     </tr>
                                 @empty

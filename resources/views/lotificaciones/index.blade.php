@@ -10,6 +10,9 @@
             <h3 class="fw-bold text-dark mb-0">Gestión de Proyectos (Lotificaciones)</h3>
             <p class="text-muted small mb-0">Administra los datos, RUC, logo y contacto de cada lotificación para los recibos</p>
         </div>
+        <a href="{{ route('lotificaciones.create') }}" class="btn btn-primary px-3 shadow-sm rounded-pill">
+            <i class="fas fa-plus-circle me-1"></i> Nuevo Proyecto
+        </a>
     </div>
 
     @if(session('success'))

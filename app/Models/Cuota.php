@@ -36,7 +36,7 @@ class Cuota extends Model
     // Accessor para obtener la mora que aún falta por pagar o exonerar
     public function getMoraPendienteAttribute()
     {
-        $pendiente = $this->mora_calculada - $this->mora_exonerada - $this->mora_pagada;
+        $pendiente = round((float)$this->mora_calculada - (float)$this->mora_exonerada - (float)$this->mora_pagada, 2);
         return $pendiente > 0 ? $pendiente : 0;
     }
 }

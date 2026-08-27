@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Reserva extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\ScopedByLotificacion;
 
     protected $primaryKey = 'id_reserva';
 
@@ -24,11 +24,6 @@ class Reserva extends Model
         'fecha_reserva' => 'date',
         'fecha_vencimiento' => 'date',
     ];
-
-    protected static function booted()
-    {
-        static::addGlobalScope(new \App\Models\Scopes\LotificacionScope);
-    }
 
     public function cliente()
     {

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Lotificacion extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\ScopedByLotificacion;
 
     protected $table = 'lotificaciones';
 

@@ -295,7 +295,8 @@ class ReporteController extends Controller
                 'saldo_inicial' => $saldoInicial,
                 'ingresos' => $ingresos,
                 'egresos' => $egresos,
-                'saldo_final' => $saldoFinal
+                'saldo_final' => $saldoFinal,
+                'user_id' => auth()->id()
             ]
         );
 

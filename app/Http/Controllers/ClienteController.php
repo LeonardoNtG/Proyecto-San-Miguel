@@ -42,7 +42,13 @@ class ClienteController extends Controller
             $clientesQuery->where(function($q) use ($search) {
                 $q->where('expediente_num', 'like', "%{$search}%")
                   ->orWhere('nombres_apellidos', 'like', "%{$search}%")
-                  ->orWhere('identificacion', 'like', "%{$search}%");
+                  ->orWhere('identificacion', 'like', "%{$search}%")
+                  ->orWhereHas('ventas.lotes', function($qLote) use ($search) {
+                      $qLote->where('numero_lote', 'like', "%{$search}%")
+                            ->orWhereHas('bloque', function($qBloque) use ($search) {
+                                $qBloque->where('nombre', 'like', "%{$search}%");
+                            });
+                  });
             });
         }
 
@@ -79,7 +85,13 @@ class ClienteController extends Controller
             $clientesQuery->where(function($q) use ($search) {
                 $q->where('expediente_num', 'like', "%{$search}%")
                   ->orWhere('nombres_apellidos', 'like', "%{$search}%")
-                  ->orWhere('identificacion', 'like', "%{$search}%");
+                  ->orWhere('identificacion', 'like', "%{$search}%")
+                  ->orWhereHas('ventas.lotes', function($qLote) use ($search) {
+                      $qLote->where('numero_lote', 'like', "%{$search}%")
+                            ->orWhereHas('bloque', function($qBloque) use ($search) {
+                                $qBloque->where('nombre', 'like', "%{$search}%");
+                            });
+                  });
             });
         }
 
@@ -168,7 +180,10 @@ class ClienteController extends Controller
                 'fecha_pago' => $request->fecha_ultimo_abono ?? now(),
                 'monto_abonado' => $request->primer_abono,
                 'tipo_pago' => 'Prima/Primer Abono',
-                'referencia' => 'Registro Inicial de Venta',
+                'metodo_pago' => $request->metodo_pago_prima ?? 'Efectivo',
+                'referencia' => $request->referencia_prima ?? 'Registro Inicial de Venta',
+                'cuenta_destino' => $request->cuenta_destino_prima ?? null,
+                'user_id' => auth()->id()
         ]);
 
         // GENERAR PLAN DE PAGOS (CUOTAS)
@@ -296,6 +311,8 @@ class ClienteController extends Controller
      */
     public function destroy(Cliente $cliente)
 {
+    abort_if(!auth()->user()->can('borrar-clientes'), 403, 'No tienes permiso para borrar clientes.');
+
     DB::beginTransaction();
     try {
         $venta = $cliente->ventas->first();

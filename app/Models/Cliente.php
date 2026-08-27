@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\ScopedByLotificacion;
 
 class Cliente extends Model
 {
-    use HasFactory;
+    use HasFactory, ScopedByLotificacion;
     // 1. Nombre de la tabla
     protected $table = 'clientes';
 

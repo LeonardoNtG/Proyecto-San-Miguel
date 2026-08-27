@@ -8,12 +8,9 @@ use Illuminate\Database\Eloquent\Model;
 class Venta extends Model
 {
     
-    use HasFactory;
+    use HasFactory, \App\Traits\ScopedByLotificacion;
 
-    protected static function booted()
-    {
-        static::addGlobalScope(new \App\Models\Scopes\LotificacionScope);
-    }
+
 
     protected $table = 'ventas';
 

@@ -4,6 +4,35 @@
 
 @section('contenido') {{-- 3. Abre la sección principal 'contenido' --}}
 
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<style>
+    /* Estilos extra para embellecer los totales */
+    .financial-card {
+        border-radius: 10px;
+        padding: 1.5rem;
+        color: white;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    .financial-card:hover {
+        transform: translateY(-2px);
+    }
+    .bg-area { background: linear-gradient(45deg, #36b9cc, #2c9faf); }
+    .bg-precio { background: linear-gradient(45deg, #1cc88a, #13855c); }
+    
+    /* Ocultar flechas (spinners) en inputs tipo number */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+    }
+    input[type=number] {
+        -moz-appearance: textfield;
+    }
+</style>
+
 @if (session('error'))
     <div class="alert alert-danger" role="alert">
         {{ session('error') }}
@@ -117,10 +146,10 @@
 
                 <div class="col-md-4 mb-3">
                     <label for="lotes_seleccionados" class="form-label font-weight-bold text-secondary">3. Lotes a Vender (Máx. 20)</label>
-                    <select class="form-select border-info shadow-sm" id="lote_select" name="lotes_ids[]" multiple required disabled style="min-height: 120px;">
+                    <select class="form-select border-info shadow-sm select2-multiple" id="lote_select" name="lotes_ids[]" multiple required disabled style="width: 100%;">
                         <option value="">Seleccione un Bloque primero</option>
                     </select>
-                    <small class="text-muted">Mantenga presionada la tecla Ctrl (Windows) o Command (Mac) para seleccionar varios lotes.</small>
+                    <small class="text-muted"><i class="fas fa-info-circle"></i> Haga clic y escriba para buscar los lotes. Puede seleccionar varios.</small>
                 </div>
             </div>
         </div>
@@ -132,32 +161,73 @@
             <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-hand-holding-usd"></i> Detalles Financieros (Plan de Pagos)</h6>
         </div>
         <div class="card-body bg-light">
-            <div class="row g-3">
-                <div class="col-md-3 mb-3">
-                    <label for="extension" class="form-label font-weight-bold text-secondary">Extensión TOTAL</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control bg-white" id="extension_lote" name="extension" placeholder="0.00" readonly required>
-                        <span class="input-group-text">m²</span>
-                    </div>
-                    <input type="hidden" id="extension_lote_value" name="extension_value">
-                </div>
-                <div class="col-md-3 mb-3">
-                    <label for="monto_lote" class="form-label font-weight-bold text-secondary">Precio Venta (Total)</label>
-                    <div class="input-group">
-                        <span class="input-group-text">$</span>
-                        <input type="number" step="0.01" class="form-control font-weight-bold text-success" id="monto_lote" name="precio_final" placeholder="0.00" value="{{ old('precio_final') }}" required>
+            <!-- Tarjetas de Totales -->
+            <div class="row g-3 mb-4">
+                <!-- Extensión -->
+                <div class="col-md-6">
+                    <div class="financial-card bg-area d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase fw-bold mb-1 opacity-75">Extensión TOTAL</h6>
+                            <h3 class="mb-0 fw-bold" id="display_extension">0.00 <small class="fs-6">vrs²</small></h3>
+                            <input type="hidden" id="extension_lote_value" name="extension_value">
+                            <input type="hidden" id="extension_lote" name="extension">
+                        </div>
+                        <i class="fas fa-ruler-combined fa-3x opacity-50"></i>
                     </div>
                 </div>
-                <div class="col-md-3 mb-3">
-                    <label for="primer_abono" class="form-label font-weight-bold text-secondary">Prima / Enganche</label>
-                    <div class="input-group">
-                        <span class="input-group-text">$</span>
+                <!-- Precio -->
+                <div class="col-md-6">
+                    <div class="financial-card bg-precio d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase fw-bold mb-1 opacity-75">Precio Venta (Total)</h6>
+                            <div class="d-flex align-items-center">
+                                <h3 class="mb-0 fw-bold me-2">$</h3>
+                                <input type="number" step="0.01" class="form-control bg-transparent text-white border-0 shadow-none fw-bold p-0" style="font-size: 1.4rem;" id="monto_lote" name="precio_final" placeholder="0.00" value="{{ old('precio_final') }}" required>
+                            </div>
+                        </div>
+                        <i class="fas fa-dollar-sign fa-3x opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="mb-4">
+
+            <!-- Inputs de Prima y Fecha -->
+            <div class="row g-3 mb-2">
+                <div class="col-md-6 mb-3">
+                    <label for="primer_abono" class="form-label font-weight-bold text-secondary"><i class="fas fa-money-bill-wave text-success"></i> Prima / Enganche</label>
+                    <div class="input-group input-group-lg shadow-sm">
+                        <span class="input-group-text bg-success text-white border-success">$</span>
                         <input type="number" step="0.01" class="form-control border-success" id="primer_abono" name="primer_abono" placeholder="0.00" value="{{ old('primer_abono') }}" required>
                     </div>
                 </div>
+                <div class="col-md-6 mb-3">
+                    <label for="fecha_ultimo_abono" class="form-label font-weight-bold text-secondary"><i class="fas fa-calendar-alt text-primary"></i> Fecha del 1° Pago</label>
+                    <div class="input-group input-group-lg shadow-sm">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-calendar text-muted"></i></span>
+                        <input type="date" class="form-control border-start-0 ps-0" id="fecha_ultimo_abono" name="fecha_ultimo_abono" value="{{ old('fecha_ultimo_abono', now()->format('Y-m-d')) }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Datos de pago de la Prima -->
+            <div class="row g-3 bg-white p-2 mb-3 rounded border">
                 <div class="col-md-3 mb-3">
-                    <label for="fecha_ultimo_abono" class="form-label font-weight-bold text-secondary">Fecha del 1° Pago</label>
-                    <input type="date" class="form-control" id="fecha_ultimo_abono" name="fecha_ultimo_abono" value="{{ old('fecha_ultimo_abono') }}">
+                    <label for="metodo_pago_prima" class="form-label font-weight-bold text-secondary">Método de Pago (Prima)</label>
+                    <select class="form-select" id="metodo_pago_prima" name="metodo_pago_prima" required onchange="togglePrimaFields()">
+                        <option value="Efectivo" {{ old('metodo_pago_prima') == 'Efectivo' ? 'selected' : '' }}>Efectivo</option>
+                        <option value="Transferencia Bancaria" {{ old('metodo_pago_prima') == 'Transferencia Bancaria' ? 'selected' : '' }}>Transferencia Bancaria</option>
+                        <option value="Depósito Bancario" {{ old('metodo_pago_prima') == 'Depósito Bancario' ? 'selected' : '' }}>Depósito Bancario</option>
+                        <option value="Cheque" {{ old('metodo_pago_prima') == 'Cheque' ? 'selected' : '' }}>Cheque</option>
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3" id="div_cuenta_prima" style="display: none;">
+                    <label for="cuenta_destino_prima" class="form-label font-weight-bold text-secondary">Cuenta Destino</label>
+                    <input type="text" class="form-control" id="cuenta_destino_prima" name="cuenta_destino_prima" placeholder="Ej: BANPRO - Empresa">
+                </div>
+                <div class="col-md-5 mb-3" id="div_referencia_prima">
+                    <label for="referencia_prima" class="form-label font-weight-bold text-secondary" id="label_referencia_prima">Comentarios / Referencia</label>
+                    <input type="text" class="form-control" id="referencia_prima" name="referencia_prima" placeholder="Registro Inicial de Venta">
                 </div>
             </div>
 
@@ -190,8 +260,35 @@
 @endsection 
 
 @section('scripts')
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
 $(document).ready(function() {
+    // Inicializar Select2
+    $('#proyecto_select').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: '-- Escoger Proyecto --'
+    });
+    
+    $('#bloque_select').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Seleccione un Proyecto primero'
+    });
+    
+    $('#lote_select').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Seleccione uno o más Lotes',
+        allowClear: true
+    });
+
+    // Evitar que el scroll del mouse cambie el valor de los inputs tipo número
+    $('input[type=number]').on('wheel', function(e) {
+        e.preventDefault();
+    });
 
     function calcularCuota() {
         var monto = parseFloat($('#monto_lote').val()) || 0;
@@ -299,9 +396,17 @@ $(document).ready(function() {
             }
         });
 
-        $('#extension_lote').val(totalExtension.toFixed(2) + ' vrs2');
+        $('#extension_lote').val(totalExtension.toFixed(2));
         $('#extension_lote_value').val(totalExtension.toFixed(2));
+        $('#display_extension').html(totalExtension.toFixed(2) + ' <small class="fs-6">vrs²</small>');
         $('#monto_lote').val(totalMonto.toFixed(2));
+        
+        // Micro-animación para dar feedback visual
+        $('.financial-card').css('transform', 'scale(1.02)');
+        setTimeout(function() {
+            $('.financial-card').css('transform', 'scale(1)');
+        }, 200);
+
         calcularCuota();
     });
 
@@ -322,5 +427,34 @@ $(document).ready(function() {
     <!-- Page level custom scripts -->
     <script src="{{ asset('js/chartAD.js') }}"></script>
     <script src="{{ asset('js/chartPD.js') }}"></script>
+    
+    <script>
+    function togglePrimaFields() {
+        var metodo = document.getElementById('metodo_pago_prima').value;
+        var divCuenta = document.getElementById('div_cuenta_prima');
+        var inputCuenta = document.getElementById('cuenta_destino_prima');
+        var labelRef = document.getElementById('label_referencia_prima');
+        var inputRef = document.getElementById('referencia_prima');
+
+        if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario' || metodo === 'Cheque') {
+            divCuenta.style.display = 'block';
+            inputCuenta.required = true;
+            labelRef.innerText = 'N° de Referencia / Comprobante';
+            inputRef.placeholder = 'N° de transacción';
+            inputRef.required = (metodo !== 'Cheque');
+        } else {
+            divCuenta.style.display = 'none';
+            inputCuenta.required = false;
+            inputCuenta.value = '';
+            labelRef.innerText = 'Comentarios / Referencia';
+            inputRef.placeholder = 'Registro Inicial de Venta';
+            inputRef.required = false;
+        }
+    }
+    
+    // Ejecutar al cargar la página por si hay valores "old"
+    document.addEventListener("DOMContentLoaded", function() {
+        togglePrimaFields();
+    });
     </script>
 @endsection

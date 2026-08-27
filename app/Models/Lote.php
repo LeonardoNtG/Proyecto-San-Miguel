@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Lote extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\ScopedByLotificacion;
     protected $table = 'lotes';
 
     // 2. Clave primaria personalizada

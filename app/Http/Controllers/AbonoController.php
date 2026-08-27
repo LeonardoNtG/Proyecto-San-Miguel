@@ -44,13 +44,13 @@ class AbonoController extends Controller
         }]);
 
         // Cálculos Financieros
-        
         $totalAbonado = $venta->abonos->sum('monto_abonado');
         $saldoPendiente = $venta->precio_final - $totalAbonado;
         
-        // Asumiendo pagos mensuales 
-        $cuotasPagadas = floor($totalAbonado / $venta->cuota_mensual); 
-        $cuotasPendientes = $venta->plazo_meses - $cuotasPagadas;
+        // El número real de cuotas pendientes basado en la tabla cuotas
+        $cuotasPendientes = \App\Models\Cuota::where('id_venta', $venta->id_venta)
+            ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+            ->count();
         
         // Fecha de Pago 
         $fechaPagoTeorica = $venta->created_at->format('d'); 
@@ -112,6 +112,20 @@ class AbonoController extends Controller
             $ruta_imagen = $request->file('ruta_recibo')->store('abonos_recibos', 'public');
         }
 
+        // Calcular máximo a pagar (Capital restante + Mora pendiente)
+        $cuotasPendientes = \App\Models\Cuota::where('id_venta', $venta->id_venta)
+            ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+            ->orderBy('numero_cuota', 'asc')
+            ->get();
+
+        $maximoAPagar = $cuotasPendientes->sum(function($cuota) {
+            return $cuota->saldo_restante + $cuota->mora_pendiente;
+        });
+
+        if (round($request->monto_abonado, 2) > round($maximoAPagar, 2)) {
+            return back()->withInput()->with('error', 'El monto del abono ($' . number_format($request->monto_abonado, 2) . ') supera la deuda total pendiente ($' . number_format($maximoAPagar, 2) . ' incluyendo mora).');
+        }
+
         // Crear el abono base
         $abono = Abono::create([
             'id_venta'      => $venta->id_venta,
@@ -121,7 +135,8 @@ class AbonoController extends Controller
             'metodo_pago'   => $request->metodo_pago,
             'referencia'    => $request->referencia,
             'cuenta_destino'=> $request->cuenta_destino,
-            'ruta_recibo'   => $ruta_imagen
+            'ruta_recibo'   => $ruta_imagen,
+            'user_id'       => auth()->id()
         ]);
 
         // APLICAR ABONO A LAS CUOTAS
@@ -226,17 +241,90 @@ class AbonoController extends Controller
 
         public function destroy($abono) 
     {
+        abort_if(!auth()->user()->can('borrar-abonos'), 403, 'No tienes permiso para borrar abonos.');
+
      try {
         // Buscamos el abono por el ID que llega en la URL
         $registro = Abono::findOrFail($abono);
+        $id_venta = $registro->id_venta;
         
         $registro->delete();
+        
+        // Recalcular el estado de las cuotas tras eliminar un abono
+        self::recalcularCuotas($id_venta);
+
         \App\Models\Auditoria::log('Eliminó Abono', 'Abono', $abono, "Abono ID: " . $abono);
-        return redirect()->back()->with('success', 'Abono eliminado correctamente.');
+        return redirect()->back()->with('success', 'Abono eliminado correctamente. Saldos recalculados.');
 
         } catch (\Exception $e) {
          // Si hay error, lo mostramos para saber qué pasó
           return redirect()->back()->with('error', 'No se pudo eliminar: ' . $e->getMessage());
+        }
+    }
+
+    public static function recalcularCuotas($id_venta) {
+        $venta = \App\Models\Venta::findOrFail($id_venta);
+        
+        // 1. Restaurar todas las cuotas a su estado original
+        \App\Models\Cuota::where('id_venta', $id_venta)->update([
+            'saldo_restante' => DB::raw('monto_total'),
+            'mora_pagada' => 0,
+            'estado' => 'Pendiente'
+        ]);
+
+        if ($venta->estado_contrato === 'Finalizado') {
+            $venta->estado_contrato = 'Vigente';
+            $venta->save();
+        }
+
+        // 2. Obtener abonos ordenados cronológicamente, omitiendo la Prima
+        $abonos = \App\Models\Abono::where('id_venta', $id_venta)
+            ->where('tipo_pago', '!=', 'Prima/Primer Abono')
+            ->orderBy('fecha_pago', 'asc')->orderBy('id_abono', 'asc')->get();
+
+        // 3. Reaplicar los abonos a las cuotas
+        foreach($abonos as $abono) {
+            $montoRestante = $abono->monto_abonado;
+            
+            $cuotasPendientes = \App\Models\Cuota::where('id_venta', $id_venta)
+                ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+                ->orderBy('numero_cuota', 'asc')
+                ->get();
+
+            foreach ($cuotasPendientes as $cuota) {
+                if ($montoRestante <= 0) break;
+
+                $moraPendiente = $cuota->mora_pendiente;
+                if ($moraPendiente > 0) {
+                    if ($montoRestante >= $moraPendiente) {
+                        $montoRestante -= $moraPendiente;
+                        $cuota->mora_pagada += $moraPendiente;
+                    } else {
+                        $cuota->mora_pagada += $montoRestante;
+                        $montoRestante = 0;
+                        $cuota->save();
+                        continue; 
+                    }
+                }
+
+                if ($montoRestante >= $cuota->saldo_restante) {
+                    $montoRestante -= $cuota->saldo_restante;
+                    $cuota->saldo_restante = 0;
+                    $cuota->estado = 'Pagada';
+                } else {
+                    $cuota->saldo_restante -= $montoRestante;
+                    $cuota->estado = ($cuota->estado === 'Mora') ? 'Mora' : 'Parcial';
+                    $montoRestante = 0;
+                }
+                $cuota->save();
+            }
+        }
+
+        // 4. Revisar si con los abonos restantes se finaliza el contrato
+        $saldoTotalRestante = \App\Models\Cuota::where('id_venta', $id_venta)->sum('saldo_restante');
+        if ($saldoTotalRestante <= 0 && $venta->estado_contrato === 'Vigente') {
+            $venta->estado_contrato = 'Finalizado';
+            $venta->save();
         }
     }
 
@@ -273,10 +361,10 @@ class AbonoController extends Controller
 
                  $abonos_realizados = $venta->abonos->count();
 
-                $abonos_faltantes = max(
-                 0,
-                $venta->plazo_meses - $abonos_realizados
-                );
+                 // El número real de cuotas pendientes basado en la tabla cuotas
+                 $abonos_faltantes = \App\Models\Cuota::where('id_venta', $venta->id_venta)
+                     ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+                     ->count();
          // Procesa el monto a letras (mantener la seguridad)
          $monto_en_letras = method_exists($this, 'convertirMontoALetras') 
                               ? $this->convertirMontoALetras($abono->monto_abonado) 

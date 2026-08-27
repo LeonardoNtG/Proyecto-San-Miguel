@@ -14,7 +14,7 @@
         <div class="card-header py-3 bg-light">
             <form method="GET" action="{{ route('estados_cuenta') }}" class="form-inline m-0">
                 <div class="input-group w-100">
-                    <input type="text" name="search" class="form-control" placeholder="Buscar por Nombre, Cédula o Expediente..." value="{{ $search }}">
+                    <input type="text" name="search" class="form-control" placeholder="Buscar por N° Exp, Nombre, Cédula, Lote o Bloque..." value="{{ $search ?? '' }}">
                     <div class="input-group-append">
                         <button class="btn btn-primary" type="submit">
                             <i class="fas fa-search fa-sm"></i> Buscar

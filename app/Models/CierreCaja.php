@@ -13,7 +13,8 @@ class CierreCaja extends Model
         'saldo_inicial',
         'ingresos',
         'egresos',
-        'saldo_final'
+        'saldo_final',
+        'user_id'
     ];
 
     protected $casts = [
@@ -23,4 +24,9 @@ class CierreCaja extends Model
         'saldo_final' => 'decimal:2',
         'fecha' => 'date'
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

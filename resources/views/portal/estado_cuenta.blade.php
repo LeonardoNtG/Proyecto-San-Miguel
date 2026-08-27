@@ -153,11 +153,12 @@
                     <div class="card-body p-0">
                         <div class="table-responsive">
                             <table class="table table-hover mb-0">
-                                <thead class="table-light">
+                                <thead>
                                     <tr>
                                         <th>#</th>
                                         <th>Vencimiento</th>
                                         <th>Monto</th>
+                                        <th>Saldo</th>
                                         <th>Mora</th>
                                         <th>Estado</th>
                                     </tr>
@@ -168,6 +169,13 @@
                                         <td>{{ $cuota->numero_cuota }}</td>
                                         <td>{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
                                         <td>${{ number_format($cuota->monto_total, 2) }}</td>
+                                        <td>
+                                            @if($cuota->saldo_restante > 0)
+                                                <span class="fw-bold">${{ number_format($cuota->saldo_restante, 2) }}</span>
+                                            @else
+                                                <span class="text-muted">$0.00</span>
+                                            @endif
+                                        </td>
                                         <td>
                                             @if($cuota->mora_pendiente > 0)
                                                 <span class="text-danger fw-bold">${{ number_format($cuota->mora_pendiente, 2) }}</span>
