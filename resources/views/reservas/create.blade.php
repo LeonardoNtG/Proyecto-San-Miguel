@@ -100,13 +100,13 @@
                     <label for="monto_reserva" class="form-label font-weight-bold text-secondary">Monto de la Reserva (Anticipo)</label>
                     <div class="input-group">
                         <span class="input-group-text">$</span>
-                        <input type="number" step="0.01" class="form-control font-weight-bold text-success" id="monto_reserva" name="monto_reserva" placeholder="0.00" required>
+                        <input type="number" step="0.01" min="0" class="form-control font-weight-bold text-success" id="monto_reserva" name="monto_reserva" placeholder="0.00" required>
                     </div>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label for="dias_validez" class="form-label font-weight-bold text-secondary">Días de Validez (Plazo para Formalizar)</label>
                     <div class="input-group">
-                        <input type="number" class="form-control" id="dias_validez" name="dias_validez" value="15" required>
+                        <input type="number" min="1" class="form-control" id="dias_validez" name="dias_validez" value="15" required>
                         <span class="input-group-text">Días</span>
                     </div>
                 </div>
@@ -124,6 +124,11 @@
 @section('scripts')
 <script>
 $(document).ready(function() {
+    // Evitar que el scroll del mouse cambie el valor de los inputs tipo número
+    $('input[type=number]').on('wheel', function(e) {
+        e.preventDefault();
+    });
+
     $('#proyecto_select').change(function() {
         var proyecto = $(this).val();
         var bloqueSelect = $('#bloque_select');
@@ -143,7 +148,7 @@ $(document).ready(function() {
                     bloqueSelect.html('<option value="">Seleccione Bloque</option>');
                     if (data.length > 0) {
                         $.each(data, function(key, bloque) {
-                            bloqueSelect.append('<option value="' + bloque.id_bloque + '">B-' + bloque.nombre + '</option>');
+                            bloqueSelect.append('<option value="' + bloque.id_bloque + '">Bloque ' + bloque.nombre + '</option>');
                         });
                         bloqueSelect.prop('disabled', false);
                     } else {

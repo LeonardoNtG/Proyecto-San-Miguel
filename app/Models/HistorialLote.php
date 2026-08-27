@@ -14,6 +14,7 @@ class HistorialLote extends Model
     protected $fillable = [
         'id_lote',
         'id_venta',
+        'id_reserva',
         'estado',
         'fecha_asignacion',
         'fecha_liberacion',

@@ -182,7 +182,7 @@
                             <h6 class="text-uppercase fw-bold mb-1 opacity-75">Precio Venta (Total)</h6>
                             <div class="d-flex align-items-center">
                                 <h3 class="mb-0 fw-bold me-2">$</h3>
-                                <input type="number" step="0.01" class="form-control bg-transparent text-white border-0 shadow-none fw-bold p-0" style="font-size: 1.4rem;" id="monto_lote" name="precio_final" placeholder="0.00" value="{{ old('precio_final') }}" required>
+                                <input type="number" step="0.01" min="0" class="form-control bg-transparent text-white border-0 shadow-none fw-bold p-0" style="font-size: 1.4rem;" id="monto_lote" name="precio_final" placeholder="0.00" value="{{ old('precio_final') }}" required>
                             </div>
                         </div>
                         <i class="fas fa-dollar-sign fa-3x opacity-50"></i>
@@ -198,7 +198,7 @@
                     <label for="primer_abono" class="form-label font-weight-bold text-secondary"><i class="fas fa-money-bill-wave text-success"></i> Prima / Enganche</label>
                     <div class="input-group input-group-lg shadow-sm">
                         <span class="input-group-text bg-success text-white border-success">$</span>
-                        <input type="number" step="0.01" class="form-control border-success" id="primer_abono" name="primer_abono" placeholder="0.00" value="{{ old('primer_abono') }}" required>
+                        <input type="number" step="0.01" min="0" class="form-control border-success" id="primer_abono" name="primer_abono" placeholder="0.00" value="{{ old('primer_abono') }}" required>
                     </div>
                 </div>
                 <div class="col-md-6 mb-3">
@@ -327,7 +327,7 @@ $(document).ready(function() {
 
                     if (data.length > 0) {
                         $.each(data, function(key, bloque) {
-                            bloqueSelect.append('<option value="' + bloque.id_bloque + '">B-' + bloque.nombre + '</option>');
+                            bloqueSelect.append('<option value="' + bloque.id_bloque + '">Bloque ' + bloque.nombre + '</option>');
                         });
                         bloqueSelect.prop('disabled', false);
                     } else {
