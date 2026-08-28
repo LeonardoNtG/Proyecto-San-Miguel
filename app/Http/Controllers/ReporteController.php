@@ -232,9 +232,12 @@ class ReporteController extends Controller
         $efectivoTotalSuma = $saldoInicial + $ingresosHoy;
         $saldoFinalCaja = $efectivoTotalSuma - $egresosHoy;
 
+        $cierre = \App\Models\CierreCaja::where('fecha', $fecha)->where('user_id', auth()->id())->first();
+        $cajaCerrada = $cierre ? true : false;
+
         return view('reportes.diario', compact(
             'fecha', 'saldoInicial', 'ingresosHoy', 
-            'egresosHoy', 'listaSalidas', 'listaIngresos', 'efectivoTotalSuma', 'saldoFinalCaja', 'cajaAbierta'
+            'egresosHoy', 'listaSalidas', 'listaIngresos', 'efectivoTotalSuma', 'saldoFinalCaja', 'cajaAbierta', 'cajaCerrada'
         ));
     }
 
@@ -304,6 +307,11 @@ class ReporteController extends Controller
         ]);
 
         $fecha = $request->fecha;
+        
+        $cierrePrevio = \App\Models\CierreCaja::where('fecha', $fecha)->where('user_id', auth()->id())->first();
+        if ($cierrePrevio) {
+            return back()->with('error', 'La caja ya fue cerrada para este día. No puede realizar el cierre múltiples veces.');
+        }
         
         $apertura = \App\Models\AperturaCaja::where('fecha', $fecha)->where('user_id', auth()->id())->first();
         $saldoInicial = $apertura ? $apertura->monto_inicial : 0;

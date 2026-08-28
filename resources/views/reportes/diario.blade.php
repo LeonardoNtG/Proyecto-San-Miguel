@@ -48,22 +48,30 @@
 
 <div class="d-flex justify-content-end gap-2 mb-3">
     @if(!$cajaAbierta)
-        <button type="button" class="btn btn-warning fw-bold px-4" data-bs-toggle="modal" data-bs-target="#modalAbrirCaja">
+        <button type="button" class="btn btn-warning fw-bold px-4 text-dark" data-bs-toggle="modal" data-bs-target="#modalAbrirCaja">
             <i class="fas fa-box-open"></i> Abrir Caja
         </button>
-    @else
-        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalSalida">
+    @elseif($cajaAbierta && !$cajaCerrada)
+        <button type="button" class="btn btn-danger text-white" data-bs-toggle="modal" data-bs-target="#modalSalida">
             <i class="fas fa-minus-circle"></i> Registrar Salida
         </button>
-        <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#modalCerrarCaja">
+        <button type="button" class="btn btn-dark text-white" data-bs-toggle="modal" data-bs-target="#modalCerrarCaja">
             <i class="fas fa-lock"></i> Realizar Cierre de Caja
+        </button>
+    @else
+        <button type="button" class="btn btn-secondary text-white" disabled>
+            <i class="fas fa-lock"></i> Caja Cerrada
         </button>
     @endif
 </div>
 
 @if(!$cajaAbierta)
-    <div class="alert alert-warning border-warning shadow-sm">
-        <i class="fas fa-exclamation-triangle me-2"></i> <strong>Atención:</strong> La caja del día <strong>{{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</strong> aún no ha sido abierta. Para registrar salidas o realizar el cierre, primero debe <a href="#" data-bs-toggle="modal" data-bs-target="#modalAbrirCaja">Abrir la Caja</a>.
+    <div class="alert alert-warning border-warning shadow-sm text-dark">
+        <i class="fas fa-exclamation-triangle me-2"></i> <strong>Atención:</strong> La caja del día <strong>{{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</strong> aún no ha sido abierta. Para registrar salidas o realizar el cierre, primero debe <a href="#" data-bs-toggle="modal" data-bs-target="#modalAbrirCaja" class="text-dark fw-bold text-decoration-underline">Abrir la Caja</a>.
+    </div>
+@elseif($cajaCerrada)
+    <div class="alert alert-info border-info shadow-sm text-dark">
+        <i class="fas fa-info-circle me-2"></i> <strong>Atención:</strong> La caja del día <strong>{{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</strong> ya ha sido cerrada. No se pueden registrar más movimientos.
     </div>
 @endif
 
@@ -131,7 +139,7 @@
                     <input type="hidden" name="fecha" value="{{ $fecha }}">
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-secondary text-white" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-warning">
                         <i class="fas fa-box-open me-1"></i> Abrir Caja
                     </button>
@@ -175,7 +183,7 @@
                     <input type="hidden" name="fecha" value="{{ $fecha }}">
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-secondary text-white" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-danger">
                         <i class="fas fa-check me-1"></i> Registrar
                     </button>
@@ -276,7 +284,7 @@
                     <input type="hidden" id="saldoFinalCaja" value="{{ $saldoFinalCaja }}">
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-secondary text-white" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-dark" id="btnConfirmarCierre">
                         <i class="fas fa-lock me-1"></i> Confirmar Cierre
                     </button>
@@ -302,7 +310,7 @@
                     <p class="text-muted small mt-2 mb-0">Esta acción es irreversible.</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-secondary text-white" data-bs-dismiss="modal">Cancelar</button>
                     <form action="{{ route('reportes.destroy', $salida->id) }}" method="POST">
                         @csrf
                         @method('DELETE')
