@@ -204,13 +204,44 @@
                                 <span>Base Inicial:</span>
                                 <span>${{ number_format($saldoInicial, 2) }}</span>
                             </div>
-                            <div class="d-flex justify-content-between text-success">
-                                <span>Ingresos (+):</span>
+                            <div class="d-flex justify-content-between text-success" data-bs-toggle="collapse" data-bs-target="#collapseIngresos" style="cursor: pointer;" title="Clic para ver detalle">
+                                <span><i class="fas fa-chevron-down me-1" style="font-size: 0.8em;"></i> Ingresos (+):</span>
                                 <span>${{ number_format($ingresosHoy, 2) }}</span>
                             </div>
-                            <div class="d-flex justify-content-between text-danger">
-                                <span>Salidas (-):</span>
+                            <div class="collapse" id="collapseIngresos">
+                                <div class="bg-white border rounded p-2 mb-2 mt-1 small">
+                                    @forelse($listaIngresos as $ingreso)
+                                        <div class="d-flex justify-content-between border-bottom pb-1 mb-1">
+                                            <span>
+                                                <i class="fas fa-caret-right me-1 text-success"></i>
+                                                {{ $ingreso->metodo_pago }} - {{ Str::limit(optional($ingreso->venta->cliente)->nombre1 . ' ' . optional($ingreso->venta->cliente)->apellido1, 15, '...') }}
+                                            </span>
+                                            <span class="text-success">${{ number_format($ingreso->monto_abonado, 2) }}</span>
+                                        </div>
+                                    @empty
+                                        <div class="text-muted fst-italic">Sin ingresos registrados.</div>
+                                    @endforelse
+                                </div>
+                            </div>
+
+                            <div class="d-flex justify-content-between text-danger mt-1" data-bs-toggle="collapse" data-bs-target="#collapseEgresos" style="cursor: pointer;" title="Clic para ver detalle">
+                                <span><i class="fas fa-chevron-down me-1" style="font-size: 0.8em;"></i> Salidas (-):</span>
                                 <span>${{ number_format($egresosHoy, 2) }}</span>
+                            </div>
+                            <div class="collapse" id="collapseEgresos">
+                                <div class="bg-white border rounded p-2 mb-2 mt-1 small">
+                                    @forelse($listaSalidas as $salida)
+                                        <div class="d-flex justify-content-between border-bottom pb-1 mb-1">
+                                            <span>
+                                                <i class="fas fa-caret-right me-1 text-danger"></i>
+                                                {{ $salida->metodo_pago }} - {{ Str::limit($salida->descripcion, 15, '...') }}
+                                            </span>
+                                            <span class="text-danger">${{ number_format($salida->monto, 2) }}</span>
+                                        </div>
+                                    @empty
+                                        <div class="text-muted fst-italic">Sin salidas registradas.</div>
+                                    @endforelse
+                                </div>
                             </div>
                             <hr class="my-1">
                             <div class="d-flex justify-content-between fw-bold fs-5">

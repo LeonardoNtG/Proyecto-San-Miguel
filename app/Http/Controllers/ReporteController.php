@@ -223,7 +223,9 @@ class ReporteController extends Controller
             $saldoInicial = $this->calcularSaldoAnterior($fecha);
         }
 
-        $ingresosHoy = Abono::whereDate('fecha_pago', $fecha)->where('user_id', auth()->id())->sum('monto_abonado');
+        $listaIngresos = Abono::with('venta.cliente')->whereDate('fecha_pago', $fecha)->where('user_id', auth()->id())->get();
+        $ingresosHoy = $listaIngresos->sum('monto_abonado');
+        
         $listaSalidas = Salida::whereDate('fecha', $fecha)->where('user_id', auth()->id())->get();
         $egresosHoy = $listaSalidas->sum('monto');
 
@@ -232,7 +234,7 @@ class ReporteController extends Controller
 
         return view('reportes.diario', compact(
             'fecha', 'saldoInicial', 'ingresosHoy', 
-            'egresosHoy', 'listaSalidas', 'efectivoTotalSuma', 'saldoFinalCaja', 'cajaAbierta'
+            'egresosHoy', 'listaSalidas', 'listaIngresos', 'efectivoTotalSuma', 'saldoFinalCaja', 'cajaAbierta'
         ));
     }
 
