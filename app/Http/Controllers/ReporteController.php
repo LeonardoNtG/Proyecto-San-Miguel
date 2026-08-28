@@ -304,7 +304,10 @@ class ReporteController extends Controller
         ]);
 
         $fecha = $request->fecha;
-        $saldoInicial = $this->calcularSaldoAnterior($fecha);
+        
+        $apertura = \App\Models\AperturaCaja::where('fecha', $fecha)->where('user_id', auth()->id())->first();
+        $saldoInicial = $apertura ? $apertura->monto_inicial : 0;
+        
         $ingresos = Abono::whereDate('fecha_pago', $fecha)->where('user_id', auth()->id())->sum('monto_abonado');
         $egresos = Salida::whereDate('fecha', $fecha)->where('user_id', auth()->id())->sum('monto');
         $saldoFinal = ($saldoInicial + $ingresos) - $egresos;
