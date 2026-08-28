@@ -213,7 +213,7 @@ class ReporteController extends Controller
     {
         $fecha = $request->get('fecha', Carbon::today()->format('Y-m-d'));
 
-        $apertura = \App\Models\AperturaCaja::where('fecha', $fecha)->first();
+        $apertura = \App\Models\AperturaCaja::where('fecha', $fecha)->where('user_id', auth()->id())->first();
         $cajaAbierta = $apertura ? true : false;
 
         if ($cajaAbierta) {
@@ -223,8 +223,8 @@ class ReporteController extends Controller
             $saldoInicial = $this->calcularSaldoAnterior($fecha);
         }
 
-        $ingresosHoy = Abono::whereDate('fecha_pago', $fecha)->sum('monto_abonado');
-        $listaSalidas = Salida::whereDate('fecha', $fecha)->get();
+        $ingresosHoy = Abono::whereDate('fecha_pago', $fecha)->where('user_id', auth()->id())->sum('monto_abonado');
+        $listaSalidas = Salida::whereDate('fecha', $fecha)->where('user_id', auth()->id())->get();
         $egresosHoy = $listaSalidas->sum('monto');
 
         $efectivoTotalSuma = $saldoInicial + $ingresosHoy;
@@ -279,6 +279,7 @@ class ReporteController extends Controller
             'descripcion' => $request->descripcion,
             'metodo_pago' => $request->metodo_pago,
             'fecha' => $request->fecha,
+            'user_id' => auth()->id()
         ]);
 
         \App\Models\Auditoria::log('Registró Egreso', 'Salida', $salida->id, "Monto: $" . number_format($request->monto, 2));
@@ -303,18 +304,17 @@ class ReporteController extends Controller
         $fecha = $request->fecha;
 
         $saldoInicial = $this->calcularSaldoAnterior($fecha);
-        $ingresos = Abono::whereDate('fecha_pago', $fecha)->sum('monto_abonado');
-        $egresos = Salida::whereDate('fecha', $fecha)->sum('monto');
+        $ingresos = Abono::whereDate('fecha_pago', $fecha)->where('user_id', auth()->id())->sum('monto_abonado');
+        $egresos = Salida::whereDate('fecha', $fecha)->where('user_id', auth()->id())->sum('monto');
         $saldoFinal = ($saldoInicial + $ingresos) - $egresos;
 
         CierreCaja::updateOrCreate(
-            ['fecha' => $fecha],
+            ['fecha' => $fecha, 'user_id' => auth()->id()],
             [
                 'saldo_inicial' => $saldoInicial,
                 'ingresos' => $ingresos,
                 'egresos' => $egresos,
-                'saldo_final' => $saldoFinal,
-                'user_id' => auth()->id()
+                'saldo_final' => $saldoFinal
             ]
         );
 
@@ -331,7 +331,10 @@ class ReporteController extends Controller
      */
     private function calcularSaldoAnterior(string $fecha): float
     {
-        $ultimoCierre = CierreCaja::where('fecha', '<', $fecha)->orderByDesc('fecha')->first();
+        $ultimoCierre = CierreCaja::where('fecha', '<', $fecha)
+            ->where('user_id', auth()->id())
+            ->orderByDesc('fecha')
+            ->first();
 
         $saldo = 0.0;
         $desde = $ultimoCierre ? Carbon::parse($ultimoCierre->fecha)->addDay()->format('Y-m-d') : null;
@@ -340,10 +343,12 @@ class ReporteController extends Controller
         if (!$desde || $desde <= $hasta) {
             $ingresosPendientes = Abono::when($desde, fn ($q) => $q->where('fecha_pago', '>=', $desde))
                 ->where('fecha_pago', '<=', $hasta)
+                ->where('user_id', auth()->id())
                 ->sum('monto_abonado');
 
             $egresosPendientes = Salida::when($desde, fn ($q) => $q->where('fecha', '>=', $desde))
                 ->where('fecha', '<=', $hasta)
+                ->where('user_id', auth()->id())
                 ->sum('monto');
 
             $saldo += (float) $ingresosPendientes - (float) $egresosPendientes;

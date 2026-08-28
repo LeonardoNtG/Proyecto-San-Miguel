@@ -15,6 +15,7 @@ class ReportesController extends Controller
         // Obtener abonos del día, con sus relaciones (venta, cliente, lotes)
         $abonos = Abono::with(['venta.cliente', 'venta.lotes'])
             ->whereDate('fecha_pago', $fecha)
+            ->where('user_id', auth()->id())
             ->get();
 
         // Calcular totales por método de pago
@@ -34,7 +35,7 @@ class ReportesController extends Controller
         $totalGeneral = $abonos->sum('monto_abonado');
 
         // Obtener salidas (egresos) del día
-        $salidas = \App\Models\Salida::whereDate('fecha', $fecha)->get();
+        $salidas = \App\Models\Salida::whereDate('fecha', $fecha)->where('user_id', auth()->id())->get();
 
         $totalEgresos = $salidas->sum('monto');
         $flujoNeto = $totalGeneral - $totalEgresos;

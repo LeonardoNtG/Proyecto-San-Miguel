@@ -12,7 +12,8 @@ class Salida extends Model
         'monto',
         'descripcion',
         'metodo_pago',
-        'fecha'
+        'fecha',
+        'user_id'
     ];
 
     // Opcional: Si quieres que siempre se trate como número

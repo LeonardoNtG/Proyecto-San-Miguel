@@ -19,7 +19,9 @@ class CheckCajaAbierta
     public function handle(Request $request, Closure $next)
     {
         $fechaCaja = Carbon::today()->format('Y-m-d');
-        $apertura = AperturaCaja::where('fecha', $fechaCaja)->first();
+        $apertura = AperturaCaja::where('fecha', $fechaCaja)
+                        ->where('user_id', auth()->id())
+                        ->first();
 
         if (!$apertura) {
             return redirect()->route('reportes.index')
