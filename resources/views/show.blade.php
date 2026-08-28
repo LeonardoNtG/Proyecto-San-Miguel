@@ -284,13 +284,44 @@
                     @csrf
                     <div class="modal-body">
                         <div class="alert alert-warning">
-                            <strong>Atención:</strong> Esta acción marcará el contrato como "Rescindido" y liberará inmediatamente los siguientes lotes:
-                            <ul>
+                            <strong>Atención:</strong> Seleccione los lotes que el cliente desea devolver. Si selecciona todos, el contrato completo se cancelará.
+                            <div class="mt-2" id="lotes_checkbox_container">
                                 @foreach($venta->lotes as $lote)
-                                    <li>Lote {{ $lote->numero_lote }} (Pasará a estado Disponible)</li>
+                                    <div class="form-check">
+                                        <input class="form-check-input lote-rescindir-checkbox" type="checkbox" name="lotes_a_rescindir[]" value="{{ $lote->id_lote }}" id="lote_res_{{ $lote->id_lote }}" checked>
+                                        <label class="form-check-label" for="lote_res_{{ $lote->id_lote }}">
+                                            Lote {{ $lote->numero_lote }} (Pasará a Disponible)
+                                        </label>
+                                    </div>
                                 @endforeach
-                            </ul>
-                            El historial de que el cliente tuvo estos lotes se mantendrá, pero los lotes podrán ser vendidos a otra persona.
+                            </div>
+                        </div>
+
+                        <!-- Opciones de Rescisión Parcial -->
+                        <div id="opciones_rescision_parcial" style="display: none;" class="border p-3 rounded mb-3 bg-light">
+                            <h6 class="text-primary mb-3"><i class="fas fa-info-circle"></i> Opciones de Rescisión Parcial</h6>
+                            
+                            <div class="mb-3">
+                                <label for="nuevo_pv_num" class="form-label">Nuevo N° Promesa de Venta (Opcional):</label>
+                                <input type="text" class="form-control" name="nuevo_pv_num" id="nuevo_pv_num" value="{{ $cliente->pv_num }}">
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="nuevo_precio_final" class="form-label">Nuevo Precio Total ($):</label>
+                                    <input type="number" step="0.01" class="form-control calc-plazo" name="nuevo_precio_final" id="nuevo_precio_final">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="nueva_cuota_mensual" class="form-label">Nueva Cuota Mensual ($):</label>
+                                    <input type="number" step="0.01" class="form-control calc-plazo" name="nueva_cuota_mensual" id="nueva_cuota_mensual">
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="nuevo_plazo_meses" class="form-label">Nuevo Plazo (Meses):</label>
+                                <input type="number" class="form-control" name="nuevo_plazo_meses" id="nuevo_plazo_meses">
+                                <small class="text-muted">Se calcula automáticamente. Puedes modificarlo si es necesario.</small>
+                            </div>
                         </div>
                         <div class="mb-3">
                             <label for="motivo_rescision" class="form-label">Motivo de la rescisión:</label>
@@ -312,6 +343,51 @@
 
 @section('scripts')
    <script>
+        // Logica para Rescision Parcial
+        document.addEventListener('DOMContentLoaded', function() {
+            const checkboxes = document.querySelectorAll('.lote-rescindir-checkbox');
+            const containerParcial = document.getElementById('opciones_rescision_parcial');
+            
+            const inputPrecio = document.getElementById('nuevo_precio_final');
+            const inputCuota = document.getElementById('nueva_cuota_mensual');
+            const inputPlazo = document.getElementById('nuevo_plazo_meses');
+
+            function checkRescissionType() {
+                let total = checkboxes.length;
+                let checked = document.querySelectorAll('.lote-rescindir-checkbox:checked').length;
+
+                // Si está seleccionando ALGUNOS pero NO TODOS, es parcial
+                if (checked > 0 && checked < total) {
+                    containerParcial.style.display = 'block';
+                    inputPrecio.required = true;
+                    inputCuota.required = true;
+                    inputPlazo.required = true;
+                } else {
+                    // Rescision total (todos) o ninguno (error form)
+                    containerParcial.style.display = 'none';
+                    inputPrecio.required = false;
+                    inputCuota.required = false;
+                    inputPlazo.required = false;
+                }
+            }
+
+            checkboxes.forEach(chk => {
+                chk.addEventListener('change', checkRescissionType);
+            });
+
+            // Autocalcular plazo
+            function calcularPlazo() {
+                let precio = parseFloat(inputPrecio.value);
+                let cuota = parseFloat(inputCuota.value);
+                if (precio > 0 && cuota > 0) {
+                    inputPlazo.value = Math.ceil(precio / cuota);
+                }
+            }
+
+            inputPrecio.addEventListener('input', calcularPlazo);
+            inputCuota.addEventListener('input', calcularPlazo);
+        });
+    </script>
         <script src="{{ asset('js/jqueryEM.js') }}"></script>
 
          <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>

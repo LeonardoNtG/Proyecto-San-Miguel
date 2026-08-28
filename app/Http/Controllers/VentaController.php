@@ -13,43 +13,133 @@ class VentaController extends Controller
     public function rescindir(Request $request, $id_venta)
     {
         $request->validate([
-            'motivo_rescision' => 'required|string|max:500'
+            'motivo_rescision' => 'required|string|max:500',
+            'lotes_a_rescindir' => 'required|array',
+            'nuevo_precio_final' => 'nullable|numeric|min:0',
+            'nueva_cuota_mensual' => 'nullable|numeric|min:0',
+            'nuevo_plazo_meses' => 'nullable|integer|min:1',
+            'nuevo_pv_num' => 'nullable|string|max:255',
         ]);
 
         try {
             DB::beginTransaction();
 
             $venta = Venta::findOrFail($id_venta);
+            
+            // Determinar si es rescisión total o parcial
+            $lotesActivos = HistorialLote::where('id_venta', $venta->id_venta)->where('estado', 'Activo')->count();
+            $lotesARescindir = count($request->lotes_a_rescindir);
+            
+            $esParcial = ($lotesARescindir > 0 && $lotesARescindir < $lotesActivos);
 
-            // 1. Actualizar estado del contrato
-            $venta->estado_contrato = 'Rescindido';
-            $venta->save();
-
-            // 2. Liberar el Historial de Lotes
-            $historiales = HistorialLote::where('id_venta', $venta->id_venta)
-                                        ->where('estado', 'Activo')
-                                        ->get();
-
-            foreach ($historiales as $historial) {
-                // Actualizar historial
-                $historial->estado = 'Rescindido';
-                $historial->fecha_liberacion = now();
-                $historial->observaciones = $request->motivo_rescision;
-                $historial->save();
-
-                // 3. Liberar el Lote (pasa a Disponible)
-                $lote = Lote::find($historial->id_lote);
-                if ($lote) {
-                    $lote->estado = 'Disponible';
-                    $lote->save();
+            if ($esParcial) {
+                // Validar que vengan los datos financieros
+                if (!$request->nuevo_precio_final || !$request->nueva_cuota_mensual || !$request->nuevo_plazo_meses) {
+                    throw new \Exception("Para una rescisión parcial debe ingresar el nuevo precio final, cuota mensual y plazo.");
                 }
+                
+                // Actualizar PV num si lo enviaron
+                if ($request->nuevo_pv_num) {
+                    $cliente = $venta->cliente;
+                    $cliente->pv_num = $request->nuevo_pv_num;
+                    $cliente->save();
+                }
+
+                // Liberar los lotes seleccionados
+                $historiales = HistorialLote::where('id_venta', $venta->id_venta)
+                                            ->where('estado', 'Activo')
+                                            ->whereIn('id_lote', $request->lotes_a_rescindir)
+                                            ->get();
+
+                foreach ($historiales as $historial) {
+                    $historial->estado = 'Rescindido';
+                    $historial->fecha_liberacion = now();
+                    $historial->observaciones = $request->motivo_rescision;
+                    $historial->save();
+
+                    $lote = Lote::find($historial->id_lote);
+                    if ($lote) {
+                        $lote->estado = 'Disponible';
+                        $lote->save();
+                    }
+                }
+
+                // Actualizar la venta
+                $venta->precio_final = $request->nuevo_precio_final;
+                $venta->cuota_mensual = $request->nueva_cuota_mensual;
+                $venta->plazo_meses = $request->nuevo_plazo_meses;
+                $venta->save();
+
+                // Eliminar todas las cuotas (se regenerarán)
+                \App\Models\Cuota::where('id_venta', $venta->id_venta)->delete();
+                
+                // Generar nuevo plan de cuotas (sacado de ClienteController@store)
+                $fechaVencimiento = \Carbon\Carbon::parse($venta->fecha_venta);
+                $primerAbono = \App\Models\Abono::where('id_venta', $venta->id_venta)->orderBy('fecha_pago', 'asc')->first();
+                if ($primerAbono) {
+                    $fechaVencimiento = \Carbon\Carbon::parse($primerAbono->fecha_pago);
+                }
+
+                $saldoRestante = $venta->precio_final;
+                $cuotaMensual = $venta->cuota_mensual;
+                $plazoRestante = $venta->plazo_meses;
+
+                if ($plazoRestante > 0 && $saldoRestante > 0) {
+                    for ($i = 1; $i <= $plazoRestante; $i++) {
+                        $fechaVencimiento->addMonth();
+                        
+                        $montoCuota = ($i == $plazoRestante) ? $saldoRestante : $cuotaMensual;
+                        
+                        \App\Models\Cuota::create([
+                            'id_venta' => $venta->id_venta,
+                            'numero_cuota' => $i,
+                            'fecha_vencimiento' => $fechaVencimiento->format('Y-m-d'),
+                            'monto_total' => $montoCuota,
+                            'capital' => $montoCuota,
+                            'interes' => 0,
+                            'saldo_restante' => $montoCuota,
+                            'estado' => 'Pendiente',
+                        ]);
+                        
+                        $saldoRestante -= $montoCuota;
+                    }
+                }
+
+                // Reaplicar Abonos íntegramente
+                \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
+                
+                \App\Models\Auditoria::log('Rescindió Parcialmente', 'Venta', $venta->id_venta, "Lotes liberados. Nuevo Precio: $request->nuevo_precio_final");
+                $mensaje = 'Rescisión Parcial exitosa. Lotes liberados, precio actualizado y saldos recalculados.';
+
+            } else {
+                // Rescisión TOTAL (Lógica original)
+                $venta->estado_contrato = 'Rescindido';
+                $venta->save();
+
+                $historiales = HistorialLote::where('id_venta', $venta->id_venta)
+                                            ->where('estado', 'Activo')
+                                            ->get();
+
+                foreach ($historiales as $historial) {
+                    $historial->estado = 'Rescindido';
+                    $historial->fecha_liberacion = now();
+                    $historial->observaciones = $request->motivo_rescision;
+                    $historial->save();
+
+                    $lote = Lote::find($historial->id_lote);
+                    if ($lote) {
+                        $lote->estado = 'Disponible';
+                        $lote->save();
+                    }
+                }
+                
+                \App\Models\Auditoria::log('Rescindió Contrato', 'Venta', $venta->id_venta, "Motivo: " . $request->motivo_rescision);
+                $mensaje = 'La venta ha sido rescindida totalmente y todos los lotes han sido liberados (estado: Disponible).';
             }
 
             DB::commit();
 
-            \App\Models\Auditoria::log('Rescindió Contrato', 'Venta', $venta->id_venta, "Motivo: " . $request->motivo_rescision);
-
-            return redirect()->back()->with('success', 'La venta ha sido rescindida y los lotes han sido liberados (estado: Disponible).');
+            return redirect()->back()->with('success', $mensaje);
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Error al rescindir la venta: ' . $e->getMessage());
