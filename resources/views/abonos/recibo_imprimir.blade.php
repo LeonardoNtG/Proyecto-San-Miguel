@@ -355,7 +355,6 @@
             <div class="label">En concepto de:</div>
             <div class="value" style="display:flex; justify-content: space-between;">
                 <span>Abono a {{ $venta->lotes->count() > 1 ? 'Lotes' : 'Lote' }} {{ $lotes_texto }}</span>
-                <span>{{ $cliente->pv_num ?? '001' }}</span>
             </div>
         </div>
 
@@ -372,7 +371,7 @@
         @endif
 
         <div class="details-row">
-            Lotes: {{ $lotes_texto }} &nbsp;&nbsp; Total: ${{ number_format($valor_total, 2) }} | Abonado: ${{ number_format($total_abonado, 2) }} | Pendiente: ${{ number_format($saldo_pendiente, 2) }}
+            Total: ${{ number_format($valor_total, 2) }} | Abonado: ${{ number_format($total_abonado, 2) }} | Pendiente: ${{ number_format($saldo_pendiente, 2) }}
         </div>
 
         <div class="details-row">
@@ -460,7 +459,6 @@
             <div class="label">En concepto de:</div>
             <div class="value" style="display:flex; justify-content: space-between;">
                 <span>Abono a {{ $venta->lotes->count() > 1 ? 'Lotes' : 'Lote' }} {{ $lotes_texto }}</span>
-                <span>{{ $cliente->pv_num ?? '001' }}</span>
             </div>
         </div>
 
@@ -477,7 +475,7 @@
         @endif
 
         <div class="details-row">
-            Lotes: {{ $lotes_texto }}<br>Total: ${{ number_format($valor_total, 2) }} | Pendiente: ${{ number_format($saldo_pendiente, 2) }}
+            Total: ${{ number_format($valor_total, 2) }} | Pendiente: ${{ number_format($saldo_pendiente, 2) }}
         </div>
 
         <div class="details-row">
