@@ -78,7 +78,7 @@ Route::prefix('reportes')->name('reportes.')->group(function () {
     Route::post('cerrar-caja', [App\Http\Controllers\ReporteController::class, 'cerrarCaja'])->name('cerrarCaja');
     Route::get('cierre-caja', [App\Http\Controllers\ReportesController::class, 'cierreCaja'])->name('cierre_caja');
 });
-Route::resource('reportes', App\Http\Controllers\ReporteController::class);
+Route::resource('reportes', App\Http\Controllers\ReporteController::class)->except(['show']);
 
 Route::middleware(['role:Administrador'])->group(function () {
     Route::resource('bloques', App\Http\Controllers\BloqueController::class);
