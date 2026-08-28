@@ -277,9 +277,8 @@ class AbonoController extends Controller
             $venta->save();
         }
 
-        // 2. Obtener abonos ordenados cronológicamente, omitiendo la Prima
+        // 2. Obtener abonos ordenados cronológicamente
         $abonos = \App\Models\Abono::where('id_venta', $id_venta)
-            ->where('tipo_pago', '!=', 'Prima/Primer Abono')
             ->orderBy('fecha_pago', 'asc')->orderBy('id_abono', 'asc')->get();
 
         // 3. Reaplicar los abonos a las cuotas

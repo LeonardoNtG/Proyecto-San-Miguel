@@ -187,8 +187,8 @@ class ClienteController extends Controller
         ]);
 
         // GENERAR PLAN DE PAGOS (CUOTAS)
-        $plazoRestante = $venta->plazo_meses - 1;
-        $saldoRestante = $venta->precio_final - $request->primer_abono;
+        $plazoRestante = $venta->plazo_meses;
+        $saldoRestante = $venta->precio_final;
         $cuotaMensual = $venta->cuota_mensual;
 
         if ($plazoRestante > 0 && $saldoRestante > 0) {
@@ -214,6 +214,9 @@ class ClienteController extends Controller
                 $saldoRestante -= $montoCuota;
             }
         }
+
+        // Aplicamos el abono inicial automáticamente a las cuotas generadas
+        \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
 
         DB::commit();
 
