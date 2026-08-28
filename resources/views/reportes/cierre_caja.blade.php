@@ -81,7 +81,7 @@
                         <tr>
                             <td>
                                 @if($abono->venta && $abono->venta->cliente)
-                                    <a href="{{ route('clientes.show', $abono->venta->cliente->id_cliente) }}" class="text-decoration-none fw-bold">
+                                    <a href="{{ route('registro.show', $abono->venta->cliente->id_cliente) }}" class="text-primary fw-bold text-decoration-none">
                                         {{ $abono->venta->cliente->nombres_apellidos }}
                                     </a>
                                 @else
