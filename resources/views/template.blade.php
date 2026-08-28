@@ -21,6 +21,20 @@
     <link href="{{ asset('css/template.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+    <style>
+        /* Ocultar flechas en inputs de tipo número (Chrome, Safari, Edge, Opera) */
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* Ocultar flechas en inputs de tipo número (Firefox) */
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
 </head>
 
 
@@ -314,6 +328,15 @@
     <script src="{{ asset('js/chartAD.js') }}"></script>
     <script src="{{ asset('js/chartPD.js') }}"></script>
     @yield('scripts')
+    
+    <script>
+        // Evitar globalmente que el scroll del mouse cambie los valores de los inputs tipo número
+        document.addEventListener('wheel', function(event) {
+            if (event.target.type === 'number') {
+                event.preventDefault();
+            }
+        }, { passive: false });
+    </script>
     <body id="page-top">
 
 
