@@ -37,6 +37,7 @@
     </style>
 </head>
 
+<body id="page-top">
 
     <!-- Page Wrapper -->
     <div id="wrapper">
@@ -339,9 +340,6 @@
             }
         }, { passive: false });
     </script>
-    <body id="page-top">
-
-
 </body>
 
 </html>
