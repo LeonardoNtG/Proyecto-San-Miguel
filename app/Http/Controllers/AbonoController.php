@@ -342,10 +342,10 @@ class AbonoController extends Controller
              $cliente = (object) ['nombres_apellidos' => 'Cliente Desconocido'];
          }
 
-            // Una venta puede tener varios lotes: se listan todos (Bloque-Lote) en el recibo
+            // Una venta puede tener varios lotes: se listan todos en el recibo (solo el número/nombre guardado para ahorrar espacio)
             $lotesTexto = $venta->lotes->isNotEmpty()
                 ? $venta->lotes->map(function ($lote) {
-                    return ($lote->bloque->nombre ?? 'N/A') . '-' . $lote->numero_lote;
+                    return $lote->numero_lote;
                 })->implode(', ')
                 : 'N/A';
 
