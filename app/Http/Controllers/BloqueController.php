@@ -11,11 +11,28 @@ class BloqueController extends Controller
     /**
      * Listado de todos los Bloques registrados, con la cantidad de lotes de cada uno.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $bloques = Bloque::with('lotificacion')->withCount('lotes')->orderBy('nombre')->get();
+        $search = $request->get('search');
+        $lotificacion_id = $request->get('lotificacion_id');
 
-        return view('bloques.index', compact('bloques'));
+        $query = Bloque::with('lotificacion')->withCount('lotes')->orderBy('nombre');
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('nombre', 'like', "%{$search}%")
+                  ->orWhere('descripcion', 'like', "%{$search}%");
+            });
+        }
+
+        if ($lotificacion_id) {
+            $query->where('lotificacion_id', $lotificacion_id);
+        }
+
+        $bloques = $query->paginate(15);
+        $lotificaciones = \App\Models\Lotificacion::orderBy('nombre')->get();
+
+        return view('bloques.index', compact('bloques', 'search', 'lotificacion_id', 'lotificaciones'));
     }
 
     // Devuelve los bloques que pertenecen a una lotificación específica
@@ -42,7 +59,10 @@ class BloqueController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nombre' => 'required|string|max:50|unique:bloques,nombre',
+            'nombre' => [
+                'required', 'string', 'max:50',
+                Rule::unique('bloques', 'nombre')->where('lotificacion_id', $request->lotificacion_id),
+            ],
             'lotificacion_id' => 'required|exists:lotificaciones,id',
             'descripcion' => 'nullable|string|max:255',
         ]);
@@ -74,7 +94,12 @@ class BloqueController extends Controller
     public function update(Request $request, Bloque $bloque)
     {
         $validated = $request->validate([
-            'nombre' => ['required', 'string', 'max:50', Rule::unique('bloques', 'nombre')->ignore($bloque->id_bloque, 'id_bloque')],
+            'nombre' => [
+                'required', 'string', 'max:50',
+                Rule::unique('bloques', 'nombre')
+                    ->where('lotificacion_id', $request->lotificacion_id)
+                    ->ignore($bloque->id_bloque, 'id_bloque'),
+            ],
             'lotificacion_id' => 'required|exists:lotificaciones,id',
             'descripcion' => 'nullable|string|max:255',
         ]);

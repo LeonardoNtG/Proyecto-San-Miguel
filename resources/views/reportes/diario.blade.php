@@ -26,7 +26,7 @@
         <table class="table table-bordered mb-0 text-center">
             <thead class="bg-light">
                 <tr>
-                    <th>Efectivo Anterior</th>
+                    <th>Efectivo Anterior (Base)</th>
                     <th>Ingresado Hoy</th>
                     <th class="text-primary">Efectivo Total (Suma)</th>
                     <th class="text-danger">Salidas / Gastos</th>
@@ -47,13 +47,25 @@
 </div>
 
 <div class="d-flex justify-content-end gap-2 mb-3">
-    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalSalida">
-        <i class="fas fa-minus-circle"></i> Registrar Salida
-    </button>
-    <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#modalCerrarCaja">
-        <i class="fas fa-lock"></i> Realizar Cierre de Caja
-    </button>
+    @if(!$cajaAbierta)
+        <button type="button" class="btn btn-warning fw-bold px-4" data-bs-toggle="modal" data-bs-target="#modalAbrirCaja">
+            <i class="fas fa-box-open"></i> Abrir Caja
+        </button>
+    @else
+        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalSalida">
+            <i class="fas fa-minus-circle"></i> Registrar Salida
+        </button>
+        <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#modalCerrarCaja">
+            <i class="fas fa-lock"></i> Realizar Cierre de Caja
+        </button>
+    @endif
 </div>
+
+@if(!$cajaAbierta)
+    <div class="alert alert-warning border-warning shadow-sm">
+        <i class="fas fa-exclamation-triangle me-2"></i> <strong>Atención:</strong> La caja del día <strong>{{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</strong> aún no ha sido abierta. Para registrar salidas o realizar el cierre, primero debe <a href="#" data-bs-toggle="modal" data-bs-target="#modalAbrirCaja">Abrir la Caja</a>.
+    </div>
+@endif
 
 {{-- Formulario para ver las salidas  --}}
 <div class="card">
@@ -93,6 +105,39 @@
                 @endforelse
             </tbody>
         </table>
+    </div>
+</div>
+
+{{-- Modal para Abrir Caja --}}
+<div class="modal fade" id="modalAbrirCaja" tabindex="-1" aria-labelledby="modalAbrirCajaLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="{{ route('reportes.abrirCaja') }}" method="POST">
+            @csrf
+            <div class="modal-content border-warning">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold" id="modalAbrirCajaLabel">Abrir Caja Diaria</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Con cuánto efectivo inicia la caja el día de hoy?</p>
+                    <div class="mb-3">
+                        <label class="form-label">Monto de Apertura</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" step="0.01" name="monto_inicial" class="form-control" value="{{ old('monto_inicial', $saldoInicial) }}" required>
+                        </div>
+                        <small class="text-muted">Por defecto mostramos lo que se arrastra (si lo hay), pero puedes colocar 0 u otra cantidad.</small>
+                    </div>
+                    <input type="hidden" name="fecha" value="{{ $fecha }}">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-box-open me-1"></i> Abrir Caja
+                    </button>
+                </div>
+            </div>
+        </form>
     </div>
 </div>
 

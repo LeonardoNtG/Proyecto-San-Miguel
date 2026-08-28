@@ -295,11 +295,20 @@ $(document).ready(function() {
         var plazo = parseInt($('#plazo_cuotas').val()) || 0;
         var prima = parseFloat($('#primer_abono').val()) || 0;
 
-        // La prima cuenta como el primer pago del plazo total; el resto del
-        // saldo se reparte entre los meses restantes para que llegue a $0.
-        if (monto > 0 && plazo > 1) {
-            var cuota = (monto - prima) / (plazo - 1);
+        // Como no hay "prima" tradicional, la cuota es fija: Precio Total / Plazo Total.
+        // El abono inicial simplemente paga la primera(s) cuota(s), pero no cambia el valor de la cuota mensual.
+        if (monto > 0 && plazo > 0) {
+            var cuota = monto / plazo;
             $('#cuotas').val((cuota > 0 ? cuota : 0).toFixed(2));
+            
+            // Sugerencia visual: si el usuario aún no ha escrito un abono inicial, 
+            // sugerimos que sea igual a la cuota mensual.
+            if ($('#primer_abono').val() == '' || parseFloat($('#primer_abono').val()) == 0) {
+                // Se puede habilitar si se desea autocompletar el primer pago
+                // $('#primer_abono').val(cuota.toFixed(2));
+            }
+        } else {
+            $('#cuotas').val('');
         }
     }
 
@@ -308,8 +317,11 @@ $(document).ready(function() {
         var bloqueSelect = $('#bloque_select');
         var loteSelect = $('#lote_select');
 
-        bloqueSelect.html('<option value="">Cargando bloques...</option>').prop('disabled', true);
-        loteSelect.html('<option value="">Seleccione un Bloque primero</option>').prop('disabled', true);
+        bloqueSelect.html('<option value=""></option>').prop('disabled', true);
+        bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Cargando bloques...' });
+        
+        loteSelect.html('<option value=""></option>').prop('disabled', true);
+        loteSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccione un Bloque primero' });
         $('#extension_lote').val('');
         $('#extension_lote_value').val('');
         $('#monto_lote').val('');
@@ -323,24 +335,28 @@ $(document).ready(function() {
                 type: 'GET',
                 dataType: 'json',
                 success: function(data) {
-                    bloqueSelect.html('<option value="">Seleccione Bloque</option>');
+                    bloqueSelect.html('<option value=""></option>');
 
                     if (data.length > 0) {
                         $.each(data, function(key, bloque) {
                             bloqueSelect.append('<option value="' + bloque.id_bloque + '">Bloque ' + bloque.nombre + '</option>');
                         });
                         bloqueSelect.prop('disabled', false);
+                        bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccione Bloque' });
                     } else {
-                        bloqueSelect.html('<option value="">No hay bloques en este proyecto</option>');
+                        bloqueSelect.prop('disabled', true);
+                        bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'No hay bloques en este proyecto' });
                     }
                 },
                 error: function(xhr, status, error) {
-                    bloqueSelect.html('<option value="">Error al cargar bloques</option>');
+                    bloqueSelect.html('<option value=""></option>').prop('disabled', true);
+                    bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Error al cargar bloques' });
                     console.error("AJAX Error:", error, status, xhr.responseText);
                 }
             });
         } else {
-            bloqueSelect.html('<option value="">Seleccione un Proyecto primero</option>');
+            bloqueSelect.html('<option value=""></option>').prop('disabled', true);
+            bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccione un Proyecto primero' });
         }
     });
 
@@ -348,7 +364,8 @@ $(document).ready(function() {
         var bloqueId = $(this).val();
         var loteSelect = $('#lote_select');
 
-        loteSelect.html('<option value="">Cargando lotes...</option>').prop('disabled', true);
+        loteSelect.html('<option value=""></option>').prop('disabled', true);
+        loteSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Cargando lotes...' });
         $('#extension_lote').val('');
         $('#extension_lote_value').val('');
         $('#monto_lote').val('');
@@ -362,19 +379,22 @@ $(document).ready(function() {
                 type: 'GET',
                 dataType: 'json',
                 success: function(data) {
-                    loteSelect.html('<option value="">Seleccione uno o más Lotes</option>');
+                    loteSelect.html('<option value=""></option>');
 
                     if (data.length > 0) {
                         $.each(data, function(key, lote) {
                             loteSelect.append('<option value="' + lote.id_lote + '" data-extension="' + lote.area_metros + '" data-precio="' + lote.precio_base + '">' + lote.numero_lote + '</option>');
                         });
                         loteSelect.prop('disabled', false);
+                        loteSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccione uno o más Lotes' });
                     } else {
-                        loteSelect.html('<option value="">No hay lotes disponibles (vendidos o reservados)</option>');
+                        loteSelect.prop('disabled', true);
+                        loteSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'No hay lotes disponibles' });
                     }
                 },
                 error: function(xhr, status, error) {
-                    loteSelect.html('<option value="">Error al cargar lotes</option>');
+                    loteSelect.html('<option value=""></option>').prop('disabled', true);
+                    loteSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Error al cargar lotes' });
                     console.error("AJAX Error:", error, status, xhr.responseText);
                 }
             });
@@ -382,23 +402,35 @@ $(document).ready(function() {
     });
 
     $('#lote_select').change(function() {
-        var totalExtension = 0;
+        var totalExtensionMetros = 0;
         var totalMonto = 0;
 
         $(this).find('option:selected').each(function() {
             var extension = parseFloat($(this).data('extension'));
             var precio = parseFloat($(this).data('precio'));
             if (!isNaN(extension)) {
-                totalExtension += extension;
+                totalExtensionMetros += extension;
             }
             if (!isNaN(precio)) {
                 totalMonto += precio;
             }
         });
 
-        $('#extension_lote').val(totalExtension.toFixed(2));
-        $('#extension_lote_value').val(totalExtension.toFixed(2));
-        $('#display_extension').html(totalExtension.toFixed(2) + ' <small class="fs-6">vrs²</small>');
+        // Convertir m² a vrs² para mostrar en UI
+        var factorVara = 1.418415;
+        var totalExtensionVaras = totalExtensionMetros * factorVara;
+
+        // Ajuste de precisión visual: si el cálculo está absurdamente cerca de un número exacto 
+        // (por la pérdida de decimales al guardar en metros), lo redondeamos para que se vea limpio.
+        if (Math.abs(Math.round(totalExtensionVaras) - totalExtensionVaras) < 0.02) {
+            totalExtensionVaras = Math.round(totalExtensionVaras);
+        }
+
+        // Guardar el valor en m² para la base de datos (o usar vrs² si la BD guarda vrs²)
+        // NOTA: Asumimos que quieres guardar m² en la BD, si no, cambialo.
+        $('#extension_lote').val(totalExtensionMetros.toFixed(2));
+        $('#extension_lote_value').val(totalExtensionMetros.toFixed(2));
+        $('#display_extension').html(totalExtensionVaras.toFixed(2) + ' <small class="fs-6">vrs²</small> <span class="fs-6 font-weight-normal text-white-50 ms-2">(' + totalExtensionMetros.toFixed(2) + ' m²)</span>');
         $('#monto_lote').val(totalMonto.toFixed(2));
         
         // Micro-animación para dar feedback visual

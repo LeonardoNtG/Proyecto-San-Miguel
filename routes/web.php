@@ -44,17 +44,21 @@ Route::get('/clientes', function () {
 
 Route::get('/dashboard-grafico', [GraficoController::class, 'dashboard'])->name('dashboard.grafico');
 
-Route::resource('registro', App\Http\Controllers\ClienteController::class)->parameters([
-    'registro' => 'cliente',]);
+    Route::middleware(['caja.abierta'])->group(function () {
+        Route::resource('registro', App\Http\Controllers\ClienteController::class)->parameters([
+            'registro' => 'cliente',
+        ]);
 
-Route::resource('abonos', App\Http\Controllers\AbonoController::class);
-Route::get('abonos/{abono}/imprimir', [App\Http\Controllers\AbonoController::class, 'imprimirRecibo'])->name('abonos.imprimir');
+        Route::resource('abonos', App\Http\Controllers\AbonoController::class);
+        
+        Route::resource('reservas', App\Http\Controllers\ReservaController::class);
+        Route::post('reservas/{reserva}/anular', [App\Http\Controllers\ReservaController::class, 'anular'])->name('reservas.anular');
+        Route::get('reservas/{reserva}/formalizar', [App\Http\Controllers\ReservaController::class, 'formalizar'])->name('reservas.formalizar');
+        Route::post('reservas/{reserva}/formalizar', [App\Http\Controllers\ReservaController::class, 'procesarFormalizacion'])->name('reservas.procesarFormalizacion');
+    });
 
-Route::post('cuotas/{cuota}/exonerar-mora', [App\Http\Controllers\CuotaController::class, 'exonerarMora'])->name('cuotas.exonerarMora');
-Route::resource('reservas', App\Http\Controllers\ReservaController::class);
-Route::post('reservas/{reserva}/anular', [App\Http\Controllers\ReservaController::class, 'anular'])->name('reservas.anular');
-Route::get('reservas/{reserva}/formalizar', [App\Http\Controllers\ReservaController::class, 'formalizar'])->name('reservas.formalizar');
-Route::post('reservas/{reserva}/formalizar', [App\Http\Controllers\ReservaController::class, 'procesarFormalizacion'])->name('reservas.procesarFormalizacion');
+    Route::get('abonos/{abono}/imprimir', [App\Http\Controllers\AbonoController::class, 'imprimirRecibo'])->name('abonos.imprimir');
+    Route::post('cuotas/{cuota}/exonerar-mora', [App\Http\Controllers\CuotaController::class, 'exonerarMora'])->name('cuotas.exonerarMora');
 
     Route::get('/estados-de-cuenta', [\App\Http\Controllers\ClienteController::class, 'estadosCuenta'])->name('estados_cuenta');
 Route::get('/api/bloques/{bloque}/lotes', [App\Http\Controllers\LoteController::class, 'getLotesByBloque'])
@@ -76,6 +80,7 @@ Route::middleware(['role:Administrador'])->group(function () {
         Route::get('/', [App\Http\Controllers\LoteController::class, 'index'])->name('index');
         Route::get('crear', [App\Http\Controllers\LoteController::class, 'create'])->name('create');
         Route::post('/', [App\Http\Controllers\LoteController::class, 'store'])->name('store');
+        Route::post('generar-masivo', [App\Http\Controllers\LoteController::class, 'generarMasivo'])->name('generar_masivo');
     });
 
     Route::prefix('lotes')->name('lotes.')->group(function () {
@@ -88,6 +93,7 @@ Route::middleware(['role:Administrador'])->group(function () {
         Route::get('financiero', [App\Http\Controllers\ReporteController::class, 'financiero'])->name('financiero');
         Route::get('financiero/pdf', [App\Http\Controllers\ReporteController::class, 'financieroPdf'])->name('financiero.pdf');
         Route::get('financiero/excel', [App\Http\Controllers\ReporteController::class, 'financieroExcel'])->name('financiero.excel');
+        Route::post('abrir-caja', [App\Http\Controllers\ReporteController::class, 'abrirCaja'])->name('abrirCaja');
         Route::post('cerrar-caja', [App\Http\Controllers\ReporteController::class, 'cerrarCaja'])->name('cerrarCaja');
         Route::get('cierre-caja', [App\Http\Controllers\ReportesController::class, 'cierreCaja'])->name('cierre_caja');
     });
@@ -97,17 +103,14 @@ Route::middleware(['role:Administrador'])->group(function () {
 
 
 
-Route::resource('abono', App\Http\Controllers\AbonoController::class);
+    Route::middleware(['caja.abierta'])->group(function () {
+        Route::resource('abono', App\Http\Controllers\AbonoController::class);
 
-Route::prefix('abono/{cliente}')->name('abono.')->group(function () {
-    Route::get('registrar', [App\Http\Controllers\AbonoController::class, 'create'])->name('create'); 
-    
-});
-
-Route::prefix('abono/{cliente}')->name('abono.')->group(function () {
-    
-    Route::post('/', [App\Http\Controllers\AbonoController::class, 'store'])->name('store'); 
-});
+        Route::prefix('abono/{cliente}')->name('abono.')->group(function () {
+            Route::get('registrar', [App\Http\Controllers\AbonoController::class, 'create'])->name('create'); 
+            Route::post('/', [App\Http\Controllers\AbonoController::class, 'store'])->name('store'); 
+        });
+    });
 
 Route::middleware(['auth', 'role:Administrador'])->group(function () {
 

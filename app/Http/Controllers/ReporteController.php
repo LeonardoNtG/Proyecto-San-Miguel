@@ -211,29 +211,47 @@ class ReporteController extends Controller
 
     public function index(Request $request)
     {
-        // Gestionar la fecha (por defecto hoy)
         $fecha = $request->get('fecha', Carbon::today()->format('Y-m-d'));
 
-        // Efectivo Anterior: saldo del último cierre + todo lo abonado/gastado
-        // en los días posteriores que aún no se han cerrado (por si se saltó
-        // algún "Realizar Cierre de Caja").
-        $saldoInicial = $this->calcularSaldoAnterior($fecha);
+        $apertura = \App\Models\AperturaCaja::where('fecha', $fecha)->first();
+        $cajaAbierta = $apertura ? true : false;
 
-        // Calcula Ingresos (Abonos registrados hoy)
+        if ($cajaAbierta) {
+            $saldoInicial = $apertura->monto_inicial;
+        } else {
+            // Se calcula como sugerencia para la apertura
+            $saldoInicial = $this->calcularSaldoAnterior($fecha);
+        }
+
         $ingresosHoy = Abono::whereDate('fecha_pago', $fecha)->sum('monto_abonado');
-
-        // Calcular Egresos (Salidas manuales)
         $listaSalidas = Salida::whereDate('fecha', $fecha)->get();
         $egresosHoy = $listaSalidas->sum('monto');
 
-        // Totales Dinámicos
         $efectivoTotalSuma = $saldoInicial + $ingresosHoy;
         $saldoFinalCaja = $efectivoTotalSuma - $egresosHoy;
 
         return view('reportes.diario', compact(
             'fecha', 'saldoInicial', 'ingresosHoy', 
-            'egresosHoy', 'listaSalidas', 'efectivoTotalSuma', 'saldoFinalCaja'
+            'egresosHoy', 'listaSalidas', 'efectivoTotalSuma', 'saldoFinalCaja', 'cajaAbierta'
         ));
+    }
+
+    public function abrirCaja(Request $request)
+    {
+        $request->validate([
+            'fecha' => 'required|date',
+            'monto_inicial' => 'required|numeric|min:0'
+        ]);
+
+        \App\Models\AperturaCaja::updateOrCreate(
+            ['fecha' => $request->fecha],
+            [
+                'monto_inicial' => $request->monto_inicial,
+                'user_id' => auth()->id()
+            ]
+        );
+
+        return redirect()->back()->with('success', 'Caja abierta correctamente. Ahora puede operar.');
     }
 
     public function create()

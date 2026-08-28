@@ -25,11 +25,22 @@ class LoteController extends Controller
     /**
      * Listado de los Lotes de un Bloque específico (CRUD de Lotes).
      */
-    public function index(Bloque $bloque)
+    public function index(Request $request, Bloque $bloque)
     {
-        $lotes = $bloque->lotes()->orderBy('numero_lote')->get();
+        $search = $request->get('search');
 
-        return view('lotes.index', compact('bloque', 'lotes'));
+        $query = $bloque->lotes()->orderBy('numero_lote');
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('numero_lote', 'like', "%{$search}%")
+                  ->orWhere('estado', 'like', "%{$search}%");
+            });
+        }
+
+        $lotes = $query->paginate(15);
+
+        return view('lotes.index', compact('bloque', 'lotes', 'search'));
     }
 
     /**
@@ -58,6 +69,56 @@ class LoteController extends Controller
         $bloque->lotes()->create($validated);
 
         return redirect()->route('lotes.index', $bloque)->with('success', 'Lote agregado exitosamente.');
+    }
+
+    /**
+     * Generación masiva de lotes.
+     */
+    public function generarMasivo(Request $request, Bloque $bloque)
+    {
+        $request->validate([
+            'prefijo' => 'nullable|string|max:5',
+            'desde' => 'required|numeric|min:1',
+            'hasta' => 'required|numeric|min:1|gte:desde',
+            'area_metros' => 'required|numeric|min:0.01',
+            'precio_base' => 'required|numeric|min:0.01',
+            'estado' => ['required', Rule::in(['Disponible', 'Reservado', 'Vendido'])],
+        ]);
+
+        $prefijo = $request->input('prefijo', '');
+        $desde = (int) $request->desde;
+        $hasta = (int) $request->hasta;
+        $creados = 0;
+        $errores = 0;
+
+        for ($i = $desde; $i <= $hasta; $i++) {
+            $numeroLote = $prefijo . str_pad($i, 2, '0', STR_PAD_LEFT);
+
+            // Evitar duplicados
+            $existe = Lote::where('id_bloque', $bloque->id_bloque)
+                ->where('numero_lote', $numeroLote)
+                ->exists();
+
+            if (!$existe) {
+                $bloque->lotes()->create([
+                    'numero_lote' => $numeroLote,
+                    'area_metros' => $request->area_metros,
+                    'precio_base' => $request->precio_base,
+                    'estado' => $request->estado,
+                ]);
+                $creados++;
+            } else {
+                $errores++;
+            }
+        }
+
+        $mensaje = "Se generaron {$creados} lotes exitosamente.";
+        if ($errores > 0) {
+            $mensaje .= " Hubo {$errores} lotes que no se crearon porque el número de lote ya existía.";
+            return redirect()->route('lotes.index', $bloque)->with('error', $mensaje);
+        }
+
+        return redirect()->route('lotes.index', $bloque)->with('success', $mensaje);
     }
 
     /**

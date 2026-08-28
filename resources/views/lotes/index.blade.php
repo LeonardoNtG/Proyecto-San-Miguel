@@ -38,11 +38,27 @@
 <div class="card shadow mb-4">
     <div class="card-header py-3 d-flex justify-content-between align-items-center">
         <h6 class="m-0 font-weight-bold text-primary">Lotes Registrados</h6>
-        <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalCrearLote">
-            <i class="fas fa-plus"></i> Agregar Lote
-        </button>
+        <div>
+            <button type="button" class="btn btn-warning btn-sm me-2" data-bs-toggle="modal" data-bs-target="#modalGenerarMasivo">
+                <i class="fas fa-layer-group"></i> Generación Masiva
+            </button>
+            <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#modalCrearLote">
+                <i class="fas fa-plus"></i> Agregar Lote
+            </button>
+        </div>
     </div>
     <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <form action="{{ route('lotes.index', $bloque) }}" method="GET" class="d-flex">
+                    <input type="text" name="search" class="form-control me-2" placeholder="Buscar por N° Lote o Estado..." value="{{ request('search') }}">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i></button>
+                    @if(request('search'))
+                        <a href="{{ route('lotes.index', $bloque) }}" class="btn btn-secondary ms-2" title="Limpiar búsqueda"><i class="fas fa-times"></i></a>
+                    @endif
+                </form>
+            </div>
+        </div>
         <div class="table-responsive">
             <table class="table table-bordered table-striped" width="100%" cellspacing="0">
                 <thead class="bg-primary text-white">
@@ -86,6 +102,10 @@
                     @endforelse
                 </tbody>
             </table>
+        </div>
+        
+        <div class="d-flex justify-content-center mt-4">
+            {{ $lotes->appends(request()->query())->links('pagination::bootstrap-4') }}
         </div>
     </div>
 </div>
@@ -140,6 +160,78 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-success">
                         <i class="fas fa-save me-1"></i> Guardar Lote
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{{-- ================================================= --}}
+{{-- Modal: Generación Masiva de Lotes --}}
+{{-- ================================================= --}}
+<div class="modal fade" id="modalGenerarMasivo" tabindex="-1" aria-labelledby="modalGenerarMasivoLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="{{ route('lotes.generar_masivo', $bloque) }}" method="POST">
+            @csrf
+            <div class="modal-content border-warning">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title fw-bold" id="modalGenerarMasivoLabel">Generación Masiva de Lotes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">Genera rápidamente múltiples lotes regulares. Después podrás editar los lotes irregulares individualmente.</p>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Prefijo (Opcional)</label>
+                            <input type="text" name="prefijo" class="form-control bg-light" value="{{ $bloque->nombre }}-" readonly>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Desde</label>
+                            <input type="number" name="desde" class="form-control" placeholder="Ej: 1" min="1" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Hasta</label>
+                            <input type="number" name="hasta" class="form-control" placeholder="Ej: 28" min="1" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Área (vrs²)</label>
+                            <input type="number" step="0.01" min="0.01" id="area_varas_masivo" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Área (m²)</label>
+                            <input type="number" step="0.01" min="0.01" id="area_metros_masivo" name="area_metros" class="form-control" required>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Precio por vr² (USD)</label>
+                            <input type="number" step="0.01" min="0.01" id="precio_vara_masivo" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Precio Total Base (USD)</label>
+                            <input type="number" step="0.01" min="0.01" id="precio_base_masivo" name="precio_base" class="form-control" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Estado Inicial</label>
+                        <select name="estado" class="form-select" required>
+                            <option value="Disponible" selected>Disponible</option>
+                            <option value="Reservado">Reservado</option>
+                            <option value="Vendido">Vendido</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-layer-group me-1"></i> Generar Lotes
                     </button>
                 </div>
             </div>
@@ -222,6 +314,48 @@
             if (!isNaN(area_varas) && !isNaN(precio_vara) && area_varas > 0) {
                 var precio_total = area_varas * precio_vara;
                 $('#precio_base_create').val(precio_total.toFixed(2));
+            }
+        }
+
+        // ==========================================
+        // Cálculos para el Modal de Generación Masiva
+        // ==========================================
+        
+        // Convertir m² a vrs² (Masivo)
+        $('#area_metros_masivo').on('input', function() {
+            var m2 = parseFloat($(this).val());
+            if (!isNaN(m2)) {
+                var vrs2 = m2 * factor;
+                $('#area_varas_masivo').val(vrs2.toFixed(2));
+                calcularPrecioBaseMasivo();
+            } else {
+                $('#area_varas_masivo').val('');
+            }
+        });
+
+        // Convertir vrs² a m² (Masivo)
+        $('#area_varas_masivo').on('input', function() {
+            var vrs2 = parseFloat($(this).val());
+            if (!isNaN(vrs2)) {
+                var m2 = vrs2 / factor;
+                $('#area_metros_masivo').val(m2.toFixed(2));
+                calcularPrecioBaseMasivo();
+            } else {
+                $('#area_metros_masivo').val('');
+            }
+        });
+
+        // Calcular precio base (Masivo)
+        $('#precio_vara_masivo').on('input', function() {
+            calcularPrecioBaseMasivo();
+        });
+
+        function calcularPrecioBaseMasivo() {
+            var area_varas = parseFloat($('#area_varas_masivo').val());
+            var precio_vara = parseFloat($('#precio_vara_masivo').val());
+            if (!isNaN(area_varas) && !isNaN(precio_vara) && area_varas > 0) {
+                var precio_total = area_varas * precio_vara;
+                $('#precio_base_masivo').val(precio_total.toFixed(2));
             }
         }
     });
