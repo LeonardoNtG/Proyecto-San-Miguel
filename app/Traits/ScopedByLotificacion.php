@@ -33,7 +33,7 @@ trait ScopedByLotificacion
                 // Get the table name to avoid ambiguity in joins
                 $table = (new static)->getTable();
 
-                if ($table === 'lotificacions') {
+                if ($table === 'lotificaciones' || $table === 'lotificacions') {
                     $builder->whereIn("$table.id", $authorizedIds);
                 } elseif ($table === 'bloques') {
                     $builder->whereIn("$table.lotificacion_id", $authorizedIds);
