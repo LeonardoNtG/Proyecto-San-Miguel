@@ -73,6 +73,13 @@ Route::get('/api/lotificaciones/{lotificacion}/bloques', [App\Http\Controllers\B
 // registrar clientes/ventas en "/registro/create".
 
 // Rutas protegidas
+Route::prefix('reportes')->name('reportes.')->group(function () {
+    Route::post('abrir-caja', [App\Http\Controllers\ReporteController::class, 'abrirCaja'])->name('abrirCaja');
+    Route::post('cerrar-caja', [App\Http\Controllers\ReporteController::class, 'cerrarCaja'])->name('cerrarCaja');
+    Route::get('cierre-caja', [App\Http\Controllers\ReportesController::class, 'cierreCaja'])->name('cierre_caja');
+});
+Route::resource('reportes', App\Http\Controllers\ReporteController::class);
+
 Route::middleware(['role:Administrador'])->group(function () {
     Route::resource('bloques', App\Http\Controllers\BloqueController::class);
 
@@ -93,12 +100,7 @@ Route::middleware(['role:Administrador'])->group(function () {
         Route::get('financiero', [App\Http\Controllers\ReporteController::class, 'financiero'])->name('financiero');
         Route::get('financiero/pdf', [App\Http\Controllers\ReporteController::class, 'financieroPdf'])->name('financiero.pdf');
         Route::get('financiero/excel', [App\Http\Controllers\ReporteController::class, 'financieroExcel'])->name('financiero.excel');
-        Route::post('abrir-caja', [App\Http\Controllers\ReporteController::class, 'abrirCaja'])->name('abrirCaja');
-        Route::post('cerrar-caja', [App\Http\Controllers\ReporteController::class, 'cerrarCaja'])->name('cerrarCaja');
-        Route::get('cierre-caja', [App\Http\Controllers\ReportesController::class, 'cierreCaja'])->name('cierre_caja');
     });
-
-    Route::resource('reportes', App\Http\Controllers\ReporteController::class);
 });
 
 

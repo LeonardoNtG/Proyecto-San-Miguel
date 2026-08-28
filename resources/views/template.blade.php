@@ -84,6 +84,10 @@
                         <a class="collapse-item" href="{{ route('registro.index') }}">Clientes y Ventas</a>
                         <a class="collapse-item" href="{{ route('estados_cuenta') }}">Estados de Cuenta</a>
                         <a class="collapse-item" href="{{ route('reservas.index') }}">Reservas de Lotes</a>
+                        
+                        <h6 class="collapse-header mt-2">Caja y Reportes:</h6>
+                        <a class="collapse-item" href="{{ route('reportes.index') }}">Apertura y Egresos</a>
+                        <a class="collapse-item" href="{{ route('reportes.cierre_caja') }}">Reporte Diario</a>
                     </div>
                 </div>
             </li>
@@ -107,9 +111,7 @@
                 <div id="collapseReportes" class="collapse" aria-labelledby="headingReportes" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">Financiero:</h6>
-                        <a class="collapse-item" href="{{ route('reportes.cierre_caja') }}">Cierre de Caja Diario</a>
                         <a class="collapse-item" href="{{ route('reportes.financiero') }}">Reporte Financiero</a>
-                        <a class="collapse-item" href="{{ route('reportes.index') }}">Ingresos y Egresos</a>
                         <a class="collapse-item" href="{{ route('dashboard.grafico') }}">Gráficos y Estadísticas</a>
                     </div>
                 </div>
