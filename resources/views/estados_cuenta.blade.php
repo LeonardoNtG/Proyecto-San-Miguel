@@ -105,3 +105,36 @@
         </div>
     </div>
 @endsection
+
+@section('scripts')
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.querySelector('input[name="search"]');
+        const form = searchInput.closest('form');
+        
+        // Mantener el cursor al final del texto si el input tiene valor tras recargar
+        if (searchInput.value.length > 0) {
+            searchInput.focus();
+            let val = searchInput.value;
+            searchInput.value = '';
+            searchInput.value = val;
+        }
+
+        let typingTimer;
+        const doneTypingInterval = 500; // 500ms
+
+        searchInput.addEventListener('input', function() {
+            clearTimeout(typingTimer);
+            if (this.value === '') {
+                // Si el usuario borra todo, buscamos de inmediato (recarga dinámica)
+                form.submit();
+            } else {
+                // Si está escribiendo, esperamos a que pause para enviar
+                typingTimer = setTimeout(() => {
+                    form.submit();
+                }, doneTypingInterval);
+            }
+        });
+    });
+</script>
+@endsection
