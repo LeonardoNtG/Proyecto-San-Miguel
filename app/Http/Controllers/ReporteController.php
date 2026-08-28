@@ -309,10 +309,11 @@ class ReporteController extends Controller
         $egresos = Salida::whereDate('fecha', $fecha)->where('user_id', auth()->id())->sum('monto');
         $saldoFinal = ($saldoInicial + $ingresos) - $egresos;
         
-        $efectivoReal = $request->efectivo_real;
-        $diferencia = $efectivoReal - $saldoFinal;
+        $efectivoReal = round((float)$request->efectivo_real, 2);
+        $saldoFinal = round((float)$saldoFinal, 2);
+        $diferencia = round($efectivoReal - $saldoFinal, 2);
 
-        if ($diferencia != 0 && empty($request->comentario)) {
+        if ($diferencia != 0.00 && empty($request->comentario)) {
             return back()->withInput()->with('error', 'Debe proporcionar una justificación para la diferencia detectada en el arqueo.');
         }
 

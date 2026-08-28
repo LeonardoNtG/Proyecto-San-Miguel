@@ -356,7 +356,7 @@
                 // Formatear moneda
                 const diffFormatted = Math.abs(diferencia).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                 
-                if (diferencia === 0) {
+                if (Math.abs(diferencia) < 0.01) {
                     diferenciaSpan.textContent = 'Cuadrado ($0.00)';
                     diferenciaSpan.className = 'text-success fw-bold';
                     comentarioGroup.style.display = 'none';
@@ -380,7 +380,7 @@
                 const efectivoReal = parseFloat(efectivoRealInput.value);
                 const diferencia = efectivoReal - saldoEsperado;
                 
-                if (diferencia !== 0 && comentarioInput.value.trim() === '') {
+                if (Math.abs(diferencia) >= 0.01 && comentarioInput.value.trim() === '') {
                     e.preventDefault();
                     alert('Debe proporcionar una justificación obligatoria debido a la diferencia en caja.');
                     comentarioInput.focus();
