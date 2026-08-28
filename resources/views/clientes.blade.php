@@ -45,6 +45,7 @@
                             <th>N° Exp.</th>
                             <th>N° PV</th>
                             <th>Nombres y Apellidos</th>
+                            <th>Proyecto</th>
                             <th>Lotes (Bloque-Lote)</th>
                             <th>Estado de Venta</th>
                             <th>Total Abonado</th>
@@ -64,6 +65,8 @@
                                     // Tomamos la primera venta 
                                     $ventaActiva = $cliente->ventas->first(); 
                                 @endphp
+
+                                <td>{{ $ventaActiva ? ($ventaActiva->lotificacion->nombre ?? 'N/A') : 'N/A' }}</td>
 
                                 <td>
                                     @if($ventaActiva && $ventaActiva->lotes->count() > 0)
