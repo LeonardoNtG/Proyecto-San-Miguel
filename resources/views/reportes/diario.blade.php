@@ -188,21 +188,65 @@
 {{-- Modal para confirmar el Cierre de Caja --}}
 <div class="modal fade" id="modalCerrarCaja" tabindex="-1" aria-labelledby="modalCerrarCajaLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <form action="{{ route('reportes.cerrarCaja') }}" method="POST">
+        <form action="{{ route('reportes.cerrarCaja') }}" method="POST" id="formCerrarCaja">
             @csrf
             <div class="modal-content">
                 <div class="modal-header bg-dark text-white">
-                    <h5 class="modal-title" id="modalCerrarCajaLabel">Realizar Cierre de Caja</h5>
+                    <h5 class="modal-title" id="modalCerrarCajaLabel">Realizar Cierre de Caja (Arqueo)</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Se cerrará la caja del día <strong>{{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</strong> con un saldo final de <strong>${{ number_format($saldoFinalCaja, 2) }}</strong>.</p>
-                    <p class="text-muted small mb-0">Ese saldo se considera retirado de caja (depósito/entrega). El siguiente día iniciará en $0.00, salvo movimientos de días que aún no se hayan cerrado.</p>
+                    <p class="text-muted small mb-3">Se cerrará la caja del día <strong>{{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</strong>.</p>
+                    
+                    <div class="card mb-3 bg-light">
+                        <div class="card-body py-2">
+                            <div class="d-flex justify-content-between">
+                                <span>Base Inicial:</span>
+                                <span>${{ number_format($saldoInicial, 2) }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between text-success">
+                                <span>Ingresos (+):</span>
+                                <span>${{ number_format($ingresosHoy, 2) }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between text-danger">
+                                <span>Salidas (-):</span>
+                                <span>${{ number_format($egresosHoy, 2) }}</span>
+                            </div>
+                            <hr class="my-1">
+                            <div class="d-flex justify-content-between fw-bold fs-5">
+                                <span>Saldo Esperado:</span>
+                                <span>$<span id="saldoEsperadoText">{{ number_format($saldoFinalCaja, 2) }}</span></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Efectivo Real en Caja</label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input type="number" step="0.01" name="efectivo_real" id="efectivo_real" class="form-control" placeholder="0.00" required>
+                        </div>
+                        <small class="text-muted">Ingresa la cantidad física de dinero que tienes en tu gaveta.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between fw-bold">
+                            <span>Diferencia:</span>
+                            <span id="diferenciaSpan" class="text-secondary">$0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="comentarioGroup" style="display: none;">
+                        <label class="form-label fw-bold text-danger">Justificación obligatoria <span id="tipoDiferencia"></span></label>
+                        <textarea name="comentario" id="comentario" class="form-control" rows="2" placeholder="Explica el motivo del descuadre..."></textarea>
+                    </div>
+
                     <input type="hidden" name="fecha" value="{{ $fecha }}">
+                    <input type="hidden" id="saldoFinalCaja" value="{{ $saldoFinalCaja }}">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-dark">
+                    <button type="submit" class="btn btn-dark" id="btnConfirmarCierre">
                         <i class="fas fa-lock me-1"></i> Confirmar Cierre
                     </button>
                 </div>
@@ -244,7 +288,6 @@
 @endsection
 
 @section('scripts')
-    <script>
     <script src="{{ asset('js/jqueryEM.js') }}"></script>
 
     <!-- scripts para todas las paginas-->
@@ -255,5 +298,63 @@
 
     <script src="{{ asset('js/chartAD.js') }}"></script>
     <script src="{{ asset('js/chartPD.js') }}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const efectivoRealInput = document.getElementById('efectivo_real');
+            const saldoEsperado = parseFloat(document.getElementById('saldoFinalCaja').value);
+            const diferenciaSpan = document.getElementById('diferenciaSpan');
+            const comentarioGroup = document.getElementById('comentarioGroup');
+            const comentarioInput = document.getElementById('comentario');
+            const tipoDiferencia = document.getElementById('tipoDiferencia');
+            const formCerrarCaja = document.getElementById('formCerrarCaja');
+
+            efectivoRealInput.addEventListener('input', function() {
+                const efectivoReal = parseFloat(this.value);
+                
+                if (isNaN(efectivoReal)) {
+                    diferenciaSpan.textContent = '$0.00';
+                    diferenciaSpan.className = 'text-secondary';
+                    comentarioGroup.style.display = 'none';
+                    comentarioInput.required = false;
+                    return;
+                }
+
+                const diferencia = efectivoReal - saldoEsperado;
+                
+                // Formatear moneda
+                const diffFormatted = Math.abs(diferencia).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                
+                if (diferencia === 0) {
+                    diferenciaSpan.textContent = 'Cuadrado ($0.00)';
+                    diferenciaSpan.className = 'text-success fw-bold';
+                    comentarioGroup.style.display = 'none';
+                    comentarioInput.required = false;
+                } else if (diferencia > 0) {
+                    diferenciaSpan.textContent = 'Sobrante (+$' + diffFormatted + ')';
+                    diferenciaSpan.className = 'text-warning fw-bold';
+                    comentarioGroup.style.display = 'block';
+                    tipoDiferencia.textContent = '(por sobrante)';
+                    comentarioInput.required = true;
+                } else {
+                    diferenciaSpan.textContent = 'Faltante (-$' + diffFormatted + ')';
+                    diferenciaSpan.className = 'text-danger fw-bold';
+                    comentarioGroup.style.display = 'block';
+                    tipoDiferencia.textContent = '(por faltante)';
+                    comentarioInput.required = true;
+                }
+            });
+
+            formCerrarCaja.addEventListener('submit', function(e) {
+                const efectivoReal = parseFloat(efectivoRealInput.value);
+                const diferencia = efectivoReal - saldoEsperado;
+                
+                if (diferencia !== 0 && comentarioInput.value.trim() === '') {
+                    e.preventDefault();
+                    alert('Debe proporcionar una justificación obligatoria debido a la diferencia en caja.');
+                    comentarioInput.focus();
+                }
+            });
+        });
     </script>
 @endsection

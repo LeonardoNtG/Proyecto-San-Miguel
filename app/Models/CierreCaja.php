@@ -14,7 +14,10 @@ class CierreCaja extends Model
         'ingresos',
         'egresos',
         'saldo_final',
-        'user_id'
+        'user_id',
+        'efectivo_real',
+        'diferencia',
+        'comentario'
     ];
 
     protected $casts = [

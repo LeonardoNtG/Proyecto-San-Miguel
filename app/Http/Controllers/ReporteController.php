@@ -298,15 +298,21 @@ class ReporteController extends Controller
     {
         $request->validate([
             'fecha' => 'required|date',
+            'efectivo_real' => 'required|numeric|min:0',
         ]);
 
-        // Este método guarda el estado final del día para que mañana sea el inicial
         $fecha = $request->fecha;
-
         $saldoInicial = $this->calcularSaldoAnterior($fecha);
         $ingresos = Abono::whereDate('fecha_pago', $fecha)->where('user_id', auth()->id())->sum('monto_abonado');
         $egresos = Salida::whereDate('fecha', $fecha)->where('user_id', auth()->id())->sum('monto');
         $saldoFinal = ($saldoInicial + $ingresos) - $egresos;
+        
+        $efectivoReal = $request->efectivo_real;
+        $diferencia = $efectivoReal - $saldoFinal;
+
+        if ($diferencia != 0 && empty($request->comentario)) {
+            return back()->withInput()->with('error', 'Debe proporcionar una justificación para la diferencia detectada en el arqueo.');
+        }
 
         CierreCaja::updateOrCreate(
             ['fecha' => $fecha, 'user_id' => auth()->id()],
@@ -314,7 +320,10 @@ class ReporteController extends Controller
                 'saldo_inicial' => $saldoInicial,
                 'ingresos' => $ingresos,
                 'egresos' => $egresos,
-                'saldo_final' => $saldoFinal
+                'saldo_final' => $saldoFinal,
+                'efectivo_real' => $efectivoReal,
+                'diferencia' => $diferencia,
+                'comentario' => $request->comentario
             ]
         );
 
