@@ -364,10 +364,6 @@
             @if($pago->cuenta_destino) &nbsp;|&nbsp; <span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }} @endif
             @if($pago->referencia) &nbsp;|&nbsp; <span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }} @endif
         </div>
-        @elseif($pago->referencia && $pago->referencia !== 'Registro Inicial de Venta' && $pago->referencia !== 'Abono de Cuota')
-        <div class="details-row" style="margin-top: 4px; margin-bottom: 8px;">
-            <span style="color:#1A237E;">Ref/Comentarios:</span> {{ $pago->referencia }}
-        </div>
         @endif
 
         <div class="details-row">
@@ -467,10 +463,6 @@
             <span style="color:#1A237E;">Vía:</span> {{ $pago->metodo_pago }} 
             @if($pago->cuenta_destino) &nbsp;|&nbsp; <span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }} @endif
             @if($pago->referencia) &nbsp;|&nbsp; <span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }} @endif
-        </div>
-        @elseif($pago->referencia && $pago->referencia !== 'Registro Inicial de Venta' && $pago->referencia !== 'Abono de Cuota')
-        <div class="details-row" style="margin-top: 4px; margin-bottom: 8px;">
-            <span style="color:#1A237E;">Ref/Comentarios:</span> {{ $pago->referencia }}
         </div>
         @endif
 
