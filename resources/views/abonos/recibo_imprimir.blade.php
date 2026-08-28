@@ -27,15 +27,14 @@
             width: 100%;
             max-width: 8.5in; /* Simulate US Letter Portrait width */
             margin: 0 auto; /* Center on screen */
-            height: 35vh; /* About a third of the portrait page vertically, so it's less tall */
+            min-height: 3.8in; /* Base height, allows growing if content overflows */
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: stretch; /* Make both cards the same height */
             padding: 15px 10px;
         }
 
         .receipt-card {
-            height: 100%; /* Fill the 35vh container */
             border: 2px solid #1A237E; /* Deep Blue border */
             position: relative;
             padding: 15px 10px;
