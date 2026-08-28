@@ -49,7 +49,7 @@
             <hr class="my-3">
             <p class="text-center mb-0">
                 *Lotes:* @foreach ($detallesLotes as $detalle)
-                    <span class="badge bg-white me-2">{{ $detalle['bloque'] }}-{{ $detalle['lote'] }} ({{ number_format($detalle['area'], 2) }} m²)</span>
+                    <span class="badge bg-white me-2 text-dark border">Bloque {{ $detalle['bloque'] }} - Lote {{ $detalle['lote'] }} ({{ number_format($detalle['area'], 2) }} m²)</span>
                 @endforeach
                 | Día de Pago Sugerido: El -{{ $fechaPagoTeorica }}- de cada mes.
             </p>
