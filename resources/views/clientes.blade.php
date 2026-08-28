@@ -45,6 +45,7 @@
                             <th>N° Exp.</th>
                             <th>N° PV</th>
                             <th>Nombres y Apellidos</th>
+                            <th>Lotes (Bloque-Lote)</th>
                             <th>Estado de Venta</th>
                             <th>Total Abonado</th>
                             <th>Fecha Registro</th>
@@ -63,6 +64,16 @@
                                     // Tomamos la primera venta 
                                     $ventaActiva = $cliente->ventas->first(); 
                                 @endphp
+
+                                <td>
+                                    @if($ventaActiva && $ventaActiva->lotes->count() > 0)
+                                        @foreach($ventaActiva->lotes as $lote)
+                                            <span class="badge bg-info text-white mb-1">Bloque {{ $lote->bloque->nombre ?? 'N/A' }} - Lote {{ $lote->numero_lote ?? 'N/A' }}</span><br>
+                                        @endforeach
+                                    @else
+                                        <span class="text-muted">N/A</span>
+                                    @endif
+                                </td>
 
                                 @if($ventaActiva)
                                     <td>
@@ -129,18 +140,42 @@
 @endsection 
 
 @section('scripts')
-    <script>
-            <script src="{{ asset('js/jqueryEM.js') }}"></script>
-
-    <!-- Custom scripts for all pages-->
+    <script src="{{ asset('js/jqueryEM.js') }}"></script>
     <script src="{{ asset('js/sbAdmin2M.js') }}"></script>
-
-    <!-- Page level plugins -->
     <script src="{{ asset('js/chartM.js') }}"></script>
-
-    <!-- Page level custom scripts -->
     <script src="{{ asset('js/chartAD.js') }}"></script>
     <script src="{{ asset('js/chartPD.js') }}"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.querySelector('input[name="search"]');
+            if (!searchInput) return;
+            
+            const form = searchInput.closest('form');
+            
+            // Mantener el cursor al final del texto si el input tiene valor tras recargar
+            if (searchInput.value.length > 0) {
+                searchInput.focus();
+                let val = searchInput.value;
+                searchInput.value = '';
+                searchInput.value = val;
+            }
+
+            let typingTimer;
+            const doneTypingInterval = 500; // 500ms
+
+            searchInput.addEventListener('input', function() {
+                clearTimeout(typingTimer);
+                if (this.value === '') {
+                    // Si el usuario borra todo, buscamos de inmediato
+                    form.submit();
+                } else {
+                    // Si está escribiendo, esperamos a que pause para enviar
+                    typingTimer = setTimeout(() => {
+                        form.submit();
+                    }, doneTypingInterval);
+                }
+            });
+        });
     </script>
-    
 @endsection
