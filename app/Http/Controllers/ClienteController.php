@@ -22,14 +22,34 @@ class ClienteController extends Controller
         public function index(Request $request)
     {
         $search = $request->get('search');
+        $filtro = $request->get('filtro', 'activos'); // activos o rescindidos
 
-        $clientesQuery = Cliente::with('ventas')
-            ->orderBy('id_cliente', 'desc');
+        $clientesQuery = Cliente::with('ventas')->orderBy('id_cliente', 'desc');
 
-            if ($search) {
-            $clientesQuery->where('expediente_num', 'like', "%{$search}%")
-                          ->orWhere('nombres_apellidos', 'like', "%{$search}%")
-                          ->orWhere('identificacion', 'like', "%{$search}%");
+        if ($filtro === 'rescindidos') {
+            // Clientes que SOLO tienen ventas rescindidas, o al menos mostrar los rescindidos
+            $clientesQuery->whereHas('ventas', function($q) {
+                $q->where('estado_contrato', 'Rescindido');
+            });
+        } else {
+            // Por defecto solo clientes con ventas activas
+            $clientesQuery->whereHas('ventas', function($q) {
+                $q->where('estado_contrato', '!=', 'Rescindido');
+            });
+        }
+
+        if ($search) {
+            $clientesQuery->where(function($q) use ($search) {
+                $q->where('expediente_num', 'like', "%{$search}%")
+                  ->orWhere('nombres_apellidos', 'like', "%{$search}%")
+                  ->orWhere('identificacion', 'like', "%{$search}%")
+                  ->orWhereHas('ventas.lotes', function($qLote) use ($search) {
+                      $qLote->where('numero_lote', 'like', "%{$search}%")
+                            ->orWhereHas('bloque', function($qBloque) use ($search) {
+                                $qBloque->where('nombre', 'like', "%{$search}%");
+                            });
+                  });
+            });
         }
 
         $clientes = $clientesQuery->paginate(15);
@@ -50,10 +70,40 @@ class ClienteController extends Controller
      * 
      */
     
+    public function estadosCuenta(Request $request)
+    {
+        $search = $request->get('search');
+        
+        $clientesQuery = Cliente::with(['ventas.cuotas', 'ventas.abonos', 'ventas.lotes.bloque'])->orderBy('id_cliente', 'desc');
+        
+        // Solo clientes con ventas activas
+        $clientesQuery->whereHas('ventas', function($q) {
+            $q->where('estado_contrato', '!=', 'Rescindido');
+        });
+
+        if ($search) {
+            $clientesQuery->where(function($q) use ($search) {
+                $q->where('expediente_num', 'like', "%{$search}%")
+                  ->orWhere('nombres_apellidos', 'like', "%{$search}%")
+                  ->orWhere('identificacion', 'like', "%{$search}%")
+                  ->orWhereHas('ventas.lotes', function($qLote) use ($search) {
+                      $qLote->where('numero_lote', 'like', "%{$search}%")
+                            ->orWhereHas('bloque', function($qBloque) use ($search) {
+                                $qBloque->where('nombre', 'like', "%{$search}%");
+                            });
+                  });
+            });
+        }
+
+        $clientes = $clientesQuery->paginate(15);
+        
+        return view('estados_cuenta', compact('clientes', 'search'));
+    }
+
     public function create()
     {
-        // Proyectos disponibles (el Bloque y el Lote se cargan luego vía AJAX en cascada)
-        $proyectos = Bloque::whereNotNull('proyecto')->distinct()->orderBy('proyecto')->pluck('proyecto');
+        // Proyectos (Lotificaciones) disponibles
+        $proyectos = \App\Models\Lotificacion::orderBy('nombre')->get();
 
         return view('registro', compact('proyectos'));
     }
@@ -94,15 +144,14 @@ class ClienteController extends Controller
         'oficio' => $request->oficio,                       
     ]);
 
-        // Proyecto: se hereda del Bloque de los lotes seleccionados (no se confía en un campo del formulario)
+        // Proyecto: se hereda del Bloque de los lotes seleccionados
         $primerLote = Lote::with('bloque')->whereIn('id_lote', $request->lotes_ids)->first();
-        $proyecto = $primerLote?->bloque?->proyecto;
+        $lotificacionId = $primerLote?->bloque?->lotificacion_id;
 
         // CREA LA VENTA/PROMESA
-
         $venta = Venta::create([
             'id_cliente' => $cliente->id_cliente,
-            'proyecto' => $proyecto,
+            'lotificacion_id' => $lotificacionId,
             'fecha_venta' => now(),
             'precio_final' => $request->precio_final,
             'plazo_meses' => $request->plazo_meses,
@@ -111,20 +160,63 @@ class ClienteController extends Controller
             'cuota_mensual' => $request->cuota_mensual,
         ]);
 
-        // ASOCIA LOS LOTES A LA VENTA (un lote pertenece a una única venta)
+        // ASOCIA LOS LOTES A LA VENTA (A través del historial)
         Lote::whereIn('id_lote', $request->lotes_ids)->update([
-            'id_venta' => $venta->id_venta,
             'estado' => 'Vendido',
         ]);
+        
+        foreach ($request->lotes_ids as $loteId) {
+            \App\Models\HistorialLote::create([
+                'id_lote' => $loteId,
+                'id_venta' => $venta->id_venta,
+                'estado' => 'Activo',
+                'fecha_asignacion' => now(),
+            ]);
+        }
 
         // CREA EL PRIMER ABONO (Igual)
-        Abono::create([
+        $abonoInicial = Abono::create([
                 'id_venta' => $venta->id_venta,
                 'fecha_pago' => $request->fecha_ultimo_abono ?? now(),
                 'monto_abonado' => $request->primer_abono,
                 'tipo_pago' => 'Prima/Primer Abono',
-                'referencia' => 'Registro Inicial de Venta',
+                'metodo_pago' => $request->metodo_pago_prima ?? 'Efectivo',
+                'referencia' => $request->referencia_prima ?? 'Registro Inicial de Venta',
+                'cuenta_destino' => $request->cuenta_destino_prima ?? null,
+                'user_id' => auth()->id()
         ]);
+
+        // GENERAR PLAN DE PAGOS (CUOTAS)
+        $plazoRestante = $venta->plazo_meses;
+        $saldoRestante = $venta->precio_final;
+        $cuotaMensual = $venta->cuota_mensual;
+
+        if ($plazoRestante > 0 && $saldoRestante > 0) {
+            $fechaVencimiento = \Carbon\Carbon::parse($abonoInicial->fecha_pago);
+            
+            for ($i = 1; $i <= $plazoRestante; $i++) {
+                $fechaVencimiento->addMonth();
+                
+                // La última cuota puede variar ligeramente por redondeos, la ajustamos
+                $montoCuota = ($i == $plazoRestante) ? $saldoRestante : $cuotaMensual;
+                
+                \App\Models\Cuota::create([
+                    'id_venta' => $venta->id_venta,
+                    'numero_cuota' => $i,
+                    'fecha_vencimiento' => $fechaVencimiento->format('Y-m-d'),
+                    'monto_total' => $montoCuota,
+                    'capital' => $montoCuota, // Asumimos sin interés desglosado por ahora
+                    'interes' => 0,
+                    'saldo_restante' => $montoCuota,
+                    'estado' => 'Pendiente',
+                ]);
+                
+                $saldoRestante -= $montoCuota;
+            }
+        }
+
+        // Aplicamos el abono inicial automáticamente a las cuotas generadas
+        \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
 
         DB::commit();
 
@@ -145,7 +237,7 @@ class ClienteController extends Controller
     public function show(Cliente $cliente)
     {
         
-         $cliente->load(['ventas.lotes', 'ventas.abonos' => function ($query) {
+         $cliente->load(['ventas.lotes', 'ventas.cuotas', 'ventas.abonos' => function ($query) {
         
          $query->orderBy('created_at','asc', 'desc');
      }]);
@@ -222,6 +314,8 @@ class ClienteController extends Controller
      */
     public function destroy(Cliente $cliente)
 {
+    abort_if(!auth()->user()->can('borrar-clientes'), 403, 'No tienes permiso para borrar clientes.');
+
     DB::beginTransaction();
     try {
         $venta = $cliente->ventas->first();

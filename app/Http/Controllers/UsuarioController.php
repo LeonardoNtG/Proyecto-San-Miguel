@@ -26,11 +26,12 @@ class UsuarioController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function create()
-{
-    $roles = Role::all();
+    {
+        $roles = Role::all();
+        $lotificaciones = \App\Models\Lotificacion::all();
 
-    return view('usuarios.create', compact('roles'));
-}
+        return view('usuarios.create', compact('roles', 'lotificaciones'));
+    }
 
     /**
      * Store a newly created resource in storage.
@@ -54,6 +55,10 @@ class UsuarioController extends Controller
         ]);
 
         $usuario->assignRole($request->role);
+        
+        if ($request->has('lotificaciones')) {
+            $usuario->lotificaciones()->sync($request->lotificaciones);
+        }
 
         return redirect()
             ->route('usuarios.index')
@@ -80,8 +85,10 @@ class UsuarioController extends Controller
     public function edit(User $usuario)
     {
         $roles = Role::all();
+        $lotificaciones = \App\Models\Lotificacion::all();
+        $assignedLotificaciones = $usuario->lotificaciones->pluck('id')->toArray();
 
-        return view('usuarios.edit', compact('usuario', 'roles'));
+        return view('usuarios.edit', compact('usuario', 'roles', 'lotificaciones', 'assignedLotificaciones'));
     }
 
     /**
@@ -105,8 +112,8 @@ class UsuarioController extends Controller
 
         if (
         auth()->id() === $usuario->id &&
-        $usuario->hasRole('admin') &&
-        $request->role !== 'admin'
+        $usuario->hasRole('Administrador') &&
+        $request->role !== 'Administrador'
      ) {
         return back()
             ->withInput()
@@ -120,6 +127,12 @@ class UsuarioController extends Controller
 
         $usuario->save();
         $usuario->syncRoles($request->role);
+        
+        if ($request->has('lotificaciones')) {
+            $usuario->lotificaciones()->sync($request->lotificaciones);
+        } else {
+            $usuario->lotificaciones()->sync([]);
+        }
 
         return redirect()->route('usuarios.index')->with('success', 'Usuario actualizado correctamente.');
     }

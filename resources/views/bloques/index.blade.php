@@ -35,6 +35,29 @@
         </button>
     </div>
     <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-12">
+                <form action="{{ route('bloques.index') }}" method="GET" class="d-flex flex-wrap align-items-center">
+                    <div class="me-2 mb-2">
+                        <input type="text" name="search" class="form-control" placeholder="Buscar por Nombre o Descripción..." value="{{ request('search') }}">
+                    </div>
+                    <div class="me-2 mb-2">
+                        <select name="lotificacion_id" class="form-control">
+                            <option value="">-- Todos los Proyectos --</option>
+                            @foreach($lotificaciones as $lot)
+                                <option value="{{ $lot->id }}" @selected(request('lotificacion_id') == $lot->id)>{{ $lot->nombre }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filtrar</button>
+                        @if(request('search') || request('lotificacion_id'))
+                            <a href="{{ route('bloques.index') }}" class="btn btn-secondary ms-2" title="Limpiar búsqueda"><i class="fas fa-times"></i> Limpiar</a>
+                        @endif
+                    </div>
+                </form>
+            </div>
+        </div>
         <div class="table-responsive">
             <table class="table table-bordered table-striped" width="100%" cellspacing="0">
                 <thead class="bg-primary text-white">
@@ -50,7 +73,7 @@
                     @forelse ($bloques as $bloque)
                         <tr>
                             <td class="fw-bold">{{ $bloque->nombre }}</td>
-                            <td>{{ $bloque->proyecto ?: '—' }}</td>
+                            <td>{{ $bloque->lotificacion ? $bloque->lotificacion->nombre : '—' }}</td>
                             <td>{{ $bloque->descripcion ?: '—' }}</td>
                             <td class="text-center">
                                 <span class="badge bg-info text-white">{{ $bloque->lotes_count }}</span>
@@ -76,6 +99,9 @@
                 </tbody>
             </table>
         </div>
+        <div class="d-flex justify-content-center mt-4">
+            {{ $bloques->appends(request()->query())->links('pagination::bootstrap-4') }}
+        </div>
     </div>
 </div>
 
@@ -98,7 +124,8 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Proyecto</label>
-                        <input type="text" name="proyecto" class="form-control" placeholder="Ej: Lotificación La Campana" maxlength="100" required>
+                        <input type="hidden" name="lotificacion_id" value="{{ $activeLotificacionId }}">
+                        <input type="text" class="form-control" value="{{ $userLotificaciones->firstWhere('id', $activeLotificacionId)->nombre ?? 'N/A' }}" disabled>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Descripción (opcional)</label>

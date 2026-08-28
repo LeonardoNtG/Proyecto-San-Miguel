@@ -49,7 +49,7 @@
             <hr class="my-3">
             <p class="text-center mb-0">
                 *Lotes:* @foreach ($detallesLotes as $detalle)
-                    <span class="badge bg-white me-2">{{ $detalle['bloque'] }}-{{ $detalle['lote'] }} ({{ number_format($detalle['area'], 2) }} m²)</span>
+                    <span class="badge bg-white me-2 text-dark border">Bloque {{ $detalle['bloque'] }} - Lote {{ $detalle['lote'] }} ({{ number_format($detalle['area'], 2) }} m²)</span>
                 @endforeach
                 | Día de Pago Sugerido: El -{{ $fechaPagoTeorica }}- de cada mes.
             </p>
@@ -88,12 +88,14 @@
                                                 <i class="fas fa-print"></i>
                                             </a>
                                             
+                                            @can('borrar-abonos')
                                             <button type="button" class="btn btn-sm btn-outline-danger delete-abono" 
                                                     data-bs-toggle="modal" 
                                                     data-bs-target="#deleteModal"
                                                     data-id="{{ $abono->id_abono }}" title="Borrar Abono">
                                                 <i class="fas fa-trash-alt"></i>
                                             </button>
+                                            @endcan
                                         </td>
                                     </tr>
                                 @empty
@@ -127,20 +129,49 @@
                             <label for="fecha" class="form-label">Fecha de Pago</label>
                             <input type="date" class="form-control" id="fecha" name="fecha_pago" value="{{ now()->format('Y-m-d') }}" required>
                         </div>
-                        
+
+                        <!-- Tipo de Pago -->
                         <div class="mb-3">
-                            <label for="tipo_pago" class="form-label">Tipo de Pago</label>
-                            <select class="form-select" id="tipo_pago" name="tipo_pago" required>
-                                <option value="Mensualidad">Mensualidad</option>
-                                <option value="Extraordinario">Extraordinario</option>
-                                <option value="Transeferncia">Transferencia</option>
-                                <option value="Prima/Inicial" disabled>Prima/Inicial (Ya registrada)</option>
+                            <label for="tipo_pago" class="form-label fw-bold">Tipo de Abono / Concepto</label>
+                            <select class="form-select @error('tipo_pago') is-invalid @enderror" id="tipo_pago" name="tipo_pago" required>
+                                <option value="Mensualidad" {{ old('tipo_pago') == 'Mensualidad' ? 'selected' : '' }}>Mensualidad</option>
+                                <option value="Extraordinario" {{ old('tipo_pago') == 'Extraordinario' ? 'selected' : '' }}>Extraordinario / Abono a Capital</option>
+                                <option value="Prima/Inicial (Ya registrada)" disabled>Prima/Inicial (Ya registrada al iniciar)</option>
                             </select>
+                            @error('tipo_pago')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
-                        <div class="mb-4">
-                            <label for="referencia" class="form-label">Referencia/Concepto (Opcional)</label>
-                            <input type="text" class="form-control" id="referencia" name="referencia">
+                        <!-- Método de Pago -->
+                        <div class="mb-3">
+                            <label for="metodo_pago" class="form-label fw-bold">Método de Pago</label>
+                            <select class="form-select @error('metodo_pago') is-invalid @enderror" id="metodo_pago" name="metodo_pago" required onchange="toggleMetodoPagoFields()">
+                                <option value="Efectivo" {{ old('metodo_pago') == 'Efectivo' ? 'selected' : '' }}>Efectivo</option>
+                                <option value="Transferencia Bancaria" {{ old('metodo_pago') == 'Transferencia Bancaria' ? 'selected' : '' }}>Transferencia Bancaria</option>
+                                <option value="Depósito Bancario" {{ old('metodo_pago') == 'Depósito Bancario' ? 'selected' : '' }}>Depósito Bancario</option>
+                                <option value="Cheque" {{ old('metodo_pago') == 'Cheque' ? 'selected' : '' }}>Cheque</option>
+                            </select>
+                            @error('metodo_pago')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <!-- Campos extra ocultos por defecto -->
+                        <div id="campos_transferencia" style="display: none; background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6;" class="mb-4">
+                            <div class="mb-3">
+                                <label for="cuenta_destino" class="form-label text-primary fw-bold">Nombre/Cuenta Destino</label>
+                                <input type="text" class="form-control" id="cuenta_destino" name="cuenta_destino" placeholder="Ej: Banco Agrícola - Empresa SA">
+                            </div>
+                            <div class="mb-3">
+                                <label for="referencia" class="form-label text-primary fw-bold">N° de Referencia / Comprobante</label>
+                                <input type="text" class="form-control" id="referencia" name="referencia">
+                            </div>
+                        </div>
+
+                        <div id="campos_efectivo" class="mb-4">
+                            <label for="referencia_efectivo" class="form-label">Comentarios (Opcional)</label>
+                            <input type="text" class="form-control" id="referencia_efectivo" name="referencia" disabled>
                         </div>
                         
                         <hr>
@@ -182,6 +213,49 @@
     </div>
 </div>
 
+@endsection
+
+@section('scripts')
+<script>
+    function toggleMetodoPagoFields() {
+        var metodo = document.getElementById('metodo_pago').value;
+        var camposTransf = document.getElementById('campos_transferencia');
+        var camposEfectivo = document.getElementById('campos_efectivo');
+        
+        var inputCuenta = document.getElementById('cuenta_destino');
+        var inputRef = document.getElementById('referencia');
+        var inputRefEfectivo = document.getElementById('referencia_efectivo');
+
+        if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario' || metodo === 'Cheque') {
+            camposTransf.style.display = 'block';
+            camposEfectivo.style.display = 'none';
+            
+            // Habilitar y requerir
+            inputCuenta.disabled = false;
+            inputCuenta.required = true;
+            inputRef.disabled = false;
+            inputRef.required = (metodo !== 'Cheque'); // Opcional o requerido según necesidad
+
+            inputRefEfectivo.disabled = true;
+        } else {
+            // Efectivo
+            camposTransf.style.display = 'none';
+            camposEfectivo.style.display = 'block';
+
+            inputCuenta.disabled = true;
+            inputCuenta.required = false;
+            inputRef.disabled = true;
+            inputRef.required = false;
+
+            inputRefEfectivo.disabled = false;
+        }
+    }
+
+    // Ejecutar al cargar la página por si hay valores "old"
+    document.addEventListener("DOMContentLoaded", function() {
+        toggleMetodoPagoFields();
+    });
+</script>
 @endsection
 
 

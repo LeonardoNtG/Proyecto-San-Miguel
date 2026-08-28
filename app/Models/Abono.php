@@ -7,7 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Abono extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\ScopedByLotificacion;
+    
     // Nombre de la tabla
     protected $table = 'abonos';
 
@@ -17,11 +18,14 @@ class Abono extends Model
     // Campos que pueden ser asignados masivamente
     protected $fillable = [
         'id_venta',
-        'fecha_pago',
         'monto_abonado',
+        'fecha_pago',
         'tipo_pago',
+        'metodo_pago',
         'referencia',
+        'cuenta_destino',
         'ruta_recibo',
+        'user_id'
     ];
     
     // Relación: Un Abono pertenece a una Venta (Many-to-One)
@@ -29,5 +33,11 @@ class Abono extends Model
     {
         // La clave foránea en la tabla 'abonos' es 'id_venta'
         return $this->belongsTo(Venta::class, 'id_venta', 'id_venta');
+    }
+
+    // Relación: Un Abono pertenece a un Usuario (Many-to-One)
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

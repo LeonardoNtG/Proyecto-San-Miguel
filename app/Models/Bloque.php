@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Bloque extends Model
 {
+    use HasFactory, \App\Traits\ScopedByLotificacion;
+
     // Nombre de la tabla
     protected $table = 'bloques';
 
@@ -16,9 +18,14 @@ class Bloque extends Model
     // Campos que pueden ser asignados masivamente (Mass Assignable)
     protected $fillable = [
         'nombre',
-        'proyecto',
+        'lotificacion_id',
         'descripcion',
     ];
+
+    public function lotificacion()
+    {
+        return $this->belongsTo(Lotificacion::class, 'lotificacion_id');
+    }
 
     // Relación: Un Bloque tiene muchos Lotes (One-to-Many)
     // El 'foreign key' es el 'id_bloque' en la tabla 'lotes'

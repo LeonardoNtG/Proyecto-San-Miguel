@@ -44,13 +44,13 @@ class AbonoController extends Controller
         }]);
 
         // Cálculos Financieros
-        
         $totalAbonado = $venta->abonos->sum('monto_abonado');
         $saldoPendiente = $venta->precio_final - $totalAbonado;
         
-        // Asumiendo pagos mensuales 
-        $cuotasPagadas = floor($totalAbonado / $venta->cuota_mensual); 
-        $cuotasPendientes = $venta->plazo_meses - $cuotasPagadas;
+        // El número real de cuotas pendientes basado en la tabla cuotas
+        $cuotasPendientes = \App\Models\Cuota::where('id_venta', $venta->id_venta)
+            ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+            ->count();
         
         // Fecha de Pago 
         $fechaPagoTeorica = $venta->created_at->format('d'); 
@@ -86,15 +86,7 @@ class AbonoController extends Controller
      */
    public function store(Request $request, Cliente $cliente)
 {
-    // Validar (El campo de imagen es 'nullable')
-    $validatedData = $request->validate([
-        'monto_abonado' => 'required|numeric|min:0.01',
-        'fecha_pago' => 'required|date',
-        'tipo_pago' => ['required', Rule::in(['Mensualidad', 'Extraordinario','Transeferncia'])],
-        'referencia' => 'nullable|string|max:255',
-        'ruta_recibo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048', // max: 2MB; se excluye svg/gif (riesgo XSS/animación) a propósito
-    ]);
-
+    // Buscamos la primera venta del cliente (asumimos 1 venta por cliente para el abono)
     $venta = $cliente->ventas->first();
     if (!$venta) {
         return back()->with('error', 'No se encontró una venta activa para este cliente.');
@@ -105,29 +97,98 @@ class AbonoController extends Controller
     
     DB::beginTransaction();
     try {
-        $rutaRecibo = null;
-
-        // Manejo Condicional de la Subida de Archivos
-        if ($request->hasFile('ruta_recibo')) {
-            // Guardar la imagen en el disco 'public' dentro de una carpeta 'abonos_recibos'
-            $rutaRecibo = $request->file('ruta_recibo')->store('abonos_recibos', 'public');
-            // La variable $rutaRecibo ahora contiene la ruta dentro del storage (ej: abonos_recibos/imagen_hash.jpg)
-        }
-
-        // Crear el Abono
-        Abono::create([
-            'id_venta' => $venta->id_venta,
-            'fecha_pago' => $validatedData['fecha_pago'],
-            'monto_abonado' => $validatedData['monto_abonado'],
-            'tipo_pago' => $validatedData['tipo_pago'],
-            'referencia' => $validatedData['referencia'],
-            'ruta_recibo' => $rutaRecibo, // Se guarda la ruta o null
+        $request->validate([
+            'monto_abonado' => 'required|numeric|min:0.01',
+            'fecha_pago'    => 'required|date',
+            'tipo_pago'     => 'required|string',
+            'metodo_pago'   => 'required|string',
+            'referencia'    => 'nullable|string',
+            'cuenta_destino'=> 'nullable|string',
+            'recibo_imagen' => 'nullable|image|max:5120',
         ]);
 
-        // (Opcional) Lógica de actualización de estado si se liquida el saldo
-        // ...
+        $ruta_imagen = null;
+        if ($request->hasFile('ruta_recibo')) {
+            $ruta_imagen = $request->file('ruta_recibo')->store('abonos_recibos', 'public');
+        }
+
+        // Calcular máximo a pagar (Capital restante + Mora pendiente)
+        $cuotasPendientes = \App\Models\Cuota::where('id_venta', $venta->id_venta)
+            ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+            ->orderBy('numero_cuota', 'asc')
+            ->get();
+
+        $maximoAPagar = $cuotasPendientes->sum(function($cuota) {
+            return $cuota->saldo_restante + $cuota->mora_pendiente;
+        });
+
+        if (round($request->monto_abonado, 2) > round($maximoAPagar, 2)) {
+            return back()->withInput()->with('error', 'El monto del abono ($' . number_format($request->monto_abonado, 2) . ') supera la deuda total pendiente ($' . number_format($maximoAPagar, 2) . ' incluyendo mora).');
+        }
+
+        // Crear el abono base
+        $abono = Abono::create([
+            'id_venta'      => $venta->id_venta,
+            'monto_abonado' => $request->monto_abonado,
+            'fecha_pago'    => $request->fecha_pago,
+            'tipo_pago'     => $request->tipo_pago,
+            'metodo_pago'   => $request->metodo_pago,
+            'referencia'    => $request->referencia,
+            'cuenta_destino'=> $request->cuenta_destino,
+            'ruta_recibo'   => $ruta_imagen,
+            'user_id'       => auth()->id()
+        ]);
+
+        // APLICAR ABONO A LAS CUOTAS
+        $montoRestante = $request->monto_abonado;
+        $cuotasPendientes = \App\Models\Cuota::where('id_venta', $venta->id_venta)
+            ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+            ->orderBy('numero_cuota', 'asc')
+            ->get();
+
+        foreach ($cuotasPendientes as $cuota) {
+            if ($montoRestante <= 0) break;
+
+            // 1. Pagar Mora Pendiente primero
+            $moraPendiente = $cuota->mora_pendiente;
+            if ($moraPendiente > 0) {
+                if ($montoRestante >= $moraPendiente) {
+                    $montoRestante -= $moraPendiente;
+                    $cuota->mora_pagada += $moraPendiente;
+                } else {
+                    $cuota->mora_pagada += $montoRestante;
+                    $montoRestante = 0;
+                    $cuota->save();
+                    continue; // Se acabó el dinero, no abonamos a saldo_restante
+                }
+            }
+
+            // 2. Pagar Saldo Restante (Capital)
+            if ($montoRestante >= $cuota->saldo_restante) {
+                // Paga la cuota completa
+                $montoRestante -= $cuota->saldo_restante;
+                $cuota->saldo_restante = 0;
+                $cuota->estado = 'Pagada';
+            } else {
+                // Pago parcial de la cuota
+                $cuota->saldo_restante -= $montoRestante;
+                // Si la cuota ya estaba en mora y pagamos toda la mora pero solo una parte del capital, sigue en Mora o Parcial?
+                // Según lógica bancaria, si aún debe capital y está atrasada, sigue en mora. Lo mantenemos como estaba.
+                $cuota->estado = ($cuota->estado === 'Mora') ? 'Mora' : 'Parcial';
+                $montoRestante = 0;
+            }
+            $cuota->save();
+        }
+
+        // Si después de aplicar a todas las cuotas, ya no hay cuotas pendientes y el saldo es 0, finalizar venta
+        $saldoTotalRestante = \App\Models\Cuota::where('id_venta', $venta->id_venta)->sum('saldo_restante');
+        if ($saldoTotalRestante <= 0 && $venta->estado_contrato === 'Vigente') {
+            $venta->estado_contrato = 'Finalizado';
+            $venta->save();
+        }
 
         DB::commit();
+        \App\Models\Auditoria::log('Registró Abono', 'Abono', $abono->id_abono, "Monto: $" . number_format($request->monto_abonado, 2) . " - " . $request->metodo_pago);
         return redirect()->back()->with('success', 'Abono registrado exitosamente.');
 
     } catch (\Exception $e) {
@@ -180,13 +241,20 @@ class AbonoController extends Controller
 
         public function destroy($abono) 
     {
+        abort_if(!auth()->user()->can('borrar-abonos'), 403, 'No tienes permiso para borrar abonos.');
+
      try {
         // Buscamos el abono por el ID que llega en la URL
         $registro = Abono::findOrFail($abono);
+        $id_venta = $registro->id_venta;
         
         $registro->delete();
+        
+        // Recalcular el estado de las cuotas tras eliminar un abono
+        self::recalcularCuotas($id_venta);
 
-        return redirect()->back()->with('success', 'Abono eliminado correctamente.');
+        \App\Models\Auditoria::log('Eliminó Abono', 'Abono', $abono, "Abono ID: " . $abono);
+        return redirect()->back()->with('success', 'Abono eliminado correctamente. Saldos recalculados.');
 
         } catch (\Exception $e) {
          // Si hay error, lo mostramos para saber qué pasó
@@ -194,12 +262,78 @@ class AbonoController extends Controller
         }
     }
 
+    public static function recalcularCuotas($id_venta) {
+        $venta = \App\Models\Venta::findOrFail($id_venta);
+        
+        // 1. Restaurar todas las cuotas a su estado original
+        \App\Models\Cuota::where('id_venta', $id_venta)->update([
+            'saldo_restante' => DB::raw('monto_total'),
+            'mora_pagada' => 0,
+            'estado' => 'Pendiente'
+        ]);
+
+        if ($venta->estado_contrato === 'Finalizado') {
+            $venta->estado_contrato = 'Vigente';
+            $venta->save();
+        }
+
+        // 2. Obtener abonos ordenados cronológicamente
+        $abonos = \App\Models\Abono::where('id_venta', $id_venta)
+            ->orderBy('fecha_pago', 'asc')->orderBy('id_abono', 'asc')->get();
+
+        // 3. Reaplicar los abonos a las cuotas
+        foreach($abonos as $abono) {
+            $montoRestante = $abono->monto_abonado;
+            
+            $cuotasPendientes = \App\Models\Cuota::where('id_venta', $id_venta)
+                ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+                ->orderBy('numero_cuota', 'asc')
+                ->get();
+
+            foreach ($cuotasPendientes as $cuota) {
+                if ($montoRestante <= 0) break;
+
+                $moraPendiente = $cuota->mora_pendiente;
+                if ($moraPendiente > 0) {
+                    if ($montoRestante >= $moraPendiente) {
+                        $montoRestante -= $moraPendiente;
+                        $cuota->mora_pagada += $moraPendiente;
+                    } else {
+                        $cuota->mora_pagada += $montoRestante;
+                        $montoRestante = 0;
+                        $cuota->save();
+                        continue; 
+                    }
+                }
+
+                if ($montoRestante >= $cuota->saldo_restante) {
+                    $montoRestante -= $cuota->saldo_restante;
+                    $cuota->saldo_restante = 0;
+                    $cuota->estado = 'Pagada';
+                } else {
+                    $cuota->saldo_restante -= $montoRestante;
+                    $cuota->estado = ($cuota->estado === 'Mora') ? 'Mora' : 'Parcial';
+                    $montoRestante = 0;
+                }
+                $cuota->save();
+            }
+        }
+
+        // 4. Revisar si con los abonos restantes se finaliza el contrato
+        $saldoTotalRestante = \App\Models\Cuota::where('id_venta', $id_venta)->sum('saldo_restante');
+        if ($saldoTotalRestante <= 0 && $venta->estado_contrato === 'Vigente') {
+            $venta->estado_contrato = 'Finalizado';
+            $venta->save();
+        }
+    }
+
          public function imprimirRecibo($abono_id)
         {
         // Carga el Abono e inmediatamente carga la Venta y el Cliente relacionado
-         $abono = Abono::with('venta.cliente','venta.lotes.bloque','venta.abonos')->findOrFail($abono_id);
+         $abono = Abono::with('venta.cliente','venta.lotes.bloque','venta.abonos', 'venta.lotificacion')->findOrFail($abono_id);
 
          $venta = $abono->venta;
+         $lotificacion = $venta->lotificacion;
 
          $cliente = $abono->venta->cliente ?? null;
 
@@ -208,10 +342,10 @@ class AbonoController extends Controller
              $cliente = (object) ['nombres_apellidos' => 'Cliente Desconocido'];
          }
 
-            // Una venta puede tener varios lotes: se listan todos (Bloque-Lote) en el recibo
+            // Una venta puede tener varios lotes: se listan todos en el recibo (solo el número/nombre guardado para ahorrar espacio)
             $lotesTexto = $venta->lotes->isNotEmpty()
                 ? $venta->lotes->map(function ($lote) {
-                    return ($lote->bloque->nombre ?? 'N/A') . '-' . $lote->numero_lote;
+                    return $lote->numero_lote;
                 })->implode(', ')
                 : 'N/A';
 
@@ -226,10 +360,10 @@ class AbonoController extends Controller
 
                  $abonos_realizados = $venta->abonos->count();
 
-                $abonos_faltantes = max(
-                 0,
-                $venta->plazo_meses - $abonos_realizados
-                );
+                 // El número real de cuotas pendientes basado en la tabla cuotas
+                 $abonos_faltantes = \App\Models\Cuota::where('id_venta', $venta->id_venta)
+                     ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+                     ->count();
          // Procesa el monto a letras (mantener la seguridad)
          $monto_en_letras = method_exists($this, 'convertirMontoALetras') 
                               ? $this->convertirMontoALetras($abono->monto_abonado) 
@@ -248,6 +382,9 @@ class AbonoController extends Controller
 
         // Lotes asociados a la venta (texto "Bloque-Lote, Bloque-Lote, ...")
         'lotes_texto' => $lotesTexto,
+        
+        // Lotificación asociada
+        'lotificacion' => $lotificacion,
 
         // Datos económicos
         'valor_total' => $valor_total,

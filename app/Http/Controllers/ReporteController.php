@@ -211,29 +211,68 @@ class ReporteController extends Controller
 
     public function index(Request $request)
     {
-        // Gestionar la fecha (por defecto hoy)
         $fecha = $request->get('fecha', Carbon::today()->format('Y-m-d'));
 
-        // Efectivo Anterior: saldo del último cierre + todo lo abonado/gastado
-        // en los días posteriores que aún no se han cerrado (por si se saltó
-        // algún "Realizar Cierre de Caja").
-        $saldoInicial = $this->calcularSaldoAnterior($fecha);
+        // Obtener el último registro de apertura del día para este usuario
+        $apertura = \App\Models\AperturaCaja::where('fecha', $fecha)->where('user_id', auth()->id())->latest()->first();
+        $cajaAbierta = $apertura ? true : false;
 
-        // Calcula Ingresos (Abonos registrados hoy)
-        $ingresosHoy = Abono::whereDate('fecha_pago', $fecha)->sum('monto_abonado');
+        // Determinar si esa última apertura ya fue cerrada
+        $cierre = \App\Models\CierreCaja::where('fecha', $fecha)->where('user_id', auth()->id())->latest()->first();
+        $cajaCerrada = false;
 
-        // Calcular Egresos (Salidas manuales)
-        $listaSalidas = Salida::whereDate('fecha', $fecha)->get();
+        if ($cierre && $apertura && $cierre->created_at >= $apertura->created_at) {
+            $cajaCerrada = true;
+        }
+
+        if ($cajaAbierta) {
+            $saldoInicial = $apertura->monto_inicial;
+        } else {
+            // Se calcula como sugerencia para la primera apertura del día
+            $saldoInicial = $this->calcularSaldoAnterior($fecha);
+        }
+
+        // Obtener transacciones basándonos en la hora de apertura (turno actual)
+        if ($cajaAbierta && !$cajaCerrada) {
+            $listaIngresos = Abono::with('venta.cliente')
+                ->where('user_id', auth()->id())
+                ->where('created_at', '>=', $apertura->created_at)
+                ->get();
+                
+            $listaSalidas = Salida::where('user_id', auth()->id())
+                ->where('created_at', '>=', $apertura->created_at)
+                ->get();
+        } else {
+            $listaIngresos = collect();
+            $listaSalidas = collect();
+        }
+
+        $ingresosHoy = $listaIngresos->sum('monto_abonado');
         $egresosHoy = $listaSalidas->sum('monto');
 
-        // Totales Dinámicos
         $efectivoTotalSuma = $saldoInicial + $ingresosHoy;
         $saldoFinalCaja = $efectivoTotalSuma - $egresosHoy;
 
         return view('reportes.diario', compact(
             'fecha', 'saldoInicial', 'ingresosHoy', 
-            'egresosHoy', 'listaSalidas', 'efectivoTotalSuma', 'saldoFinalCaja'
+            'egresosHoy', 'listaSalidas', 'listaIngresos', 'efectivoTotalSuma', 'saldoFinalCaja', 'cajaAbierta', 'cajaCerrada'
         ));
+    }
+
+    public function abrirCaja(Request $request)
+    {
+        $request->validate([
+            'fecha' => 'required|date',
+            'monto_inicial' => 'required|numeric|min:0'
+        ]);
+
+        \App\Models\AperturaCaja::create([
+            'fecha' => $request->fecha,
+            'monto_inicial' => $request->monto_inicial,
+            'user_id' => auth()->id()
+        ]);
+
+        return redirect()->back()->with('success', 'Caja abierta correctamente. Ahora puede operar en su nuevo turno.');
     }
 
     public function create()
@@ -252,14 +291,19 @@ class ReporteController extends Controller
         $request->validate([
             'monto' => 'required|numeric|min:0.01',
             'descripcion' => 'required|string|max:255',
+            'metodo_pago' => 'required|string',
             'fecha' => 'required|date'
         ]);
 
-        Salida::create([
+        $salida = Salida::create([
             'monto' => $request->monto,
             'descripcion' => $request->descripcion,
+            'metodo_pago' => $request->metodo_pago,
             'fecha' => $request->fecha,
+            'user_id' => auth()->id()
         ]);
+
+        \App\Models\Auditoria::log('Registró Egreso', 'Salida', $salida->id, "Monto: $" . number_format($request->monto, 2));
 
         return redirect()->back()->with('success', 'Salida de efectivo registrada.');
       }
@@ -275,27 +319,58 @@ class ReporteController extends Controller
     {
         $request->validate([
             'fecha' => 'required|date',
+            'efectivo_real' => 'required|numeric|min:0',
         ]);
 
-        // Este método guarda el estado final del día para que mañana sea el inicial
         $fecha = $request->fecha;
+        
+        // Prevent double close on the same shift
+        $apertura = \App\Models\AperturaCaja::where('fecha', $fecha)->where('user_id', auth()->id())->latest()->first();
+        $cierrePrevio = \App\Models\CierreCaja::where('fecha', $fecha)->where('user_id', auth()->id())->latest()->first();
+        
+        if ($cierrePrevio && $apertura && $cierrePrevio->created_at >= $apertura->created_at) {
+            return back()->with('error', 'La caja ya fue cerrada para este turno. Debe abrir una nueva caja para registrar más transacciones.');
+        }
+        
+        $saldoInicial = $apertura ? $apertura->monto_inicial : 0;
+        
+        // Calcular ingresos y egresos de este turno
+        if ($apertura) {
+            $ingresos = Abono::where('user_id', auth()->id())
+                ->where('created_at', '>=', $apertura->created_at)
+                ->sum('monto_abonado');
+                
+            $egresos = Salida::where('user_id', auth()->id())
+                ->where('created_at', '>=', $apertura->created_at)
+                ->sum('monto');
+        } else {
+            $ingresos = 0;
+            $egresos = 0;
+        }
 
-        $saldoInicial = $this->calcularSaldoAnterior($fecha);
-        $ingresos = Abono::whereDate('fecha_pago', $fecha)->sum('monto_abonado');
-        $egresos = Salida::whereDate('fecha', $fecha)->sum('monto');
         $saldoFinal = ($saldoInicial + $ingresos) - $egresos;
+        
+        $efectivoReal = round((float)$request->efectivo_real, 2);
+        $saldoFinal = round((float)$saldoFinal, 2);
+        $diferencia = round($efectivoReal - $saldoFinal, 2);
 
-        CierreCaja::updateOrCreate(
-            ['fecha' => $fecha],
-            [
-                'saldo_inicial' => $saldoInicial,
-                'ingresos' => $ingresos,
-                'egresos' => $egresos,
-                'saldo_final' => $saldoFinal
-            ]
-        );
+        if ($diferencia != 0.00 && empty($request->comentario)) {
+            return back()->withInput()->with('error', 'Debe proporcionar una justificación para la diferencia detectada en el arqueo.');
+        }
 
-        return redirect()->back()->with('success', 'Caja cerrada correctamente para esta fecha.');
+        CierreCaja::create([
+            'fecha' => $fecha,
+            'user_id' => auth()->id(),
+            'saldo_inicial' => $saldoInicial,
+            'ingresos' => $ingresos,
+            'egresos' => $egresos,
+            'saldo_final' => $saldoFinal,
+            'efectivo_real' => $efectivoReal,
+            'diferencia' => $diferencia,
+            'comentario' => $request->comentario
+        ]);
+
+        return redirect()->back()->with('success', 'Arqueo y cierre de caja realizados correctamente.');
     }
 
     /**
@@ -308,7 +383,10 @@ class ReporteController extends Controller
      */
     private function calcularSaldoAnterior(string $fecha): float
     {
-        $ultimoCierre = CierreCaja::where('fecha', '<', $fecha)->orderByDesc('fecha')->first();
+        $ultimoCierre = CierreCaja::where('fecha', '<', $fecha)
+            ->where('user_id', auth()->id())
+            ->orderByDesc('fecha')
+            ->first();
 
         $saldo = 0.0;
         $desde = $ultimoCierre ? Carbon::parse($ultimoCierre->fecha)->addDay()->format('Y-m-d') : null;
@@ -317,10 +395,12 @@ class ReporteController extends Controller
         if (!$desde || $desde <= $hasta) {
             $ingresosPendientes = Abono::when($desde, fn ($q) => $q->where('fecha_pago', '>=', $desde))
                 ->where('fecha_pago', '<=', $hasta)
+                ->where('user_id', auth()->id())
                 ->sum('monto_abonado');
 
             $egresosPendientes = Salida::when($desde, fn ($q) => $q->where('fecha', '>=', $desde))
                 ->where('fecha', '<=', $hasta)
+                ->where('user_id', auth()->id())
                 ->sum('monto');
 
             $saldo += (float) $ingresosPendientes - (float) $egresosPendientes;
@@ -366,7 +446,10 @@ class ReporteController extends Controller
     public function destroy($id)
     {
         $salida = Salida::findOrFail($id);
+        $monto = $salida->monto;
         $salida->delete();
+        
+        \App\Models\Auditoria::log('Eliminó Egreso', 'Salida', $id, "Monto: $" . number_format($monto, 2));
 
         return redirect()->back()->with('success', 'Salida eliminada correctamente.');
     }

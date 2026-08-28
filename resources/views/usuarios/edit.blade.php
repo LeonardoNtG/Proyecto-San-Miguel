@@ -156,7 +156,27 @@
                                 </select>
 
                             @endif
+                        </div>
                         <hr class="text-muted my-4">                   
+
+                        {{-- Selección de Lotificaciones --}}
+                        <div class="mb-4">
+                            <label class="form-label fw-semibold">Proyectos Asignados (Para Aislamiento)</label>
+                            <p class="text-muted small mb-2">Selecciona los proyectos a los que este usuario tendrá acceso (Gerentes y Agentes).</p>
+                            
+                            <div class="row">
+                                @foreach($lotificaciones as $lotificacion)
+                                <div class="col-md-6 mb-2">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="lotificaciones[]" value="{{ $lotificacion->id }}" id="lot_{{ $lotificacion->id }}" {{ in_array($lotificacion->id, $assignedLotificaciones) ? 'checked' : '' }}>
+                                        <label class="form-check-label" for="lot_{{ $lotificacion->id }}">
+                                            {{ $lotificacion->nombre }}
+                                        </label>
+                                    </div>
+                                </div>
+                                @endforeach
+                            </div>
+                        </div>
 
                         {{-- Botones de Acción --}}
                         <div class="d-flex justify-content-end gap-2">

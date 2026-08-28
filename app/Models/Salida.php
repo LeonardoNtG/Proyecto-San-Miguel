@@ -11,7 +11,9 @@ class Salida extends Model
     protected $fillable = [
         'monto',
         'descripcion',
-        'fecha'
+        'metodo_pago',
+        'fecha',
+        'user_id'
     ];
 
     // Opcional: Si quieres que siempre se trate como número

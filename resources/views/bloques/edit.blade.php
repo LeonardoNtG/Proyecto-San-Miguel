@@ -33,7 +33,8 @@
                 </div>
                 <div class="col-md-8 mb-3">
                     <label class="form-label">Proyecto</label>
-                    <input type="text" name="proyecto" class="form-control" maxlength="100" value="{{ old('proyecto', $bloque->proyecto) }}" required>
+                    <input type="hidden" name="lotificacion_id" value="{{ $bloque->lotificacion_id }}">
+                    <input type="text" class="form-control" value="{{ $bloque->lotificacion ? $bloque->lotificacion->nombre : 'N/A' }}" disabled>
                 </div>
             </div>
 

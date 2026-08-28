@@ -21,8 +21,23 @@
     <link href="{{ asset('css/template.css')}}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-..." crossorigin="anonymous" referrerpolicy="no-referrer" />
    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+    <style>
+        /* Ocultar flechas en inputs de tipo número (Chrome, Safari, Edge, Opera) */
+        input[type=number]::-webkit-outer-spin-button,
+        input[type=number]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        /* Ocultar flechas en inputs de tipo número (Firefox) */
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+    </style>
 </head>
 
+<body id="page-top">
 
     <!-- Page Wrapper -->
     <div id="wrapper">
@@ -42,85 +57,103 @@
             <hr class="sidebar-divider my-0">
 
             <!-- Nav Item - Dashboard -->
-            <li class="nav-item active">
+            <li class="nav-item {{ request()->routeIs('inicio') ? 'active' : '' }}">
                 <a class="nav-link" href="{{ asset('/inicio') }}">
                     <i class="fa-solid fa-house"></i>
-                    <span>General</span></a>
-            </li>
-
-            <!-- Divider -->
-            <hr class="sidebar-divider">
-
-            <!-- Nav Item - Pages Collapse Menu -->
-            <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseTwo"
-                    aria-expanded="true" aria-controls="collapseTwo">
-                    <i class="fa-solid fa-circle-user"></i>
-                    <span>Clientes</span>
+                    <span>Inicio / Resumen</span>
                 </a>
-                <div id="collapseTwo" class="collapse" aria-labelledby="headingTwo" data-parent="#accordionSidebar">
-                    <div class="bg-white py-2 collapse-inner rounded">
-                        <h6 class="collapse-header">Opciones de Clientes:  </h6>
-                        <a class="collapse-item" href="{{ route('registro.index') }}" >Abonos</a>
-                        <a class="collapse-item" href="{{ asset('/errores/post') }}">Estados de cuenta</a>
-                        <a class="collapse-item" href="{{ asset('/errores/post') }}">Archivos</a>
-                    </div>
-                </div>
             </li>
-
-            <!-- Nav Item - Utilities Collapse Menu -->
-
 
             <!-- Divider -->
             <hr class="sidebar-divider">
 
             <!-- Heading -->
             <div class="sidebar-heading">
-                Opciones
+                Principal
             </div>
 
-            <!-- Nav Item - Pages Collapse Menu -->
+            <!-- Nav Item - Gestión Comercial -->
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapsePages"
-                    aria-expanded="true" aria-controls="collapsePages">
-                    <i class="fas fa-fw fa-folder"></i>
-                    <span>Registros</span>
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseComercial"
+                    aria-expanded="true" aria-controls="collapseComercial">
+                    <i class="fa-solid fa-briefcase"></i>
+                    <span>Gestión Comercial</span>
                 </a>
-                <div id="collapsePages" class="collapse" aria-labelledby="headingPages" data-parent="#accordionSidebar">
+                <div id="collapseComercial" class="collapse" aria-labelledby="headingComercial" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
-                        <h6 class="collapse-header" href="{{ asset('/errores/post') }}">Reportes</h6>
-                        <a class="collapse-item" href="{{ route('reportes.financiero') }}">Archivos</a>
-                        <a class="collapse-item" href="{{ route('reportes.index') }}">Egresos</a>
-                        <a class="collapse-item" href="{{ route('dashboard.grafico') }}">Graficos</a>
+                        <h6 class="collapse-header">Operaciones:</h6>
+                        <a class="collapse-item" href="{{ route('registro.index') }}">Clientes y Ventas</a>
+                        <a class="collapse-item" href="{{ route('estados_cuenta') }}">Estados de Cuenta</a>
+                        <a class="collapse-item" href="{{ route('reservas.index') }}">Reservas de Lotes</a>
+                        
+                        <h6 class="collapse-header mt-2">Caja y Reportes:</h6>
+                        <a class="collapse-item" href="{{ route('reportes.index') }}">Apertura y Egresos</a>
+                        <a class="collapse-item" href="{{ route('reportes.cierre_caja') }}">Reporte Diario</a>
                     </div>
                 </div>
             </li>
 
-            <!-- Nav Item - Archivos Collapse Menu (solo Admin: gestiona Bloques y Lotes) -->
-            @role('admin')
+            <!-- Divider -->
+            <hr class="sidebar-divider">
+
+            @can('ver-reportes')
+            <!-- Heading -->
+            <div class="sidebar-heading">
+                Administración
+            </div>
+
+            <!-- Nav Item - Reportes y Finanzas -->
             <li class="nav-item">
-                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseArchivos"
-                    aria-expanded="true" aria-controls="collapseArchivos">
-                    <i class="fas fa-fw fa-chart-area"></i>
-                    <span>Archivos</span>
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseReportes"
+                    aria-expanded="true" aria-controls="collapseReportes">
+                    <i class="fas fa-fw fa-chart-line"></i>
+                    <span>Reportes y Finanzas</span>
                 </a>
-                <div id="collapseArchivos" class="collapse" aria-labelledby="headingArchivos" data-parent="#accordionSidebar">
+                <div id="collapseReportes" class="collapse" aria-labelledby="headingReportes" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
-                        <h6 class="collapse-header">Lotificación:</h6>
+                        <h6 class="collapse-header">Financiero:</h6>
+                        <a class="collapse-item" href="{{ route('reportes.financiero') }}">Reporte Financiero</a>
+                        <a class="collapse-item" href="{{ route('dashboard.grafico') }}">Gráficos y Estadísticas</a>
+                    </div>
+                </div>
+            </li>
+            @endcan
+
+            @can('gestionar-lotificaciones')
+            <!-- Nav Item - Proyectos e Inventario -->
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseProyectos"
+                    aria-expanded="true" aria-controls="collapseProyectos">
+                    <i class="fas fa-fw fa-map-marked-alt"></i>
+                    <span>Proyectos e Inventario</span>
+                </a>
+                <div id="collapseProyectos" class="collapse" aria-labelledby="headingProyectos" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <h6 class="collapse-header">Inventario:</h6>
                         <a class="collapse-item" href="{{ route('bloques.index') }}">Bloques y Lotes</a>
+                        <a class="collapse-item" href="{{ route('lotificaciones.index') }}">Datos de Proyectos</a>
                     </div>
                 </div>
             </li>
-            @endrole
+            @endcan
 
-            <!-- Nav Item - Tables -->
+            @can('gestionar-usuarios')
+            <!-- Nav Item - Configuraciones -->
             <li class="nav-item">
-                @role('admin')
-                <a class="nav-link" href="{{ route('usuarios.index') }}">
-                    <i class="fas fa-fw fa-table"></i>
-                    <span>Configuraciones</span></a>
-                    @endrole
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseConfig"
+                    aria-expanded="true" aria-controls="collapseConfig">
+                    <i class="fas fa-fw fa-cogs"></i>
+                    <span>Configuración del Sistema</span>
+                </a>
+                <div id="collapseConfig" class="collapse" aria-labelledby="headingConfig" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <h6 class="collapse-header">Seguridad y Accesos:</h6>
+                        <a class="collapse-item" href="{{ route('usuarios.index') }}">Gestión de Usuarios</a>
+                        <a class="collapse-item" href="{{ route('auditoria.index') }}">Auditoría (Logs)</a>
+                    </div>
+                </div>
             </li>
+            @endcan
 
             <!-- Divider -->
             <hr class="sidebar-divider d-none d-md-block">
@@ -179,6 +212,45 @@
 
                         <div class="topbar-divider d-none d-sm-block"></div>
 
+                        <!-- Nav Item - Lotificacion Selector -->
+                        @if(isset($userLotificaciones) && $userLotificaciones->count() > 0)
+                        <li class="nav-item dropdown no-arrow mx-1">
+                            <a class="nav-link dropdown-toggle" href="#" id="lotificacionDropdown" role="button"
+                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <i class="fas fa-building fa-fw"></i>
+                                <span class="badge badge-primary badge-counter">
+                                    {{ $userLotificaciones->firstWhere('id', $activeLotificacionId)->nombre ?? 'Seleccione' }}
+                                </span>
+                            </a>
+                            <!-- Dropdown - Lotificaciones -->
+                            <div class="dropdown-list dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                                aria-labelledby="lotificacionDropdown">
+                                <h6 class="dropdown-header">
+                                    Tus Lotificaciones
+                                </h6>
+                                @foreach($userLotificaciones as $lot)
+                                    <form action="{{ route('lotificacion.setActiva', $lot->id) }}" method="POST" class="d-inline">
+                                        @csrf
+                                        <button type="submit" class="dropdown-item d-flex align-items-center">
+                                            <div class="mr-3">
+                                                <div class="icon-circle {{ $activeLotificacionId == $lot->id ? 'bg-success' : 'bg-primary' }}">
+                                                    <i class="fas fa-check text-white" style="{{ $activeLotificacionId == $lot->id ? '' : 'visibility: hidden;' }}"></i>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <span class="{{ $activeLotificacionId == $lot->id ? 'font-weight-bold' : '' }}">
+                                                    {{ $lot->nombre }}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    </form>
+                                @endforeach
+                            </div>
+                        </li>
+                        @endif
+
+                        <div class="topbar-divider d-none d-sm-block"></div>
+
                         <!-- Nav Item - User Information -->
                         <li class="nav-item dropdown no-arrow">
                             <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
@@ -205,7 +277,7 @@
                 </form>
                             </div>
                         </li>
-
+                        </li>
                     </ul>
  
                 </nav>
@@ -259,9 +331,15 @@
     <script src="{{ asset('js/chartAD.js') }}"></script>
     <script src="{{ asset('js/chartPD.js') }}"></script>
     @yield('scripts')
-    <body id="page-top">
-
-
+    
+    <script>
+        // Evitar globalmente que el scroll del mouse cambie los valores de los inputs tipo número
+        document.addEventListener('wheel', function(event) {
+            if (event.target.type === 'number') {
+                event.preventDefault();
+            }
+        }, { passive: false });
+    </script>
 </body>
 
 </html>

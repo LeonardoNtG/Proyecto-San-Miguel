@@ -48,7 +48,7 @@
                     </div>
                     <div class="col-md-3 mb-3">
                         <label for="estado_civil" class="form-label">Estado Civil</label>
-                        <select class="form-select" id="estado_civil" name="estado_civil" required>
+                        <select class="form-control custom-select" id="estado_civil" name="estado_civil" required>
                             <option value="">Seleccione...</option>
                             @php $ec = old('estado_civil', $cliente->estado_civil); @endphp
                             @foreach (['soltero', 'casado', 'union_libre', 'divorciado', 'viudo'] as $opcion)
@@ -84,7 +84,7 @@
                     @php $esRescindido = ($venta->estado_contrato == 'Rescindido'); @endphp
                     <div class="mb-3">
                         <label for="estado_contrato" class="form-label fw-bold">Estado del Contrato:</label>
-                        <select class="form-select {{ $esRescindido ? 'border-danger bg-light' : '' }}" 
+                        <select class="form-control custom-select {{ $esRescindido ? 'border-danger bg-light' : '' }}" 
                          id="estado_contrato" 
                         name="estado_contrato" 
                         {{ $esRescindido ? 'disabled' : '' }} required>
@@ -103,15 +103,28 @@
              </div>
          @endif
         </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="precio_final" class="form-label">Precio Final (USD)</label>
-                            {{-- Solo lectura para referencia --}}
-                            <input type="text" class="form-control" value="${{ number_format($venta->precio_final, 2) }}" readonly>
+                    <div class="row">
+                        <div class="col-md-12 mb-4">
+                            <label class="form-label fw-bold text-secondary">Lotes Adquiridos en este Contrato</label>
+                            <div class="p-3 border rounded bg-white">
+                                @forelse($venta->lotes as $lote)
+                                    <span class="badge bg-info text-dark p-2 mr-2 mb-2" style="font-size: 0.95rem;">
+                                        <i class="fas fa-map-marker-alt"></i> Bloque {{ $lote->bloque ? $lote->bloque->nombre : 'N/D' }} | Lote {{ $lote->numero_lote }}
+                                    </span>
+                                @empty
+                                    <span class="text-muted">No hay lotes asignados a esta venta.</span>
+                                @endforelse
+                            </div>
                         </div>
                         <div class="col-md-4 mb-3">
-                            <label for="cuota_mensual" class="form-label">Cuota Mensual (USD)</label>
+                            <label for="precio_final" class="form-label fw-bold text-secondary">Precio Final (USD)</label>
                             {{-- Solo lectura para referencia --}}
-                            <input type="text" class="form-control" value="${{ number_format($venta->cuota_mensual, 2) }}" readonly>
+                            <input type="text" class="form-control bg-white" value="${{ number_format($venta->precio_final, 2) }}" readonly>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="cuota_mensual" class="form-label fw-bold text-secondary">Cuota Mensual (USD)</label>
+                            {{-- Solo lectura para referencia --}}
+                            <input type="text" class="form-control bg-white" value="${{ number_format($venta->cuota_mensual, 2) }}" readonly>
                         </div>
                     </div>
                 @else

@@ -86,23 +86,30 @@
 
                 @forelse($user->roles as $rol)
 
-                    @if($rol->name === 'admin')
+                    @if(strtolower($rol->name) === 'administrador' || strtolower($rol->name) === 'admin')
 
-                        <span class="badge bg-danger">
+                        <span class="badge bg-danger text-white">
                             <i class="fas fa-user-shield me-1"></i>
                             Administrador
                         </span>
 
-                    @elseif($rol->name === 'usuario')
+                    @elseif(strtolower($rol->name) === 'gerente')
 
-                        <span class="badge bg-primary">
+                        <span class="badge bg-warning text-dark">
+                            <i class="fas fa-user-tie me-1"></i>
+                            Gerente
+                        </span>
+
+                    @elseif(strtolower($rol->name) === 'agente')
+
+                        <span class="badge bg-primary text-white">
                             <i class="fas fa-user me-1"></i>
-                            Usuario
+                            Agente
                         </span>
 
                     @else
 
-                        <span class="badge bg-secondary">
+                        <span class="badge bg-secondary text-white">
                             {{ ucfirst($rol->name) }}
                         </span>
 

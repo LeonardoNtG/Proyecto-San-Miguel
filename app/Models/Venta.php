@@ -8,7 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 class Venta extends Model
 {
     
-    use HasFactory;
+    use HasFactory, \App\Traits\ScopedByLotificacion;
+
+
+
     protected $table = 'ventas';
 
     //  Clave primaria personalizada
@@ -17,7 +20,7 @@ class Venta extends Model
     // Campos que deben permitir asignación masiva
     protected $fillable = [
         'id_cliente',
-        'proyecto',
+        'lotificacion_id',
         'fecha_venta',
         'precio_final', // Monto total del lote
         'plazo_meses',
@@ -26,25 +29,40 @@ class Venta extends Model
         'cuota_mensual',
     ];
 
+    public function lotificacion()
+    {
+        return $this->belongsTo(Lotificacion::class, 'lotificacion_id');
+    }
+
     // Relación: Una Venta pertenece a un Cliente (Many-to-One)
     public function cliente()
     {
-        // La clave foránea en la tabla 'ventas' es 'id_cliente'
         return $this->belongsTo(Cliente::class, 'id_cliente', 'id_cliente');
     }
 
-    // Relación: Una Venta puede tener muchos Lotes, pero un Lote pertenece a una sola Venta (One-to-Many)
-    public function lotes()
-    {
-        return $this->hasMany(Lote::class, 'id_venta', 'id_venta');
-    }
-
-    // Relación: Una Venta tiene muchos Abonos (One-to-Many)
     public function abonos()
     {
-        // La clave foránea en la tabla 'abonos' es 'id_venta'
         return $this->hasMany(Abono::class, 'id_venta', 'id_venta');
     }
+
+    public function cuotas()
+    {
+        return $this->hasMany(Cuota::class, 'id_venta', 'id_venta');
+    }
+
+    public function historialLotes()
+    {
+        return $this->hasMany(HistorialLote::class, 'id_venta', 'id_venta');
+    }
+
+    public function lotes()
+    {
+        return $this->belongsToMany(Lote::class, 'historial_lotes', 'id_venta', 'id_lote')
+                    ->withPivot('estado', 'fecha_asignacion', 'fecha_liberacion')
+                    ->withTimestamps();
+    }
+
+
 
     // Cantidad de lotes asociados a esta venta (usado en las vistas)
     public function getTotalLotesVendidosAttribute()
