@@ -19,22 +19,25 @@ class CheckCajaAbierta
     public function handle(Request $request, Closure $next)
     {
         $fechaCaja = Carbon::today()->format('Y-m-d');
+        
         $apertura = AperturaCaja::where('fecha', $fechaCaja)
                         ->where('user_id', auth()->id())
+                        ->latest()
                         ->first();
 
         if (!$apertura) {
             return redirect()->route('reportes.index')
-                ->with('error', '⚠️ ALERTA: Debe abrir la caja del día de hoy antes de registrar transacciones (ventas, abonos o reservas).');
+                ->with('error', '⚠️ ALERTA: Debe abrir la caja (nuevo turno) antes de registrar transacciones (ventas, abonos o reservas).');
         }
 
         $cierre = \App\Models\CierreCaja::where('fecha', $fechaCaja)
                         ->where('user_id', auth()->id())
+                        ->latest()
                         ->first();
 
-        if ($cierre) {
+        if ($cierre && $cierre->created_at >= $apertura->created_at) {
             return redirect()->route('reportes.index')
-                ->with('error', '⚠️ ALERTA: La caja del día de hoy ya ha sido cerrada. No puede registrar más transacciones.');
+                ->with('error', '⚠️ ALERTA: Su turno actual ya ha sido cerrado. Debe abrir una nueva caja para registrar transacciones.');
         }
 
         return $next($request);

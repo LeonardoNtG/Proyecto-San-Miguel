@@ -59,19 +59,22 @@
             <i class="fas fa-lock"></i> Realizar Cierre de Caja
         </button>
     @else
-        <button type="button" class="btn btn-secondary text-white" disabled>
-            <i class="fas fa-lock"></i> Caja Cerrada
+        <button type="button" class="btn btn-secondary text-white" disabled title="Último turno cerrado">
+            <i class="fas fa-lock"></i> Turno Cerrado
+        </button>
+        <button type="button" class="btn btn-warning fw-bold px-4 text-dark" data-bs-toggle="modal" data-bs-target="#modalAbrirCaja">
+            <i class="fas fa-box-open"></i> Abrir Nuevo Turno
         </button>
     @endif
 </div>
 
 @if(!$cajaAbierta)
     <div class="alert alert-warning border-warning shadow-sm text-dark">
-        <i class="fas fa-exclamation-triangle me-2"></i> <strong>Atención:</strong> La caja del día <strong>{{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</strong> aún no ha sido abierta. Para registrar salidas o realizar el cierre, primero debe <a href="#" data-bs-toggle="modal" data-bs-target="#modalAbrirCaja" class="text-dark fw-bold text-decoration-underline">Abrir la Caja</a>.
+        <i class="fas fa-exclamation-triangle me-2"></i> <strong>Atención:</strong> Debe <a href="#" data-bs-toggle="modal" data-bs-target="#modalAbrirCaja" class="text-dark fw-bold text-decoration-underline">Abrir la Caja</a> para poder iniciar su turno y registrar movimientos.
     </div>
 @elseif($cajaCerrada)
     <div class="alert alert-info border-info shadow-sm text-dark">
-        <i class="fas fa-info-circle me-2"></i> <strong>Atención:</strong> La caja del día <strong>{{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</strong> ya ha sido cerrada. No se pueden registrar más movimientos.
+        <i class="fas fa-info-circle me-2"></i> <strong>Turno Finalizado:</strong> El turno anterior ha sido cerrado. Abra un <strong>Nuevo Turno</strong> si desea continuar registrando transacciones hoy.
     </div>
 @endif
 

@@ -213,27 +213,45 @@ class ReporteController extends Controller
     {
         $fecha = $request->get('fecha', Carbon::today()->format('Y-m-d'));
 
-        $apertura = \App\Models\AperturaCaja::where('fecha', $fecha)->where('user_id', auth()->id())->first();
+        // Obtener el último registro de apertura del día para este usuario
+        $apertura = \App\Models\AperturaCaja::where('fecha', $fecha)->where('user_id', auth()->id())->latest()->first();
         $cajaAbierta = $apertura ? true : false;
+
+        // Determinar si esa última apertura ya fue cerrada
+        $cierre = \App\Models\CierreCaja::where('fecha', $fecha)->where('user_id', auth()->id())->latest()->first();
+        $cajaCerrada = false;
+
+        if ($cierre && $apertura && $cierre->created_at >= $apertura->created_at) {
+            $cajaCerrada = true;
+        }
 
         if ($cajaAbierta) {
             $saldoInicial = $apertura->monto_inicial;
         } else {
-            // Se calcula como sugerencia para la apertura
+            // Se calcula como sugerencia para la primera apertura del día
             $saldoInicial = $this->calcularSaldoAnterior($fecha);
         }
 
-        $listaIngresos = Abono::with('venta.cliente')->whereDate('fecha_pago', $fecha)->where('user_id', auth()->id())->get();
+        // Obtener transacciones basándonos en la hora de apertura (turno actual)
+        if ($cajaAbierta && !$cajaCerrada) {
+            $listaIngresos = Abono::with('venta.cliente')
+                ->where('user_id', auth()->id())
+                ->where('created_at', '>=', $apertura->created_at)
+                ->get();
+                
+            $listaSalidas = Salida::where('user_id', auth()->id())
+                ->where('created_at', '>=', $apertura->created_at)
+                ->get();
+        } else {
+            $listaIngresos = collect();
+            $listaSalidas = collect();
+        }
+
         $ingresosHoy = $listaIngresos->sum('monto_abonado');
-        
-        $listaSalidas = Salida::whereDate('fecha', $fecha)->where('user_id', auth()->id())->get();
         $egresosHoy = $listaSalidas->sum('monto');
 
         $efectivoTotalSuma = $saldoInicial + $ingresosHoy;
         $saldoFinalCaja = $efectivoTotalSuma - $egresosHoy;
-
-        $cierre = \App\Models\CierreCaja::where('fecha', $fecha)->where('user_id', auth()->id())->first();
-        $cajaCerrada = $cierre ? true : false;
 
         return view('reportes.diario', compact(
             'fecha', 'saldoInicial', 'ingresosHoy', 
@@ -248,15 +266,13 @@ class ReporteController extends Controller
             'monto_inicial' => 'required|numeric|min:0'
         ]);
 
-        \App\Models\AperturaCaja::updateOrCreate(
-            ['fecha' => $request->fecha],
-            [
-                'monto_inicial' => $request->monto_inicial,
-                'user_id' => auth()->id()
-            ]
-        );
+        \App\Models\AperturaCaja::create([
+            'fecha' => $request->fecha,
+            'monto_inicial' => $request->monto_inicial,
+            'user_id' => auth()->id()
+        ]);
 
-        return redirect()->back()->with('success', 'Caja abierta correctamente. Ahora puede operar.');
+        return redirect()->back()->with('success', 'Caja abierta correctamente. Ahora puede operar en su nuevo turno.');
     }
 
     public function create()
@@ -308,16 +324,30 @@ class ReporteController extends Controller
 
         $fecha = $request->fecha;
         
-        $cierrePrevio = \App\Models\CierreCaja::where('fecha', $fecha)->where('user_id', auth()->id())->first();
-        if ($cierrePrevio) {
-            return back()->with('error', 'La caja ya fue cerrada para este día. No puede realizar el cierre múltiples veces.');
+        // Prevent double close on the same shift
+        $apertura = \App\Models\AperturaCaja::where('fecha', $fecha)->where('user_id', auth()->id())->latest()->first();
+        $cierrePrevio = \App\Models\CierreCaja::where('fecha', $fecha)->where('user_id', auth()->id())->latest()->first();
+        
+        if ($cierrePrevio && $apertura && $cierrePrevio->created_at >= $apertura->created_at) {
+            return back()->with('error', 'La caja ya fue cerrada para este turno. Debe abrir una nueva caja para registrar más transacciones.');
         }
         
-        $apertura = \App\Models\AperturaCaja::where('fecha', $fecha)->where('user_id', auth()->id())->first();
         $saldoInicial = $apertura ? $apertura->monto_inicial : 0;
         
-        $ingresos = Abono::whereDate('fecha_pago', $fecha)->where('user_id', auth()->id())->sum('monto_abonado');
-        $egresos = Salida::whereDate('fecha', $fecha)->where('user_id', auth()->id())->sum('monto');
+        // Calcular ingresos y egresos de este turno
+        if ($apertura) {
+            $ingresos = Abono::where('user_id', auth()->id())
+                ->where('created_at', '>=', $apertura->created_at)
+                ->sum('monto_abonado');
+                
+            $egresos = Salida::where('user_id', auth()->id())
+                ->where('created_at', '>=', $apertura->created_at)
+                ->sum('monto');
+        } else {
+            $ingresos = 0;
+            $egresos = 0;
+        }
+
         $saldoFinal = ($saldoInicial + $ingresos) - $egresos;
         
         $efectivoReal = round((float)$request->efectivo_real, 2);
@@ -328,20 +358,19 @@ class ReporteController extends Controller
             return back()->withInput()->with('error', 'Debe proporcionar una justificación para la diferencia detectada en el arqueo.');
         }
 
-        CierreCaja::updateOrCreate(
-            ['fecha' => $fecha, 'user_id' => auth()->id()],
-            [
-                'saldo_inicial' => $saldoInicial,
-                'ingresos' => $ingresos,
-                'egresos' => $egresos,
-                'saldo_final' => $saldoFinal,
-                'efectivo_real' => $efectivoReal,
-                'diferencia' => $diferencia,
-                'comentario' => $request->comentario
-            ]
-        );
+        CierreCaja::create([
+            'fecha' => $fecha,
+            'user_id' => auth()->id(),
+            'saldo_inicial' => $saldoInicial,
+            'ingresos' => $ingresos,
+            'egresos' => $egresos,
+            'saldo_final' => $saldoFinal,
+            'efectivo_real' => $efectivoReal,
+            'diferencia' => $diferencia,
+            'comentario' => $request->comentario
+        ]);
 
-        return redirect()->back()->with('success', 'Caja cerrada correctamente para esta fecha.');
+        return redirect()->back()->with('success', 'Arqueo y cierre de caja realizados correctamente.');
     }
 
     /**
