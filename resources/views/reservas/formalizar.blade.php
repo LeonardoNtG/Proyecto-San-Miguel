@@ -418,13 +418,11 @@ $(document).ready(function() {
 
     function calculateQuota() {
         let precio = parseFloat($('#precio_final').val()) || 0;
-        let prima = parseFloat($('#primer_abono').val()) || 0;
         let plazo = parseInt($('#plazo_meses').val()) || 0;
 
-        if (plazo >= 1 && precio >= prima) {
-            let saldo = precio - prima;
-            let cuota = plazo > 1 ? (saldo / (plazo - 1)) : saldo;
-            $('#cuota_mensual').val(cuota.toFixed(2));
+        if (precio > 0 && plazo > 0) {
+            let cuota = precio / plazo;
+            $('#cuota_mensual').val((cuota > 0 ? cuota : 0).toFixed(2));
         } else {
             $('#cuota_mensual').val('');
         }
@@ -444,11 +442,10 @@ $(document).ready(function() {
 
     $('#btnCalcular').click(function() {
         let precio = parseFloat($('#precio_final').val()) || 0;
-        let prima = parseFloat($('#primer_abono').val()) || 0;
         let plazo = parseInt($('#plazo_meses').val()) || 0;
 
-        if (plazo < 1 || precio < prima) {
-            alert('Asegúrese de que el Precio sea mayor o igual a la Prima y el Plazo sea al menos 1 mes.');
+        if (plazo < 1 || precio <= 0) {
+            alert('Asegúrese de que el Precio sea mayor a 0 y el Plazo sea al menos 1 mes.');
         } else {
             calculateQuota();
         }
