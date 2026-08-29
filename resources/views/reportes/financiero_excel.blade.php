@@ -2,135 +2,133 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Reporte Financiero</title>
+<title>Cédula de Auditoría y Recaudación Financiera</title>
 <style>
-    table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 12px; }
-    th { background: #4e73df; color: #ffffff; font-weight: bold; padding: 6px 8px; border: 1px solid #cccccc; }
+    table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11px; }
+    th { background: #1a56db; color: #ffffff; font-weight: bold; padding: 6px 8px; border: 1px solid #cccccc; text-align: left; }
     td { padding: 5px 8px; border: 1px solid #cccccc; }
-    .rfx-titulo { font-size: 16px; font-weight: bold; }
-    .rfx-subtitulo { color: #555555; }
-    .rfx-resumen-label { font-weight: bold; background: #f8f9fc; }
-    .rfx-ingresos { color: #1a9c6c; font-weight: bold; }
-    .rfx-gastos { color: #c0392b; font-weight: bold; }
-    .rfx-balance { color: #2e59d9; font-weight: bold; }
-    .rfx-seccion { background: #eaeefb; font-weight: bold; font-size: 13px; }
-    .rfx-seccion-caja { background: #e5f7ef; font-weight: bold; font-size: 13px; }
-    .rfx-saldo-anterior { background: #fdf6e3; font-weight: bold; color: #8a6d00; }
-    .rfx-num { mso-number-format: "#,##0.00"; }
+    .rfx-titulo { font-size: 15px; font-weight: bold; color: #1a56db; }
+    .rfx-subtitulo { color: #555555; font-size: 11px; }
+    .rfx-seccion { background: #e5edff; font-weight: bold; font-size: 12px; color: #1a56db; }
+    .rfx-label { background: #f3f4f6; font-weight: bold; }
+    .rfx-num { mso-number-format: "#,##0.00"; text-align: right; }
+    .rfx-center { text-align: center; }
+    .rfx-success { color: #059669; font-weight: bold; }
 </style>
 </head>
 <body>
 
 <table>
-    <tr><td class="rfx-titulo" colspan="{{ $esGlobal ? '10' : '9' }}">Reporte Financiero</td></tr>
-    <tr><td class="rfx-subtitulo" colspan="{{ $esGlobal ? '10' : '9' }}">{{ $etiquetaProyecto }} &mdash; {{ $etiquetaPeriodo }} &mdash; Generado el {{ $generadoEl }}</td></tr>
-    <tr><td colspan="{{ $esGlobal ? '10' : '9' }}">&nbsp;</td></tr>
+    <tr><td class="rfx-titulo" colspan="{{ $esGlobal ? '12' : '11' }}">C&Eacute;DULA DE AUDITOR&Iacute;A Y RECAUDACI&Oacute;N FINANCIERA</td></tr>
+    <tr><td class="rfx-subtitulo" colspan="{{ $esGlobal ? '12' : '11' }}">Proyecto: {{ $etiquetaProyecto }} &mdash; Periodo: {{ $etiquetaPeriodo }} &mdash; Emisi&oacute;n: {{ $generadoEl }} &mdash; Auditor: {{ $generadoPor }}</td></tr>
+    <tr><td colspan="{{ $esGlobal ? '12' : '11' }}">&nbsp;</td></tr>
 
+    <!-- Resumen Ejecutivo -->
+    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '12' : '11' }}">1. RESUMEN EJECUTIVO DE AUDITOR&Iacute;A</td></tr>
     <tr>
-        <td class="rfx-saldo-anterior" colspan="{{ $esGlobal ? '10' : '9' }}">
-            Saldo Anterior (sin cerrar): {{ number_format($saldoAnterior, 2, '.', '') }}
-            &nbsp;&mdash;&nbsp;
-            Total Disponible (Saldo Anterior + Ingresos del Periodo): {{ number_format($totalConSaldoAnterior, 2, '.', '') }}
-        </td>
+        <td class="rfx-label">Total Recaudado Auditado</td>
+        <td class="rfx-num rfx-success">{{ number_format($totalRecaudado, 2, '.', '') }}</td>
+        <td class="rfx-label">Recibos Emitidos</td>
+        <td class="rfx-center">{{ $cantidadAbonos }}</td>
+        <td class="rfx-label">Clientes Aportantes</td>
+        <td class="rfx-center">{{ $clientesUnicos }}</td>
+        <td class="rfx-label">Ticket Promedio</td>
+        <td class="rfx-num">{{ number_format($ticketPromedio, 2, '.', '') }}</td>
+        <td class="rfx-label">Canal Bancarizado</td>
+        <td colspan="{{ $esGlobal ? '3' : '2' }}">{{ $porcentajeBancarizado }}% Bancos ({{ number_format($totalBancos, 2, '.', '') }}) / {{ $porcentajeEfectivo }}% Caja ({{ number_format($totalEfectivo, 2, '.', '') }})</td>
     </tr>
-    <tr><td colspan="{{ $esGlobal ? '10' : '9' }}">&nbsp;</td></tr>
+    <tr><td colspan="{{ $esGlobal ? '12' : '11' }}">&nbsp;</td></tr>
 
+    <!-- Matrices Resumen -->
+    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '12' : '11' }}">2. DESGLOSE POR CONCEPTO CONTABLE Y M&Eacute;TODO DE PAGO</td></tr>
     <tr>
-        <td class="rfx-resumen-label">Total Ingresos</td>
-        <td class="rfx-ingresos">{{ number_format($totalIngresos, 2, '.', '') }}</td>
-        <td class="rfx-resumen-label">Total Gastos</td>
-        <td class="rfx-gastos">{{ number_format($totalGastos, 2, '.', '') }}</td>
-        <td class="rfx-resumen-label">Balance Neto</td>
-        <td class="rfx-balance">{{ number_format($balanceNeto, 2, '.', '') }}</td>
-        <td class="rfx-resumen-label">Clientes que Abonaron</td>
-        <td colspan="{{ $esGlobal ? '3' : '2' }}">{{ $clientesAbonaron }}</td>
+        <th colspan="3">Concepto de Cobro</th>
+        <th>Recibos</th>
+        <th class="rfx-num">Monto ($ USD)</th>
+        <th>% Part.</th>
+        <th colspan="2">M&eacute;todo / Canal</th>
+        <th>Recibos</th>
+        <th class="rfx-num">Monto ($ USD)</th>
+        <th colspan="{{ $esGlobal ? '2' : '1' }}">% Part.</th>
     </tr>
-    <tr><td colspan="{{ $esGlobal ? '10' : '9' }}">&nbsp;</td></tr>
+    @php
+        $maxRows = max(count($desgloseConceptos), count($desgloseMetodos));
+    @endphp
+    @for($i = 0; $i < $maxRows; $i++)
+        @php
+            $dc = $desgloseConceptos[$i] ?? null;
+            $dm = $desgloseMetodos[$i] ?? null;
+        @endphp
+        <tr>
+            <td colspan="3">{{ $dc ? $dc['concepto'] : '' }}</td>
+            <td class="rfx-center">{{ $dc ? $dc['cantidad'] : '' }}</td>
+            <td class="rfx-num rfx-success">{{ $dc ? number_format($dc['monto'], 2, '.', '') : '' }}</td>
+            <td class="rfx-center">{{ $dc ? $dc['porcentaje'] . '%' : '' }}</td>
 
-    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '10' : '9' }}">Cuadro 1 - Abonos Registrados</td></tr>
+            <td colspan="2">{{ $dm ? $dm['metodo'] : '' }}</td>
+            <td class="rfx-center">{{ $dm ? $dm['cantidad'] : '' }}</td>
+            <td class="rfx-num">{{ $dm ? number_format($dm['monto'], 2, '.', '') : '' }}</td>
+            <td colspan="{{ $esGlobal ? '2' : '1' }}" class="rfx-center">{{ $dm ? $dm['porcentaje'] . '%' : '' }}</td>
+        </tr>
+    @endfor
     <tr>
+        <td class="rfx-label" colspan="3">TOTAL RECAUDADO</td>
+        <td class="rfx-label rfx-center">{{ $cantidadAbonos }}</td>
+        <td class="rfx-label rfx-num rfx-success">{{ number_format($totalRecaudado, 2, '.', '') }}</td>
+        <td class="rfx-label rfx-center">100.0%</td>
+        <td class="rfx-label" colspan="2">TOTAL CONCILIADO</td>
+        <td class="rfx-label rfx-center">{{ $cantidadAbonos }}</td>
+        <td class="rfx-label rfx-num">{{ number_format($totalRecaudado, 2, '.', '') }}</td>
+        <td colspan="{{ $esGlobal ? '2' : '1' }}" class="rfx-label rfx-center">100.0%</td>
+    </tr>
+    <tr><td colspan="{{ $esGlobal ? '12' : '11' }}">&nbsp;</td></tr>
+
+    <!-- Detalle de Transacciones -->
+    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '12' : '11' }}">3. C&Eacute;DULA DE DETALLE DE RECAUDACI&Oacute;N Y COBRANZAS</td></tr>
+    <tr>
+        <th>N&deg; Recibo</th>
         <th>Fecha</th>
         <th>Hora</th>
         @if($esGlobal)
             <th>Proyecto</th>
         @endif
         <th>Cliente</th>
-        <th>N&deg; PV</th>
-        <th>N&deg; Bloque</th>
-        <th>N&deg; Lote(s)</th>
-        <th>Tipo de Pago</th>
-        <th>Abonado</th>
-        <th>Referencia</th>
+        <th>C&eacute;dula</th>
+        <th>Expediente</th>
+        <th>Inmueble / Lote(s)</th>
+        <th>Concepto</th>
+        <th>M&eacute;todo de Pago</th>
+        <th>Ref. Bancaria</th>
+        <th>Cajero</th>
+        <th class="rfx-num">Monto ($ USD)</th>
     </tr>
-    @forelse ($filasAbonos as $fila)
+    @forelse ($filasAbonos as $f)
         <tr>
-            <td>{{ $fila['fecha'] }}</td>
-            <td>{{ $fila['hora'] }}</td>
+            <td class="rfx-center"><strong>{{ $f['recibo_codigo'] }}</strong></td>
+            <td class="rfx-center">{{ $f['fecha'] }}</td>
+            <td class="rfx-center">{{ $f['hora'] }}</td>
             @if($esGlobal)
-                <td>{{ $fila['proyecto'] }}</td>
+                <td>{{ $f['proyecto'] }}</td>
             @endif
-            <td>{{ $fila['cliente'] }}</td>
-            <td>{{ $fila['pv'] }}</td>
-            <td>{{ $fila['bloques'] }}</td>
-            <td>{{ $fila['lotes'] }}</td>
-            <td>{{ $fila['tipo'] }}</td>
-            <td class="rfx-num">{{ number_format($fila['monto'], 2, '.', '') }}</td>
-            <td>{{ $fila['referencia'] }}</td>
+            <td><strong>{{ $f['cliente'] }}</strong></td>
+            <td>{{ $f['identificacion'] }}</td>
+            <td>{{ $f['expediente'] }}</td>
+            <td>{{ $f['bloques'] }} - {{ $f['lotes'] }}</td>
+            <td>{{ $f['tipo'] }}</td>
+            <td>{{ $f['metodo'] }}</td>
+            <td>{{ $f['referencia'] }}</td>
+            <td>{{ $f['cajero'] }}</td>
+            <td class="rfx-num rfx-success">{{ number_format($f['monto'], 2, '.', '') }}</td>
         </tr>
     @empty
-        <tr><td colspan="{{ $esGlobal ? '10' : '9' }}">No se registraron abonos en el periodo seleccionado.</td></tr>
+        <tr><td colspan="{{ $esGlobal ? '13' : '12' }}">No se registraron cobros en el periodo contable seleccionado.</td></tr>
     @endforelse
+    @if(count($filasAbonos) > 0)
     <tr>
-        <td class="rfx-resumen-label" colspan="{{ $esGlobal ? '8' : '7' }}">TOTAL REGISTRADO EN ABONOS</td>
-        <td class="rfx-resumen-label rfx-num">{{ number_format($totalIngresos, 2, '.', '') }}</td>
-        <td></td>
+        <td class="rfx-label" colspan="{{ $esGlobal ? '12' : '11' }}">TOTAL GENERAL RECAUDADO Y AUDITADO ({{ count($filasAbonos) }} OPERACIONES)</td>
+        <td class="rfx-label rfx-num rfx-success">{{ number_format($totalRecaudado, 2, '.', '') }}</td>
     </tr>
-
-    <tr><td colspan="{{ $esGlobal ? '10' : '9' }}">&nbsp;</td></tr>
-
-    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '10' : '9' }}">Cuadro 2 - Salidas / Gastos</td></tr>
-    <tr>
-        <th>Fecha</th>
-        <th>Hora</th>
-        @if($esGlobal)
-            <th>Proyecto</th>
-        @endif
-        <th colspan="{{ $esGlobal ? '5' : '5' }}">Descripci&oacute;n</th>
-        <th colspan="2">Monto</th>
-    </tr>
-    @forelse ($filasSalidas as $fila)
-        <tr>
-            <td>{{ $fila['fecha'] }}</td>
-            <td>{{ $fila['hora'] }}</td>
-            @if($esGlobal)
-                <td>{{ $fila['proyecto'] }}</td>
-            @endif
-            <td colspan="{{ $esGlobal ? '5' : '5' }}">{{ $fila['descripcion'] }}</td>
-            <td colspan="2" class="rfx-num">{{ number_format($fila['monto'], 2, '.', '') }}</td>
-        </tr>
-    @empty
-        <tr><td colspan="{{ $esGlobal ? '10' : '9' }}">No se registraron salidas en el periodo seleccionado.</td></tr>
-    @endforelse
-    <tr>
-        <td class="rfx-resumen-label" colspan="{{ $esGlobal ? '8' : '7' }}">TOTAL REGISTRADO EN SALIDAS</td>
-        <td class="rfx-resumen-label rfx-num" colspan="2">{{ number_format($totalGastos, 2, '.', '') }}</td>
-    </tr>
-
-    <tr><td colspan="{{ $esGlobal ? '10' : '9' }}">&nbsp;</td></tr>
-
-    <tr><td class="rfx-seccion-caja" colspan="{{ $esGlobal ? '10' : '9' }}">Cuadro 3 - Efectivo en Caja del Periodo</td></tr>
-    <tr>
-        <td colspan="{{ $esGlobal ? '8' : '7' }}">Dinero Ingresado</td>
-        <td class="rfx-num rfx-ingresos" colspan="2">{{ number_format($totalIngresos, 2, '.', '') }}</td>
-    </tr>
-    <tr>
-        <td colspan="{{ $esGlobal ? '8' : '7' }}">Gastos</td>
-        <td class="rfx-num rfx-gastos" colspan="2">- {{ number_format($totalGastos, 2, '.', '') }}</td>
-    </tr>
-    <tr>
-        <td class="rfx-resumen-label" colspan="{{ $esGlobal ? '8' : '7' }}">EFECTIVO EN CAJA (Ingresado &minus; Gastos)</td>
-        <td class="rfx-resumen-label rfx-num rfx-ingresos" colspan="2">{{ number_format($balanceNeto, 2, '.', '') }}</td>
-    </tr>
+    @endif
 </table>
 
 </body>

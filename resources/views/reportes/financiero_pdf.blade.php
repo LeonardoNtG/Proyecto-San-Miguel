@@ -2,314 +2,377 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Reporte Financiero</title>
+<title>Informe de Auditoría y Recaudación Financiera</title>
 <style>
-    @page { margin: 25px 30px; }
+    @page { margin: 20px 25px; }
 
     body {
         font-family: 'DejaVu Sans', Arial, sans-serif;
         color: #2e2e2e;
-        font-size: 11px;
-    }
-
-    h1 {
-        text-align: center;
-        font-size: 20px;
-        margin: 0 0 4px;
-        color: #2e2e2e;
-    }
-
-    .rfpdf-subtitulo {
-        text-align: center;
-        font-size: 12px;
-        color: #555;
-        margin-bottom: 14px;
-    }
-
-    table.rfpdf-resumen {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 16px;
-    }
-
-    table.rfpdf-resumen td {
-        width: 20%;
-        text-align: center;
-        padding: 8px 6px;
-        border: 1px solid #dcdfe6;
-    }
-
-    table.rfpdf-resumen .rfpdf-label {
-        display: block;
-        font-size: 9px;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-        color: #858796;
-        margin-bottom: 3px;
-    }
-
-    table.rfpdf-resumen .rfpdf-valor {
-        font-size: 14px;
-        font-weight: bold;
-    }
-
-    .rfpdf-ingresos { color: #1a9c6c; }
-    .rfpdf-gastos { color: #c0392b; }
-    .rfpdf-balance { color: #2e59d9; }
-    .rfpdf-neutro { color: #2e2e2e; }
-
-    .rfpdf-cuadro-titulo {
-        font-size: 13px;
-        font-weight: bold;
-        margin: 14px 0 6px;
-        padding-bottom: 3px;
-        border-bottom: 2px solid #4e73df;
-    }
-
-    .rfpdf-cuadro-titulo.rfpdf-gastos-titulo {
-        border-bottom-color: #e74a3b;
-    }
-
-    .rfpdf-cuadro-titulo.rfpdf-caja-titulo {
-        border-bottom-color: #1cc88a;
-    }
-
-    table.rfpdf-caja {
-        width: 55%;
-    }
-
-    table.rfpdf-caja tfoot td {
-        font-size: 12px;
-        color: #0f8a5f;
-    }
-
-    table.rfpdf-tabla {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    table.rfpdf-tabla th {
-        background: #f8f9fc;
-        border: 1px solid #dcdfe6;
-        padding: 5px 6px;
-        text-align: left;
         font-size: 9.5px;
-        text-transform: uppercase;
-        color: #555;
+        line-height: 1.3;
     }
 
-    table.rfpdf-tabla td {
-        border: 1px solid #dcdfe6;
-        padding: 5px 6px;
-        font-size: 10px;
+    .header-container {
+        border-bottom: 2px solid #1a56db;
+        padding-bottom: 8px;
+        margin-bottom: 12px;
     }
 
-    table.rfpdf-tabla td.rfpdf-num,
-    table.rfpdf-tabla th.rfpdf-num {
-        text-align: right;
-    }
-
-    table.rfpdf-tabla tfoot td {
-        font-weight: bold;
-        background: #f8f9fc;
-    }
-
-    .rfpdf-vacio {
-        text-align: center;
-        color: #858796;
-        font-style: italic;
-        padding: 10px;
-    }
-
-    .rfpdf-firmas {
+    .header-table {
         width: 100%;
-        margin-top: 40px;
+        border-collapse: collapse;
     }
 
-    .rfpdf-firmas td {
-        width: 50%;
-        text-align: center;
-        padding-top: 4px;
-        border-top: 1px solid #2e2e2e;
+    .header-title {
+        font-size: 15px;
+        font-weight: bold;
+        color: #1a56db;
+        text-transform: uppercase;
+        margin: 0 0 3px;
+    }
+
+    .header-subtitle {
         font-size: 10px;
+        color: #4b5563;
     }
 
-    .rfpdf-firmas .rfpdf-espacio {
-        height: 40px;
-    }
-
-    .rfpdf-pie {
-        margin-top: 10px;
+    .meta-box {
         text-align: right;
         font-size: 8.5px;
-        color: #999;
+        color: #6b7280;
     }
 
-    .rfpdf-saldo-anterior {
-        text-align: center;
-        background: #fdf6e3;
-        border: 1px solid #f0d78c;
-        border-radius: 3px;
-        padding: 6px 10px;
+    /* KPIs */
+    table.kpi-table {
+        width: 100%;
+        border-collapse: collapse;
         margin-bottom: 12px;
-        font-size: 10.5px;
     }
 
-    .rfpdf-saldo-anterior strong {
-        color: #8a6d00;
+    table.kpi-table td {
+        width: 25%;
+        border: 1px solid #d1d5db;
+        padding: 6px 8px;
+        text-align: center;
+        background-color: #f9fafb;
+    }
+
+    .kpi-label {
+        font-size: 7.5px;
+        text-transform: uppercase;
+        color: #6b7280;
+        font-weight: bold;
+        display: block;
+        margin-bottom: 2px;
+    }
+
+    .kpi-val {
+        font-size: 12px;
+        font-weight: bold;
+        color: #111827;
+    }
+
+    .kpi-val.success { color: #059669; }
+    .kpi-val.primary { color: #1a56db; }
+
+    /* Summary matrices */
+    .section-title {
+        font-size: 10.5px;
+        font-weight: bold;
+        color: #1f2937;
+        margin: 10px 0 4px;
+        border-left: 3px solid #1a56db;
+        padding-left: 5px;
+        text-transform: uppercase;
+    }
+
+    table.matrix-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px;
+    }
+
+    table.matrix-table th {
+        background-color: #f3f4f6;
+        border: 1px solid #d1d5db;
+        padding: 4px 6px;
+        font-size: 8px;
+        text-transform: uppercase;
+        color: #374151;
+        font-weight: bold;
+    }
+
+    table.matrix-table td {
+        border: 1px solid #d1d5db;
+        padding: 4px 6px;
+        font-size: 8.5px;
+    }
+
+    /* Detail table */
+    table.detail-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 6px;
+    }
+
+    table.detail-table th {
+        background-color: #1a56db;
+        color: #ffffff;
+        border: 1px solid #1a56db;
+        padding: 4px 5px;
+        font-size: 7.5px;
+        text-transform: uppercase;
+        font-weight: bold;
+        text-align: left;
+    }
+
+    table.detail-table td {
+        border: 1px solid #e5e7eb;
+        padding: 4px 5px;
+        font-size: 8px;
+    }
+
+    .text-end { text-align: right; }
+    .text-center { text-align: center; }
+    .fw-bold { font-weight: bold; }
+    .text-success { color: #059669; }
+
+    tr.even { background-color: #f9fafb; }
+
+    .signatures {
+        width: 100%;
+        margin-top: 25px;
+        border-collapse: collapse;
+    }
+
+    .signatures td {
+        width: 50%;
+        text-align: center;
+        padding: 0 35px;
+        font-size: 8.5px;
+    }
+
+    .sign-line {
+        border-top: 1px solid #374151;
+        margin-top: 35px;
+        padding-top: 4px;
+        font-weight: bold;
     }
 </style>
 </head>
 <body>
 
-    <h1>Reporte Financiero</h1>
-    <div class="rfpdf-subtitulo" style="font-weight:bold; color:#1a4f8b; font-size:13px; margin-bottom: 2px;">{{ $etiquetaProyecto }}</div>
-    <div class="rfpdf-subtitulo">{{ $etiquetaPeriodo }}</div>
-
-    <div class="rfpdf-saldo-anterior">
-        Saldo Anterior (sin cerrar): <strong>${{ number_format($saldoAnterior, 2) }}</strong>
-        &nbsp;&mdash;&nbsp;
-        Total Disponible (Saldo Anterior + Ingresos del Periodo): <strong>${{ number_format($totalConSaldoAnterior, 2) }}</strong>
-    </div>
-
-    <table class="rfpdf-resumen">
+<div class="header-container">
+    <table class="header-table">
         <tr>
             <td>
-                <span class="rfpdf-label">Total Ingresos</span>
-                <span class="rfpdf-valor rfpdf-ingresos">${{ number_format($totalIngresos, 2) }}</span>
+                <div class="header-title">Informe de Auditoría y Recaudación Financiera</div>
+                <div class="header-subtitle">
+                    <strong>Proyecto:</strong> {{ $etiquetaProyecto }} &nbsp;|&nbsp; 
+                    <strong>Periodo:</strong> {{ $etiquetaPeriodo }}
+                </div>
             </td>
-            <td>
-                <span class="rfpdf-label">Total Gastos</span>
-                <span class="rfpdf-valor rfpdf-gastos">${{ number_format($totalGastos, 2) }}</span>
-            </td>
-            <td>
-                <span class="rfpdf-label">Balance Neto</span>
-                <span class="rfpdf-valor rfpdf-balance">${{ number_format($balanceNeto, 2) }}</span>
-            </td>
-            <td>
-                <span class="rfpdf-label">Clientes que Abonaron</span>
-                <span class="rfpdf-valor rfpdf-neutro">{{ $clientesAbonaron }}</span>
-            </td>
-            <td>
-                <span class="rfpdf-label">Abonos Registrados</span>
-                <span class="rfpdf-valor rfpdf-neutro">{{ $cantidadAbonos }}</span>
+            <td class="meta-box">
+                <div><strong>Fecha Emisión:</strong> {{ $generadoEl }}</div>
+                <div><strong>Auditado Por:</strong> {{ $generadoPor }}</div>
+                <div><strong>Moneda:</strong> Dólares Americanos (USD)</div>
             </td>
         </tr>
     </table>
+</div>
 
-    <div class="rfpdf-cuadro-titulo">Cuadro 1 — Abonos Registrados</div>
-    <table class="rfpdf-tabla">
-        <thead>
-            <tr>
-                <th>Fecha</th>
-                @if($esGlobal)
-                    <th>Proyecto</th>
-                @endif
-                <th>Cliente</th>
-                <th>N° Bloque</th>
-                <th>N° Lote(s)</th>
-                <th>Tipo</th>
-                <th class="rfpdf-num">Abonado</th>
-                <th>Ref.</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse ($filasAbonos as $fila)
-                <tr>
-                    <td>{{ $fila['fecha'] }}</td>
-                    @if($esGlobal)
-                        <td style="font-weight: bold; color: #4e73df;">{{ $fila['proyecto'] }}</td>
-                    @endif
-                    <td>{{ $fila['cliente'] }} ({{ $fila['pv'] }})</td>
-                    <td>{{ $fila['bloques'] }}</td>
-                    <td>{{ $fila['lotes'] }}</td>
-                    <td>{{ $fila['tipo'] }}</td>
-                    <td class="rfpdf-num">${{ number_format($fila['monto'], 2) }}</td>
-                    <td>{{ $fila['referencia'] }}</td>
-                </tr>
-            @empty
-                <tr><td colspan="{{ $esGlobal ? '8' : '7' }}" class="rfpdf-vacio">No se registraron abonos en el periodo seleccionado.</td></tr>
-            @endforelse
-        </tbody>
-        @if ($filasAbonos->isNotEmpty())
-        <tfoot>
-            <tr>
-                <td colspan="{{ $esGlobal ? '6' : '5' }}">TOTAL REGISTRADO EN ABONOS</td>
-                <td class="rfpdf-num">${{ number_format($totalIngresos, 2) }}</td>
-                <td></td>
-            </tr>
-        </tfoot>
-        @endif
-    </table>
+<!-- KPIs Ejecutivos -->
+<table class="kpi-table">
+    <tr>
+        <td>
+            <span class="kpi-label">Total Recaudado Auditado</span>
+            <span class="kpi-val success">${{ number_format($totalRecaudado, 2) }}</span>
+        </td>
+        <td>
+            <span class="kpi-label">Transacciones Procesadas</span>
+            <span class="kpi-val primary">{{ number_format($cantidadAbonos) }} Recibos</span>
+        </td>
+        <td>
+            <span class="kpi-label">Clientes Aportantes</span>
+            <span class="kpi-val">{{ number_format($clientesUnicos) }} Clientes</span>
+        </td>
+        <td>
+            <span class="kpi-label">Canal Bancarizado</span>
+            <span class="kpi-val">{{ $porcentajeBancarizado }}% Bancos</span>
+        </td>
+    </tr>
+</table>
 
-    <div class="rfpdf-cuadro-titulo rfpdf-gastos-titulo">Cuadro 2 — Salidas / Gastos</div>
-    <table class="rfpdf-tabla">
-        <thead>
-            <tr>
-                <th>Fecha</th>
-                @if($esGlobal)
-                    <th>Proyecto</th>
-                @endif
-                <th>Descripción</th>
-                <th class="rfpdf-num">Monto</th>
-            </tr>
-        </thead>
-        <tbody>
-            @forelse ($filasSalidas as $fila)
-                <tr>
-                    <td>{{ $fila['fecha'] }}</td>
-                    @if($esGlobal)
-                        <td style="font-weight: bold; color: #4e73df;">{{ $fila['proyecto'] }}</td>
-                    @endif
-                    <td>{{ $fila['descripcion'] }}</td>
-                    <td class="rfpdf-num">${{ number_format($fila['monto'], 2) }}</td>
-                </tr>
-            @empty
-                <tr><td colspan="{{ $esGlobal ? '4' : '3' }}" class="rfpdf-vacio">No se registraron salidas en el periodo seleccionado.</td></tr>
-            @endforelse
-        </tbody>
-        @if ($filasSalidas->isNotEmpty())
-        <tfoot>
-            <tr>
-                <td colspan="{{ $esGlobal ? '3' : '2' }}">TOTAL REGISTRADO EN SALIDAS</td>
-                <td class="rfpdf-num">${{ number_format($totalGastos, 2) }}</td>
-            </tr>
-        </tfoot>
-        @endif
-    </table>
+<!-- Matrices Resumen en 2 Columnas -->
+<table style="width: 100%; border-collapse: collapse;">
+    <tr>
+        <td style="width: 49%; vertical-align: top;">
+            <div class="section-title">1. Desglose por Concepto Contable</div>
+            <table class="matrix-table">
+                <thead>
+                    <tr>
+                        <th>Concepto</th>
+                        <th class="text-center">Rec.</th>
+                        <th class="text-end">Monto ($)</th>
+                        <th class="text-end">% Part.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($desgloseConceptos as $dc)
+                    <tr>
+                        <td>{{ $dc['concepto'] }}</td>
+                        <td class="text-center">{{ $dc['cantidad'] }}</td>
+                        <td class="text-end fw-bold text-success">${{ number_format($dc['monto'], 2) }}</td>
+                        <td class="text-end">{{ $dc['porcentaje'] }}%</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+                <tfoot>
+                    <tr style="background-color: #f3f4f6; font-weight: bold;">
+                        <td>TOTAL</td>
+                        <td class="text-center">{{ number_format($cantidadAbonos) }}</td>
+                        <td class="text-end text-success">${{ number_format($totalRecaudado, 2) }}</td>
+                        <td class="text-end">100.0%</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </td>
+        <td style="width: 2%;"></td>
+        <td style="width: 49%; vertical-align: top;">
+            <div class="section-title">2. Conciliación por Método de Pago</div>
+            <table class="matrix-table">
+                <thead>
+                    <tr>
+                        <th>Método / Canal</th>
+                        <th class="text-center">Rec.</th>
+                        <th class="text-end">Monto ($)</th>
+                        <th class="text-end">% Part.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($desgloseMetodos as $dm)
+                    <tr>
+                        <td>{{ $dm['metodo'] }}</td>
+                        <td class="text-center">{{ $dm['cantidad'] }}</td>
+                        <td class="text-end fw-bold text-success">${{ number_format($dm['monto'], 2) }}</td>
+                        <td class="text-end">{{ $dm['porcentaje'] }}%</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+                <tfoot>
+                    <tr style="background-color: #f3f4f6; font-weight: bold;">
+                        <td>TOTAL</td>
+                        <td class="text-center">{{ number_format($cantidadAbonos) }}</td>
+                        <td class="text-end text-success">${{ number_format($totalRecaudado, 2) }}</td>
+                        <td class="text-end">100.0%</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </td>
+    </tr>
+</table>
 
-    <div class="rfpdf-cuadro-titulo rfpdf-caja-titulo">Cuadro 3 — Efectivo en Caja del Periodo</div>
-    <table class="rfpdf-tabla rfpdf-caja">
-        <tbody>
-            <tr>
-                <td>Dinero Ingresado</td>
-                <td class="rfpdf-num">${{ number_format($totalIngresos, 2) }}</td>
-            </tr>
-            <tr>
-                <td>Gastos</td>
-                <td class="rfpdf-num">- ${{ number_format($totalGastos, 2) }}</td>
-            </tr>
-        </tbody>
-        <tfoot>
-            <tr>
-                <td>EFECTIVO EN CAJA (Ingresado − Gastos)</td>
-                <td class="rfpdf-num">${{ number_format($balanceNeto, 2) }}</td>
-            </tr>
-        </tfoot>
-    </table>
-
-    <table class="rfpdf-firmas">
+@if($esGlobal && count($desgloseProyectos) > 0)
+<div class="section-title">3. Distribución Consolidada por Proyecto</div>
+<table class="matrix-table" style="margin-bottom: 12px;">
+    <thead>
         <tr>
-            <td class="rfpdf-espacio"></td>
-            <td class="rfpdf-espacio"></td>
+            <th>Proyecto / Lotificación</th>
+            <th class="text-center">Clientes</th>
+            <th class="text-center">Recibos</th>
+            <th class="text-end">Monto Recaudado ($ USD)</th>
+            <th class="text-end">% Contribución</th>
         </tr>
+    </thead>
+    <tbody>
+        @foreach($desgloseProyectos as $dp)
         <tr>
-            <td>Elaborado y firmado por</td>
-            <td>Recibido, aprobado y firmado por</td>
+            <td><strong>{{ $dp['proyecto'] }}</strong></td>
+            <td class="text-center">{{ $dp['clientes'] }}</td>
+            <td class="text-center">{{ $dp['cantidad'] }}</td>
+            <td class="text-end fw-bold text-success">${{ number_format($dp['monto'], 2) }}</td>
+            <td class="text-end">{{ $dp['porcentaje'] }}%</td>
         </tr>
-    </table>
+        @endforeach
+    </tbody>
+</table>
+@endif
 
-    <div class="rfpdf-pie">Generado el {{ $generadoEl }}</div>
+<!-- Detalle Completo de Transacciones -->
+<div class="section-title">{{ $esGlobal ? '4' : '3' }}. Cédula de Detalle de Recaudación y Cobranzas</div>
+<table class="detail-table">
+    <thead>
+        <tr>
+            <th class="text-center">N° Rec.</th>
+            <th>Fecha / Hora</th>
+            @if($esGlobal)
+                <th>Proyecto</th>
+            @endif
+            <th>Cliente</th>
+            <th>Cédula</th>
+            <th>Expediente</th>
+            <th>Lote(s)</th>
+            <th>Concepto</th>
+            <th>Método</th>
+            <th>Referencia</th>
+            <th>Cajero</th>
+            <th class="text-end">Monto ($)</th>
+        </tr>
+    </thead>
+    <tbody>
+        @forelse($filasAbonos as $index => $f)
+        <tr class="{{ $index % 2 == 1 ? 'even' : '' }}">
+            <td class="text-center fw-bold">{{ $f['recibo_codigo'] }}</td>
+            <td>{{ $f['fecha'] }} <small style="color: #6b7280;">{{ $f['hora'] }}</small></td>
+            @if($esGlobal)
+                <td><strong>{{ $f['proyecto'] }}</strong></td>
+            @endif
+            <td><strong>{{ $f['cliente'] }}</strong></td>
+            <td>{{ $f['identificacion'] }}</td>
+            <td>{{ $f['expediente'] }}</td>
+            <td>{{ $f['lotes'] }}</td>
+            <td>{{ $f['tipo'] }}</td>
+            <td>{{ $f['metodo'] }}</td>
+            <td><small>{{ $f['referencia'] }}</small></td>
+            <td><small>{{ $f['cajero'] }}</small></td>
+            <td class="text-end fw-bold text-success">${{ number_format($f['monto'], 2) }}</td>
+        </tr>
+        @empty
+        <tr>
+            <td colspan="{{ $esGlobal ? '12' : '11' }}" class="text-center" style="padding: 15px; color: #6b7280;">
+                No se registraron cobros en el periodo seleccionado.
+            </td>
+        </tr>
+        @endforelse
+    </tbody>
+    @if(count($filasAbonos) > 0)
+    <tfoot>
+        <tr style="background-color: #f3f4f6; font-weight: bold;">
+            <td colspan="{{ $esGlobal ? '11' : '10' }}" class="text-end">TOTAL RECAUDADO ({{ count($filasAbonos) }} REGISTROS):</td>
+            <td class="text-end text-success">${{ number_format($totalRecaudado, 2) }}</td>
+        </tr>
+    </tfoot>
+    @endif
+</table>
+
+<!-- Firmas de Auditoría -->
+<table class="signatures">
+    <tr>
+        <td>
+            <div class="sign-line">
+                {{ $generadoPor }}<br>
+                <small style="color: #6b7280; font-weight: normal;">Responsable de Recaudación / Caja</small>
+            </div>
+        </td>
+        <td>
+            <div class="sign-line">
+                Auditoría / Gerencia Financiera<br>
+                <small style="color: #6b7280; font-weight: normal;">Revisado y Conforme</small>
+            </div>
+        </td>
+    </tr>
+</table>
 
 </body>
 </html>

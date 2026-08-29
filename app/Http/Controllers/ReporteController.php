@@ -70,6 +70,7 @@ class ReporteController extends Controller
         $targetLotificacionId = null;
 
         $abonosRelations = [
+            'user',
             'venta' => fn($q) => $q->withoutGlobalScope('lotificacion'),
             'venta.cliente' => fn($q) => $q->withoutGlobalScope('lotificacion'),
             'venta.lotes' => fn($q) => $q->withoutGlobalScope('lotificacion'),
@@ -81,7 +82,6 @@ class ReporteController extends Controller
             $esGlobal = true;
             $etiquetaProyecto = 'CONSOLIDADO GLOBAL (TODAS LAS LOTIFICACIONES)';
             $abonosQuery = Abono::withoutGlobalScope('lotificacion')->with($abonosRelations);
-            $salidasQuery = Salida::withoutGlobalScope('lotificacion');
         } elseif ($esAdmin && is_numeric($proyectoFiltro)) {
             $targetLotificacionId = (int) $proyectoFiltro;
             $lotObj = \App\Models\Lotificacion::find($targetLotificacionId);
@@ -89,7 +89,6 @@ class ReporteController extends Controller
             $abonosQuery = Abono::withoutGlobalScope('lotificacion')
                 ->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId))
                 ->with($abonosRelations);
-            $salidasQuery = Salida::withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId);
         } else {
             // Usuario normal o Admin en modo proyecto actual
             $targetLotificacionId = $activeLotificacionId;
@@ -98,7 +97,6 @@ class ReporteController extends Controller
             $abonosQuery = Abono::withoutGlobalScope('lotificacion')
                 ->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $activeLotificacionId))
                 ->with($abonosRelations);
-            $salidasQuery = Salida::withoutGlobalScope('lotificacion')->where('lotificacion_id', $activeLotificacionId);
         }
 
         if (!in_array($periodo, ['hoy', 'dia', 'mes', 'anio', 'ytd'], true)) {
@@ -155,24 +153,72 @@ class ReporteController extends Controller
             ->orderBy('created_at')
             ->get();
 
-        $salidas = $salidasQuery
-            ->whereBetween('fecha', [$inicio->format('Y-m-d'), $fin->format('Y-m-d')])
-            ->orderBy('fecha')
-            ->orderBy('created_at')
-            ->get();
+        $totalRecaudado = (float) $abonos->sum('monto_abonado');
+        $cantidadAbonos = $abonos->count();
+        $clientesUnicos = $abonos->pluck('venta.cliente.id_cliente')->filter()->unique()->count();
+        $ticketPromedio = $cantidadAbonos > 0 ? ($totalRecaudado / $cantidadAbonos) : 0;
 
-        $totalIngresos = (float) $abonos->sum('monto_abonado');
-        $totalGastos = (float) $salidas->sum('monto');
-        $balanceNeto = $totalIngresos - $totalGastos;
+        // 1. Desglose por Concepto / Tipo de Cobro
+        $desgloseConceptos = $abonos->groupBy(function($item) {
+            $tipo = trim($item->tipo_pago ?? '');
+            if (empty($tipo)) return 'Sin Especificar';
+            if (stripos($tipo, 'Prima') !== false || stripos($tipo, 'Primer') !== false) return 'Primas / Enganches';
+            if (stripos($tipo, 'Mensualidad') !== false || stripos($tipo, 'Cuota') !== false) return 'Cuotas Ordinarias';
+            if (stripos($tipo, 'Reserva') !== false || stripos($tipo, 'Anticipo') !== false) return 'Reservas / Anticipos';
+            return $tipo;
+        })->map(function($items, $concepto) use ($totalRecaudado) {
+            $monto = (float) $items->sum('monto_abonado');
+            $cantidad = $items->count();
+            $porcentaje = $totalRecaudado > 0 ? ($monto / $totalRecaudado) * 100 : 0;
+            return [
+                'concepto' => $concepto,
+                'cantidad' => $cantidad,
+                'monto' => $monto,
+                'porcentaje' => round($porcentaje, 1),
+            ];
+        })->sortByDesc('monto')->values();
 
-        // Efectivo que venía arrastrado (sin cerrar) antes de iniciar el periodo filtrado
-        $saldoAnterior = $this->calcularSaldoAnterior($inicio->format('Y-m-d'), $esGlobal, $targetLotificacionId);
-        $totalConSaldoAnterior = $saldoAnterior + $totalIngresos;
+        // 2. Desglose por Canal / Método de Pago
+        $desgloseMetodos = $abonos->groupBy(function($item) {
+            return trim($item->metodo_pago) ?: 'Efectivo';
+        })->map(function($items, $metodo) use ($totalRecaudado) {
+            $monto = (float) $items->sum('monto_abonado');
+            $cantidad = $items->count();
+            $porcentaje = $totalRecaudado > 0 ? ($monto / $totalRecaudado) * 100 : 0;
+            return [
+                'metodo' => $metodo,
+                'cantidad' => $cantidad,
+                'monto' => $monto,
+                'porcentaje' => round($porcentaje, 1),
+            ];
+        })->sortByDesc('monto')->values();
 
-        $clientesAbonaron = $abonos->pluck('venta.cliente.id_cliente')->filter()->unique()->count();
+        // Totales de bancarización
+        $totalBancos = (float) $abonos->filter(function($a) {
+            $m = strtolower($a->metodo_pago ?? '');
+            return str_contains($m, 'transferencia') || str_contains($m, 'depósito') || str_contains($m, 'deposito') || str_contains($m, 'cheque');
+        })->sum('monto_abonado');
 
-        // Mapa de lotificaciones para nombres rápidos en salidas
-        $mapaLotificaciones = \App\Models\Lotificacion::pluck('nombre', 'id')->toArray();
+        $totalEfectivo = $totalRecaudado - $totalBancos;
+        $porcentajeBancarizado = $totalRecaudado > 0 ? round(($totalBancos / $totalRecaudado) * 100, 1) : 0;
+        $porcentajeEfectivo = $totalRecaudado > 0 ? round(($totalEfectivo / $totalRecaudado) * 100, 1) : 0;
+
+        // 3. Desglose por Proyecto
+        $desgloseProyectos = $abonos->groupBy(function($item) {
+            return $item->venta && $item->venta->lotificacion ? $item->venta->lotificacion->nombre : 'Sin Proyecto';
+        })->map(function($items, $proyNombre) use ($totalRecaudado) {
+            $monto = (float) $items->sum('monto_abonado');
+            $cantidad = $items->count();
+            $clientes = $items->pluck('venta.cliente.id_cliente')->filter()->unique()->count();
+            $porcentaje = $totalRecaudado > 0 ? ($monto / $totalRecaudado) * 100 : 0;
+            return [
+                'proyecto' => $proyNombre,
+                'clientes' => $clientes,
+                'cantidad' => $cantidad,
+                'monto' => $monto,
+                'porcentaje' => round($porcentaje, 1),
+            ];
+        })->sortByDesc('monto')->values();
 
         $filasAbonos = $abonos->map(function ($abono) {
             $venta = $abono->venta;
@@ -195,32 +241,25 @@ class ReporteController extends Controller
                 : 'N/A';
 
             $proyectoNombre = $venta && $venta->lotificacion ? $venta->lotificacion->nombre : 'N/A';
+            $cajeroNombre = $abono->user ? $abono->user->name : 'Sistema';
 
             return [
+                'id_abono' => $abono->id_abono,
+                'recibo_codigo' => 'REC-' . str_pad($abono->id_abono, 5, '0', STR_PAD_LEFT),
                 'fecha' => Carbon::parse($abono->fecha_pago)->format('d/m/Y'),
                 'hora' => $abono->created_at ? $abono->created_at->format('h:i A') : '-',
                 'cliente' => $cliente ? $cliente->nombres_apellidos : 'Cliente Desconocido',
-                'pv' => $cliente ? $cliente->pv_num : '-',
+                'identificacion' => $cliente ? ($cliente->identificacion ?: 'S/C') : '-',
+                'expediente' => $cliente ? ($cliente->expediente_num ?: ($cliente->pv_num ?: '-')) : '-',
+                'pv' => $cliente ? ($cliente->pv_num ?: '-') : '-',
                 'bloques' => $bloquesTexto ?: 'N/A',
                 'lotes' => $lotesTexto ?: 'N/A',
                 'proyecto' => $proyectoNombre,
                 'monto' => (float) $abono->monto_abonado,
-                'tipo' => $abono->tipo_pago,
+                'tipo' => $abono->tipo_pago ?: 'Cuota / Abono',
+                'metodo' => $abono->metodo_pago ?: 'Efectivo',
                 'referencia' => $abono->referencia ?: '-',
-            ];
-        })->values();
-
-        $filasSalidas = $salidas->map(function ($salida) use ($mapaLotificaciones) {
-            $proyectoNombre = $salida->lotificacion_id && isset($mapaLotificaciones[$salida->lotificacion_id])
-                ? $mapaLotificaciones[$salida->lotificacion_id]
-                : 'N/A';
-
-            return [
-                'fecha' => $salida->fecha ? Carbon::parse($salida->fecha)->format('d/m/Y') : '-',
-                'hora' => $salida->created_at ? $salida->created_at->format('h:i A') : '-',
-                'descripcion' => $salida->descripcion,
-                'proyecto' => $proyectoNombre,
-                'monto' => (float) $salida->monto,
+                'cajero' => $cajeroNombre,
             ];
         })->values();
 
@@ -237,19 +276,24 @@ class ReporteController extends Controller
             'proyectosDisponibles' => \App\Models\Lotificacion::orderBy('nombre')->get(),
             'inicio' => $inicio,
             'fin' => $fin,
-            'totalIngresos' => $totalIngresos,
-            'totalGastos' => $totalGastos,
-            'balanceNeto' => $balanceNeto,
-            'saldoAnterior' => $saldoAnterior,
-            'totalConSaldoAnterior' => $totalConSaldoAnterior,
-            'clientesAbonaron' => $clientesAbonaron,
-            'cantidadAbonos' => $abonos->count(),
-            'cantidadSalidas' => $salidas->count(),
+            'totalRecaudado' => $totalRecaudado,
+            'totalIngresos' => $totalRecaudado, // Compatibilidad
+            'cantidadAbonos' => $cantidadAbonos,
+            'clientesUnicos' => $clientesUnicos,
+            'clientesAbonaron' => $clientesUnicos, // Compatibilidad
+            'ticketPromedio' => $ticketPromedio,
+            'totalBancos' => $totalBancos,
+            'totalEfectivo' => $totalEfectivo,
+            'porcentajeBancarizado' => $porcentajeBancarizado,
+            'porcentajeEfectivo' => $porcentajeEfectivo,
+            'desgloseConceptos' => $desgloseConceptos,
+            'desgloseMetodos' => $desgloseMetodos,
+            'desgloseProyectos' => $desgloseProyectos,
             'filasAbonos' => $filasAbonos,
-            'filasSalidas' => $filasSalidas,
             'aniosDisponibles' => $this->aniosDisponibles(),
             'rangoArchivo' => $inicio->format('Ymd') . '-' . $fin->format('Ymd'),
             'generadoEl' => now()->locale('es')->translatedFormat('d/m/Y h:i A'),
+            'generadoPor' => auth()->check() ? auth()->user()->name : 'Auditor del Sistema',
         ];
     }
 
