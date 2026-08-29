@@ -27,13 +27,11 @@
                 </button>
                 @endif
                 
-                @can('gestionar-lotificaciones')
                 @if(isset($cliente->ventas) && $cliente->ventas->first() && $cliente->ventas->first()->estado_contrato !== 'Rescindido')
                 <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#rescindirModal">
                     <i class="fas fa-ban"></i> Rescindir Venta
                 </button>
                 @endif
-                @endcan
     
                 @can('borrar-clientes')
                 <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
