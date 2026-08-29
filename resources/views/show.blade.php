@@ -117,9 +117,8 @@
     @if($venta && $venta->cuotas->count())
         <div class="card shadow mb-4 border-secondary">
             <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center py-3" 
-                 data-bs-toggle="collapse" data-bs-target="#collapsePlanCuotas" 
-                 data-toggle="collapse" data-target="#collapsePlanCuotas"
-                 style="cursor: pointer;" title="Clic para expandir u ocultar el Plan de Pagos">
+                 id="headerPlanCuotas"
+                 style="cursor: pointer; user-select: none;" title="Clic para expandir u ocultar el Plan de Pagos">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-calendar-alt fa-lg me-2"></i>
                     <h5 class="m-0 fw-bold">Plan de Pagos (Cuotas)</h5>
@@ -142,7 +141,7 @@
                     </span>
                 </div>
             </div>
-            <div class="collapse" id="collapsePlanCuotas">
+            <div id="bodyPlanCuotas" style="display: none;">
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-bordered table-hover table-sm align-middle">
@@ -229,9 +228,8 @@
     @if($venta && $venta->abonos->count())
         <div class="card shadow mb-4 border-primary">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3"
-                 data-bs-toggle="collapse" data-bs-target="#collapseHistorialAbonos" 
-                 data-toggle="collapse" data-target="#collapseHistorialAbonos"
-                 style="cursor: pointer;" title="Clic para expandir u ocultar el Historial de Pagos">
+                 id="headerHistorialAbonos"
+                 style="cursor: pointer; user-select: none;" title="Clic para expandir u ocultar el Historial de Pagos">
                 <div class="d-flex align-items-center">
                     <i class="fas fa-receipt fa-lg me-2"></i>
                     <h5 class="m-0 fw-bold">Historial de Pagos (Abonos)</h5>
@@ -245,11 +243,11 @@
                         Deuda: ${{ number_format(max(0, $venta->precio_final - $venta->total_abonado), 2) }}
                     </span>
                     <span class="btn btn-sm btn-outline-light ms-2 px-2 py-1">
-                        <i class="fas fa-chevron-down" id="chevronAbonos"></i>
+                        <i class="fas fa-chevron-up" id="chevronAbonos"></i>
                     </span>
                 </div>
             </div>
-            <div class="collapse show" id="collapseHistorialAbonos">
+            <div id="bodyHistorialAbonos" style="display: block;">
                 <div class="card-body">
                     <div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
                         <div>
@@ -440,36 +438,33 @@
                 }
             }
 
-            inputPrecio.addEventListener('input', calcularPlazo);
-            inputCuota.addEventListener('input', calcularPlazo);
-
-            // Animación de Chevrons en Acordeones
-            $('#collapsePlanCuotas').on('show.bs.collapse', function() {
-                $('#chevronCuotas').removeClass('fa-chevron-down').addClass('fa-chevron-up');
-            }).on('hide.bs.collapse', function() {
-                $('#chevronCuotas').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+            // Toggle Acordeón Plan de Cuotas (Abre y Cierra)
+            $('#headerPlanCuotas').on('click', function(e) {
+                if ($(e.target).closest('button, a, input').length) return;
+                
+                $('#bodyPlanCuotas').slideToggle(200, function() {
+                    if ($(this).is(':visible')) {
+                        $('#chevronCuotas').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+                    } else {
+                        $('#chevronCuotas').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+                    }
+                });
             });
 
-            $('#collapseHistorialAbonos').on('show.bs.collapse', function() {
-                $('#chevronAbonos').removeClass('fa-chevron-down').addClass('fa-chevron-up');
-            }).on('hide.bs.collapse', function() {
-                $('#chevronAbonos').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+            // Toggle Acordeón Historial de Abonos (Abre y Cierra)
+            $('#headerHistorialAbonos').on('click', function(e) {
+                if ($(e.target).closest('button, a, input').length) return;
+                
+                $('#bodyHistorialAbonos').slideToggle(200, function() {
+                    if ($(this).is(':visible')) {
+                        $('#chevronAbonos').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+                    } else {
+                        $('#chevronAbonos').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+                    }
+                });
             });
         });
     </script>
-        <script src="{{ asset('js/jqueryEM.js') }}"></script>
-
-         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
-
-    <!-- Custom scripts for all pages-->
+    <script src="{{ asset('js/jqueryEM.js') }}"></script>
     <script src="{{ asset('js/sbAdmin2M.js') }}"></script>
-
-    <!-- Page level plugins -->
-    <script src="{{ asset('js/chartM.js') }}"></script>
-
-    <!-- Page level custom scripts -->
-    <script src="{{ asset('js/chartAD.js') }}"></script>
-    <script src="{{ asset('js/chartPD.js') }}"></script>
-    </script>
-    
 @endsection
