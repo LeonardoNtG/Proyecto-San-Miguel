@@ -26,8 +26,23 @@ class VentaController extends Controller
 
             $venta = Venta::findOrFail($id_venta);
             
+            // Obtener información previa de los lotes y datos financieros antes del cambio
+            $historialesActivosPrevios = HistorialLote::where('id_venta', $venta->id_venta)
+                                                      ->where('estado', 'Activo')
+                                                      ->with('lote.bloque')
+                                                      ->get();
+
+            $lotesOriginalesNombres = $historialesActivosPrevios->map(function($h) {
+                $bloque = $h->lote?->bloque?->nombre ? "Bloque {$h->lote->bloque->nombre} - " : "";
+                return "{$bloque}Lote {$h->lote?->numero_lote}";
+            })->implode(', ');
+
+            $precioAnterior = (float)$venta->precio_final;
+            $cuotaAnterior = (float)$venta->cuota_mensual;
+            $totalLotesPrevios = $historialesActivosPrevios->count();
+
             // Determinar si es rescisión total o parcial
-            $lotesActivos = HistorialLote::where('id_venta', $venta->id_venta)->where('estado', 'Activo')->count();
+            $lotesActivos = $totalLotesPrevios;
             $lotesARescindir = count($request->lotes_a_rescindir);
             
             $esParcial = ($lotesARescindir > 0 && $lotesARescindir < $lotesActivos);
@@ -44,6 +59,17 @@ class VentaController extends Controller
                     $cliente->pv_num = $request->nuevo_pv_num;
                     $cliente->save();
                 }
+
+                // Identificar nombres de lotes que se devuelven y que se conservan
+                $lotesRescindidosNombres = $historialesActivosPrevios->whereIn('id_lote', $request->lotes_a_rescindir)->map(function($h) {
+                    $bloque = $h->lote?->bloque?->nombre ? "Bloque {$h->lote->bloque->nombre} - " : "";
+                    return "{$bloque}Lote {$h->lote?->numero_lote}";
+                })->implode(', ');
+
+                $lotesConservadosNombres = $historialesActivosPrevios->whereNotIn('id_lote', $request->lotes_a_rescindir)->map(function($h) {
+                    $bloque = $h->lote?->bloque?->nombre ? "Bloque {$h->lote->bloque->nombre} - " : "";
+                    return "{$bloque}Lote {$h->lote?->numero_lote}";
+                })->implode(', ');
 
                 // Liberar los lotes seleccionados
                 $historiales = HistorialLote::where('id_venta', $venta->id_venta)
@@ -118,15 +144,20 @@ class VentaController extends Controller
                 
                 $cantConservados = $lotesActivosRestantes->count();
                 $cuotaPorLote = $cantConservados > 0 ? ($venta->cuota_mensual / $cantConservados) : 0;
-                $detallesAudit = "Rescisión Parcial: {$lotesARescindir} lote(s) devuelto(s), {$cantConservados} conservado(s). " .
-                                 "Nuevo Precio: $" . number_format($venta->precio_final, 2) . " | " .
-                                 "Nueva Cuota: $" . number_format($venta->cuota_mensual, 2) . " ($" . number_format($cuotaPorLote, 2) . "/lote) | " .
-                                 "Motivo: " . $request->motivo_rescision;
-                \App\Models\Auditoria::log('Rescindió Parcialmente', 'Venta', $venta->id_venta, $detallesAudit);
+                
+                // Registro detallado en el Historial de Auditoría del Cliente
+                $detallesAudit = "• <strong>Lotes que Tenía Antes:</strong> {$lotesOriginalesNombres} ({$totalLotesPrevios} lotes)<br>" .
+                                 "• <strong>Lotes Rescindidos / Devueltos:</strong> <span class='text-danger'>{$lotesRescindidosNombres}</span> (Liberados a Disponible)<br>" .
+                                 "• <strong>Lotes Conservados Actuales:</strong> <span class='text-success fw-bold'>{$lotesConservadosNombres}</span> ({$cantConservados} lotes)<br>" .
+                                 "• <strong>Ajuste de Precio Total:</strong> $" . number_format($precioAnterior, 2) . " ➔ $" . number_format($venta->precio_final, 2) . "<br>" .
+                                 "• <strong>Ajuste de Cuota Mensual:</strong> $" . number_format($cuotaAnterior, 2) . "/mes ➔ $" . number_format($venta->cuota_mensual, 2) . "/mes ($" . number_format($cuotaPorLote, 2) . " por lote)<br>" .
+                                 "• <strong>Motivo / Justificación:</strong> " . e($request->motivo_rescision);
+
+                \App\Models\Auditoria::log('Rescisión Parcial de Lotes', 'Cliente', $venta->id_cliente, $detallesAudit);
                 $mensaje = 'Rescisión Parcial exitosa. Lotes liberados, cuota proporcional por lote recalculada y plan de pagos actualizado.';
 
             } else {
-                // Rescisión TOTAL (Lógica original)
+                // Rescisión TOTAL
                 $venta->estado_contrato = 'Rescindido';
                 $venta->save();
 
@@ -147,7 +178,11 @@ class VentaController extends Controller
                     }
                 }
                 
-                \App\Models\Auditoria::log('Rescindió Contrato', 'Venta', $venta->id_venta, "Motivo: " . $request->motivo_rescision);
+                $detallesAudit = "• <strong>Lotes que Tenía:</strong> {$lotesOriginalesNombres} ({$totalLotesPrevios} lotes)<br>" .
+                                 "• <strong>Resultado:</strong> Contrato cancelado en su totalidad y todos los lotes liberados a Disponible.<br>" .
+                                 "• <strong>Motivo / Justificación:</strong> " . e($request->motivo_rescision);
+
+                \App\Models\Auditoria::log('Rescisión Total de Contrato', 'Cliente', $venta->id_cliente, $detallesAudit);
                 $mensaje = 'La venta ha sido rescindida totalmente y todos los lotes han sido liberados (estado: Disponible).';
             }
 

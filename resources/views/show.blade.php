@@ -96,17 +96,32 @@
                                 <p><strong>Extensión Total:</strong> {{ $venta->extension_lote }} m²</p>
                             </div>
                             <div class="col-md-6">
-                                <h5>Lotes Vendidos ({{ $venta->total_lotes_vendidos }}):</h5>
-                                <ul class="list-unstyled mt-2">
-                                    @foreach ($venta->lotes as $lote)
+                                <h5>Lotes Activos en Contrato ({{ $venta->lotes->count() }}):</h5>
+                                <ul class="list-unstyled mt-2 mb-2">
+                                    @forelse ($venta->lotes as $lote)
                                         <li class="mb-2">
                                             <i class="fas fa-map-marker-alt text-primary me-1"></i>
-                                            <strong>Bloque {{ $lote->bloque->nombre }}</strong>, 
+                                            <strong>Bloque {{ $lote->bloque ? $lote->bloque->nombre : '' }}</strong>, 
                                             <strong>Lote {{ $lote->numero_lote }}</strong> 
                                             <span class="text-muted">({{ number_format($lote->area_metros, 2) }} m²)</span>
                                         </li>
-                                    @endforeach
+                                    @empty
+                                        <li class="text-muted small">No hay lotes activos en este contrato.</li>
+                                    @endforelse
                                 </ul>
+
+                                @if($venta->lotesRescindidos && $venta->lotesRescindidos->count() > 0)
+                                    <div class="mt-2 pt-2 border-top">
+                                        <small class="text-danger fw-bold d-block mb-1">
+                                            <i class="fas fa-undo me-1"></i> Lotes Rescindidos / Devueltos ({{ $venta->lotesRescindidos->count() }}):
+                                        </small>
+                                        @foreach($venta->lotesRescindidos as $loteRes)
+                                            <span class="badge bg-light text-muted border text-decoration-line-through me-1 mb-1" title="Lote devuelto a disponible">
+                                                Bloque {{ $loteRes->bloque ? $loteRes->bloque->nombre : '' }} - Lote {{ $loteRes->numero_lote }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     @else

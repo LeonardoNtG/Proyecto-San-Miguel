@@ -58,6 +58,22 @@ class Venta extends Model
     public function lotes()
     {
         return $this->belongsToMany(Lote::class, 'historial_lotes', 'id_venta', 'id_lote')
+                    ->wherePivot('estado', 'Activo')
+                    ->withPivot('estado', 'fecha_asignacion', 'fecha_liberacion')
+                    ->withTimestamps();
+    }
+
+    public function lotesRescindidos()
+    {
+        return $this->belongsToMany(Lote::class, 'historial_lotes', 'id_venta', 'id_lote')
+                    ->wherePivot('estado', 'Rescindido')
+                    ->withPivot('estado', 'fecha_asignacion', 'fecha_liberacion')
+                    ->withTimestamps();
+    }
+
+    public function todosLotes()
+    {
+        return $this->belongsToMany(Lote::class, 'historial_lotes', 'id_venta', 'id_lote')
                     ->withPivot('estado', 'fecha_asignacion', 'fecha_liberacion')
                     ->withTimestamps();
     }

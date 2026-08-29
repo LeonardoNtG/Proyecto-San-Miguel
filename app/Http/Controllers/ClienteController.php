@@ -255,6 +255,13 @@ class ClienteController extends Controller
                             }
                         ]);
                     },
+                    'lotesRescindidos' => function($lrq) {
+                        $lrq->withoutGlobalScope('lotificacion')->with([
+                            'bloque' => function($bq) {
+                                $bq->withoutGlobalScope('lotificacion')->with('lotificacion');
+                            }
+                        ]);
+                    },
                     'cuotas',
                     'abonos' => function ($query) {
                         $query->orderBy('created_at', 'desc');
@@ -267,11 +274,15 @@ class ClienteController extends Controller
             $venta->total_abonado = $venta->abonos->sum('monto_abonado');
         });
 
-        $historialModificaciones = \App\Models\Auditoria::where('modelo', 'Cliente')
-            ->where('modelo_id', $cliente->id_cliente)
-            ->with('user')
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $ventaIds = $cliente->ventas->pluck('id_venta')->toArray();
+
+        $historialModificaciones = \App\Models\Auditoria::where(function($q) use ($cliente, $ventaIds) {
+            $q->where(function($sub) use ($cliente) {
+                $sub->where('modelo', 'Cliente')->where('modelo_id', $cliente->id_cliente);
+            })->orWhere(function($sub) use ($ventaIds) {
+                $sub->where('modelo', 'Venta')->whereIn('modelo_id', $ventaIds);
+            });
+        })->with('user')->orderBy('created_at', 'desc')->get();
 
         return view('show', compact('cliente', 'historialModificaciones'));
     }
