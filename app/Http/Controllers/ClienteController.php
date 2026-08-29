@@ -244,14 +244,27 @@ class ClienteController extends Controller
      */
     public function show(Cliente $cliente)
     {
-        
-         $cliente->load(['ventas.lotes', 'ventas.cuotas', 'ventas.abonos' => function ($query) {
-        
-         $query->orderBy('created_at','asc', 'desc');
-     }]);
+        $cliente->load([
+            'ventas' => function($vq) {
+                $vq->withoutGlobalScope('lotificacion')->with([
+                    'lotificacion',
+                    'lotes' => function($lq) {
+                        $lq->withoutGlobalScope('lotificacion')->with([
+                            'bloque' => function($bq) {
+                                $bq->withoutGlobalScope('lotificacion')->with('lotificacion');
+                            }
+                        ]);
+                    },
+                    'cuotas',
+                    'abonos' => function ($query) {
+                        $query->orderBy('created_at', 'desc');
+                    }
+                ]);
+            }
+        ]);
 
         $cliente->ventas->each(function ($venta) {
-          $venta->total_abonado = $venta->abonos->sum('monto_abonado');
+            $venta->total_abonado = $venta->abonos->sum('monto_abonado');
         });
 
         return view('show', compact('cliente'));

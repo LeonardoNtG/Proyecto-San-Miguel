@@ -85,7 +85,7 @@
                                         {{ $venta->estado_contrato }}
                                     </span>
                                 </p>
-                                <p><strong>Proyecto:</strong> {{ $venta->proyecto ?? 'N/A' }}</p>
+                                <p><strong>Proyecto:</strong> <span class="badge bg-primary text-white fs-6">{{ $venta->proyecto }}</span></p>
                                 <p><strong>Precio Final:</strong> ${{ number_format($venta->precio_final, 2) }}</p>
                                 <p><strong>Plazo (Meses):</strong> {{ $venta->plazo_meses }}</p>
                                 <p><strong>Cuota Mensual:</strong> ${{ number_format($venta->cuota_mensual, 2) }}</p>
@@ -93,9 +93,14 @@
                             </div>
                             <div class="col-md-6">
                                 <h5>Lotes Vendidos ({{ $venta->total_lotes_vendidos }}):</h5>
-                                <ul>
+                                <ul class="list-unstyled mt-2">
                                     @foreach ($venta->lotes as $lote)
-                                        <li>Bloque: *{{ $lote->bloque->nombre }}*, Lote: *{{ $lote->numero_lote }}* ({{ number_format($lote->area_metros, 2) }} m²)</li>
+                                        <li class="mb-2">
+                                            <i class="fas fa-map-marker-alt text-primary me-1"></i>
+                                            <strong>Bloque {{ $lote->bloque->nombre }}</strong>, 
+                                            <strong>Lote {{ $lote->numero_lote }}</strong> 
+                                            <span class="text-muted">({{ number_format($lote->area_metros, 2) }} m²)</span>
+                                        </li>
                                     @endforeach
                                 </ul>
                             </div>
