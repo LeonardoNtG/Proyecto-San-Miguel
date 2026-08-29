@@ -52,7 +52,7 @@ class ReservaController extends Controller
                     'identificacion' => $request->identificacion,
                     'telefono' => $request->telefono ?? 'N/D',
                     'direccion' => $request->direccion ?? 'N/D',
-                    'oficio' => $request->oficio,
+                    'oficio' => $request->oficio ?? $request->profesion_oficio,
                     'estado_civil' => $request->estado_civil,
                 ]);
             }

@@ -3,15 +3,50 @@
 @section('titulo', 'Registrar Reserva')
 
 @section('contenido')
-<div class="d-sm-flex align-items-center justify-content-between mb-4">
-    <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-calendar-check text-primary"></i> Registrar Nueva Reserva</h1>
-</div>
+
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<style>
+    /* Estilos extra para embellecer los totales */
+    .financial-card {
+        border-radius: 10px;
+        padding: 1.5rem;
+        color: white;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    .financial-card:hover {
+        transform: translateY(-2px);
+    }
+    .bg-area { background: linear-gradient(45deg, #36b9cc, #2c9faf); }
+    .bg-precio { background: linear-gradient(45deg, #1cc88a, #13855c); }
+    
+    /* Ocultar flechas (spinners) en inputs tipo number */
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+    }
+    input[type=number] {
+        -moz-appearance: textfield;
+    }
+</style>
 
 @if (session('error'))
-    <div class="alert alert-danger">{{ session('error') }}</div>
+    <div class="alert alert-danger" role="alert">
+        {{ session('error') }}
+    </div>
+@endif
+@if (session('success'))
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        {{ session('success') }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
 @endif
 @if ($errors->any())
-    <div class="alert alert-danger">
+    <div class="alert alert-danger" role="alert">
+        <strong>Revisa los siguientes datos:</strong>
         <ul class="mb-0">
             @foreach ($errors->all() as $error)
                 <li>{{ $error }}</li>
@@ -20,22 +55,26 @@
     </div>
 @endif
 
-<form action="{{ route('reservas.store') }}" method="POST">
+<div class="d-sm-flex align-items-center justify-content-between mb-4">
+    <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-bookmark text-primary"></i> Registrar Nueva Reserva</h1>
+</div>
+
+<form id="form-registro-reserva" action="{{ route('reservas.store') }}" method="POST">
     @csrf
 
     {{-- SECCIÓN 1: DATOS PERSONALES DEL CLIENTE --}}
     <div class="card shadow-sm border-left-primary mb-4">
         <div class="card-header py-3 bg-white">
-            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-user"></i> Datos del Cliente</h6>
+            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-user"></i> Datos Personales y de Contacto</h6>
         </div>
         <div class="card-body bg-light">
             <div class="row g-3">
                 <div class="col-md-5 mb-3">
-                    <label for="nombre_completo" class="form-label font-weight-bold text-secondary">Nombre Completo / Representante</label>
-                    <input type="text" class="form-control" id="nombre_completo" name="nombres_apellidos" value="{{ old('nombres_apellidos') }}" required>
+                    <label for="nombre_completo" class="form-label font-weight-bold text-secondary">Nombre Completo / Representante <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="nombre_completo" name="nombres_apellidos" value="{{ old('nombres_apellidos') }}" placeholder="Ej: Juan Pérez Morales" required>
                 </div>
                 <div class="col-md-3 mb-3">
-                    <label for="cedula" class="form-label font-weight-bold text-secondary">Cédula</label>
+                    <label for="cedula" class="form-label font-weight-bold text-secondary">Cédula <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" id="cedula" name="identificacion" value="{{ old('identificacion') }}" placeholder="000-000000-0000A" required>
                 </div>
                 <div class="col-md-4 mb-3">
@@ -43,80 +82,166 @@
                     <input type="tel" class="form-control" id="telefono" name="telefono" value="{{ old('telefono') }}" placeholder="+505 0000-0000">
                 </div>
             </div>
+
             <div class="row g-3">
                 <div class="col-md-4 mb-3">
-                    <label for="estado_civil" class="form-label font-weight-bold text-secondary">Estado Civil</label>
-                    <select class="form-select" id="estado_civil" name="estado_civil" required>
+                    <label for="estado_civil" class="form-label font-weight-bold text-secondary">Estado Civil <span class="text-danger">*</span></label>
+                    <select class="custom-select form-control" id="estado_civil" name="estado_civil" required>
                         <option value="">Seleccione...</option>
-                        <option value="soltero">Soltero(a)</option>
-                        <option value="casado">Casado(a)</option>
-                        <option value="union_libre">Unión Libre</option>
-                        <option value="divorciado">Divorciado(a)</option>
-                        <option value="viudo">Viudo(a)</option>
+                        <option value="soltero" @selected(old('estado_civil') == 'soltero')>Soltero(a)</option>
+                        <option value="casado" @selected(old('estado_civil') == 'casado')>Casado(a)</option>
+                        <option value="union_de_hecho" @selected(old('estado_civil') == 'union_de_hecho')>Unión de Hecho</option>
+                        <option value="divorciado" @selected(old('estado_civil') == 'divorciado')>Divorciado(a)</option>
+                        <option value="viudo" @selected(old('estado_civil') == 'viudo')>Viudo(a)</option>
                     </select>
                 </div>
-                <div class="col-md-8 mb-3">
-                    <label for="direccion" class="form-label font-weight-bold text-secondary">Dirección</label>
-                    <input type="text" class="form-control" id="direccion" name="direccion" value="{{ old('direccion') }}">
+                <div class="col-md-4 mb-3">
+                    <label for="profesion_oficio" class="form-label font-weight-bold text-secondary">Profesión u Oficio</label>
+                    <input type="text" class="form-control" id="profesion_oficio" name="profesion_oficio" value="{{ old('profesion_oficio') }}" placeholder="Ej: Comerciante, Docente">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="domicilio" class="form-label font-weight-bold text-secondary">Domicilio / Municipio</label>
+                    <input type="text" class="form-control" id="domicilio" name="domicilio" value="{{ old('domicilio') }}" placeholder="Ej: San Miguel, San Rafael del Sur">
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-12 mb-3">
+                    <label for="direccion" class="form-label font-weight-bold text-secondary">Dirección Exacta</label>
+                    <textarea class="form-control" id="direccion" name="direccion" rows="1" placeholder="Dirección domiciliar del cliente...">{{ old('direccion') }}</textarea>
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- SECCIÓN 2: LOTE Y RESERVA --}}
+    {{-- SECCIÓN 2: ASIGNACIÓN DE TERRENO / LOTES --}}
     <div class="card shadow-sm border-left-info mb-4">
         <div class="card-header py-3 bg-white d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-info"><i class="fas fa-map-marked-alt"></i> Selección de Lotes y Detalles de Reserva</h6>
+            <h6 class="m-0 font-weight-bold text-info"><i class="fas fa-layer-group"></i> Asignación de Terreno / Lotes</h6>
             <span class="badge bg-primary text-white px-3 py-2 fs-6">
-                <i class="fas fa-project-diagram me-1"></i> {{ $lotificacionActiva->nombre ?? 'Proyecto Activo' }}
+                <i class="fas fa-building me-1"></i> {{ $lotificacionActiva->nombre ?? 'Proyecto Activo' }}
             </span>
         </div>
         <div class="card-body bg-light">
             <div class="row g-3">
+                <!-- Proyecto Bloqueado -->
                 <div class="col-md-4 mb-3">
-                    <label class="form-label font-weight-bold text-secondary">1. Proyecto / Lotificación</label>
+                    <label class="form-label font-weight-bold text-secondary">
+                        <i class="fas fa-building text-primary"></i> Proyecto Activo
+                    </label>
                     <div class="input-group">
-                        <span class="input-group-text bg-primary text-white"><i class="fas fa-map-marked-alt"></i></span>
-                        <input type="text" class="form-control font-weight-bold bg-white" value="{{ $lotificacionActiva->nombre ?? 'Proyecto Activo' }}" readonly>
+                        <span class="input-group-text bg-primary text-white"><i class="fas fa-lock"></i></span>
+                        <input type="text" class="form-control bg-white fw-bold text-primary" value="{{ $lotificacionActiva->nombre ?? 'Proyecto Activo' }}" readonly>
                     </div>
-                    <small class="text-muted"><i class="fas fa-info-circle"></i> Para reservar en otro proyecto, cámbielo en el menú superior.</small>
+                    <small class="text-muted"><i class="fas fa-info-circle"></i> Para reservar en otro proyecto, cámbielo en la barra superior.</small>
                     <input type="hidden" id="proyecto_select" name="lotificacion_id" value="{{ $lotificacionActiva->id ?? session('lotificacion_id') }}">
                 </div>
 
+                <!-- Bloque -->
                 <div class="col-md-4 mb-3">
-                    <label for="bloque_select" class="form-label font-weight-bold text-secondary">2. Seleccione Bloque</label>
-                    <select class="custom-select form-control border-info" id="bloque_select" name="bloque_id" required>
-                        <option value="">-- Seleccione Bloque --</option>
+                    <label for="bloque_select" class="form-label font-weight-bold text-secondary">Bloque / Manzana <span class="text-danger">*</span></label>
+                    <select class="custom-select form-control" id="bloque_select" name="id_bloque" required>
+                        <option value="">-- Seleccionar Bloque --</option>
                         @isset($bloques)
                             @foreach ($bloques as $bloque)
-                                <option value="{{ $bloque->id_bloque }}">Bloque {{ $bloque->nombre }}</option>
+                                <option value="{{ $bloque->id_bloque }}" @selected(old('id_bloque') == $bloque->id_bloque)>
+                                    {{ $bloque->nombre }}
+                                </option>
                             @endforeach
                         @endisset
                     </select>
                 </div>
 
+                <!-- Lotes (Múltiple) -->
                 <div class="col-md-4 mb-3">
-                    <label for="lotes_seleccionados" class="form-label font-weight-bold text-secondary">3. Lotes a Reservar</label>
-                    <select class="custom-select form-control border-info shadow-sm" id="lote_select" name="lotes_ids[]" multiple required disabled style="min-height: 120px;">
-                        <option value="">Seleccione un Bloque primero</option>
+                    <label for="lote_select" class="form-label font-weight-bold text-secondary">Lote(s) a Reservar <span class="text-danger">*</span></label>
+                    <select class="custom-select form-control" id="lote_select" name="lotes_ids[]" multiple="multiple" required disabled>
                     </select>
+                    <small class="text-muted">Puede seleccionar múltiples lotes si la reserva abarca más de un lote.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- SECCIÓN 3: CONDICIONES DE LA RESERVA Y ANTICIPO --}}
+    <div class="card shadow-sm border-left-success mb-4">
+        <div class="card-header py-3 bg-white">
+            <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-hand-holding-usd"></i> Condiciones Financieras y Anticipo de Reserva</h6>
+        </div>
+        <div class="card-body bg-light">
+            <!-- Tarjetas de Totales -->
+            <div class="row g-3 mb-4">
+                <!-- Extensión -->
+                <div class="col-md-6">
+                    <div class="financial-card bg-area d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase fw-bold mb-1 opacity-75">Extensión TOTAL</h6>
+                            <h3 class="mb-0 fw-bold" id="display_extension">0.00 <small class="fs-6">vrs²</small></h3>
+                            <input type="hidden" id="extension_lote_value" name="extension_value">
+                        </div>
+                        <i class="fas fa-ruler-combined fa-3x opacity-50"></i>
+                    </div>
+                </div>
+                <!-- Precio Estimado -->
+                <div class="col-md-6">
+                    <div class="financial-card bg-precio d-flex align-items-center justify-content-between">
+                        <div>
+                            <h6 class="text-uppercase fw-bold mb-1 opacity-75">Valor del Terreno (Base)</h6>
+                            <div class="d-flex align-items-center">
+                                <h3 class="mb-0 fw-bold me-2">$</h3>
+                                <input type="number" step="0.01" min="0" class="form-control bg-transparent text-white border-0 shadow-none fw-bold p-0" style="font-size: 1.4rem;" id="monto_lote" placeholder="0.00" readonly>
+                            </div>
+                        </div>
+                        <i class="fas fa-dollar-sign fa-3x opacity-50"></i>
+                    </div>
                 </div>
             </div>
 
-            <div class="row g-3 mt-2">
-                <div class="col-md-6 mb-3">
-                    <label for="monto_reserva" class="form-label font-weight-bold text-secondary">Monto de la Reserva (Anticipo)</label>
-                    <div class="input-group">
-                        <span class="input-group-text">$</span>
-                        <input type="number" step="0.01" min="0" class="form-control font-weight-bold text-success" id="monto_reserva" name="monto_reserva" placeholder="0.00" required>
+            <hr class="mb-4">
+
+            <!-- Inputs de Anticipo y Días -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-4 mb-3">
+                    <label for="monto_reserva" class="form-label font-weight-bold text-secondary"><i class="fas fa-money-bill-wave text-success"></i> Monto de Reserva (Anticipo) <span class="text-danger">*</span></label>
+                    <div class="input-group input-group-lg shadow-sm">
+                        <span class="input-group-text bg-success text-white border-success">$</span>
+                        <input type="number" step="0.01" min="0" class="form-control border-success font-weight-bold text-success" id="monto_reserva" name="monto_reserva" placeholder="0.00" value="{{ old('monto_reserva') }}" required>
                     </div>
                 </div>
-                <div class="col-md-6 mb-3">
-                    <label for="dias_validez" class="form-label font-weight-bold text-secondary">Días de Validez (Plazo para Formalizar)</label>
-                    <div class="input-group">
-                        <input type="number" min="1" class="form-control" id="dias_validez" name="dias_validez" value="15" required>
-                        <span class="input-group-text">Días</span>
+                <div class="col-md-4 mb-3">
+                    <label for="dias_validez" class="form-label font-weight-bold text-secondary"><i class="fas fa-hourglass-half text-warning"></i> Días de Validez (Plazo Formalizar) <span class="text-danger">*</span></label>
+                    <div class="input-group input-group-lg shadow-sm">
+                        <input type="number" min="1" max="90" class="form-control font-weight-bold" id="dias_validez" name="dias_validez" value="{{ old('dias_validez', 15) }}" required>
+                        <span class="input-group-text bg-white">Días</span>
                     </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label for="fecha_reserva" class="form-label font-weight-bold text-secondary"><i class="fas fa-calendar-alt text-primary"></i> Fecha de Registro</label>
+                    <div class="input-group input-group-lg shadow-sm">
+                        <span class="input-group-text bg-white border-end-0"><i class="fas fa-calendar text-muted"></i></span>
+                        <input type="date" class="form-control border-start-0 ps-0" id="fecha_reserva" name="fecha_reserva" value="{{ old('fecha_reserva', now()->format('Y-m-d')) }}" readonly>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Datos de pago del Anticipo -->
+            <div class="row g-3 bg-white p-3 mb-3 rounded border shadow-sm">
+                <div class="col-md-4 mb-3">
+                    <label for="metodo_pago" class="form-label font-weight-bold text-secondary">Método de Pago (Anticipo) <span class="text-danger">*</span></label>
+                    <select class="custom-select form-control" id="metodo_pago" name="metodo_pago" required onchange="toggleMetodoFields()">
+                        <option value="Efectivo" {{ old('metodo_pago') == 'Efectivo' ? 'selected' : '' }}>Efectivo</option>
+                        <option value="Transferencia Bancaria" {{ old('metodo_pago') == 'Transferencia Bancaria' ? 'selected' : '' }}>Transferencia Bancaria</option>
+                        <option value="Depósito Bancario" {{ old('metodo_pago') == 'Depósito Bancario' ? 'selected' : '' }}>Depósito Bancario</option>
+                        <option value="Cheque" {{ old('metodo_pago') == 'Cheque' ? 'selected' : '' }}>Cheque</option>
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3" id="div_cuenta" style="display: none;">
+                    <label for="cuenta_destino" class="form-label font-weight-bold text-secondary">Cuenta Destino</label>
+                    <input type="text" class="form-control" id="cuenta_destino" name="cuenta_destino" placeholder="Ej: BANPRO - Empresa">
+                </div>
+                <div class="col-md-4 mb-3" id="div_referencia">
+                    <label for="referencia" class="form-label font-weight-bold text-secondary" id="label_referencia">Referencia / Comentarios</label>
+                    <input type="text" class="form-control" id="referencia" name="referencia" placeholder="Registro de Reserva">
                 </div>
             </div>
         </div>
@@ -158,13 +283,15 @@
                         <div class="p-3 bg-light rounded border h-100">
                             <span class="text-secondary d-block small text-uppercase fw-bold">Cliente Seleccionado</span>
                             <span class="fs-5 fw-bold text-dark d-block" id="modal-res-cliente">-</span>
+                            <span class="small text-muted d-block" id="modal-res-cedula">Cédula: -</span>
+                            <span class="small text-muted d-block" id="modal-res-telefono">Tel: -</span>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="p-3 bg-light rounded border h-100">
                             <span class="text-secondary d-block small text-uppercase fw-bold">Proyecto y Bloque</span>
                             <span class="badge bg-primary text-white fs-6 mb-1 px-3 py-1">
-                                <i class="fas fa-map-marker-alt me-1"></i> {{ $lotificacionActiva->nombre ?? 'Proyecto Activo' }}
+                                <i class="fas fa-building me-1"></i> {{ $lotificacionActiva->nombre ?? 'Proyecto Activo' }}
                             </span>
                             <div class="text-dark mt-1">
                                 Bloque: <strong class="text-primary fw-bold" id="modal-res-bloque">-</strong>
@@ -174,7 +301,10 @@
                 </div>
 
                 <div class="p-3 bg-light rounded border mb-3">
-                    <span class="text-secondary d-block small text-uppercase fw-bold mb-2">Lote(s) a Reservar</span>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-secondary small text-uppercase fw-bold">Lote(s) a Reservar</span>
+                        <span class="text-info fw-bold small" id="modal-res-extension">-</span>
+                    </div>
                     <div id="modal-res-lotes-container">
                         <!-- Badges -->
                     </div>
@@ -183,13 +313,17 @@
                 <div class="card border-primary mb-2">
                     <div class="card-body p-3 bg-light">
                         <div class="row text-center align-items-center">
-                            <div class="col-6 border-end">
-                                <span class="text-muted small d-block">Monto de Reserva / Anticipo</span>
+                            <div class="col-4 border-end">
+                                <span class="text-muted small d-block">Monto Anticipo</span>
                                 <span class="fs-4 fw-bold text-success" id="modal-res-monto">$0.00</span>
                             </div>
-                            <div class="col-6">
+                            <div class="col-4 border-end">
                                 <span class="text-muted small d-block">Plazo de Validez</span>
                                 <span class="fs-5 fw-bold text-dark" id="modal-res-dias">15 Días</span>
+                            </div>
+                            <div class="col-4">
+                                <span class="text-muted small d-block">Método de Pago</span>
+                                <span class="fs-6 fw-bold text-primary" id="modal-res-metodo">Efectivo</span>
                             </div>
                         </div>
                     </div>
@@ -210,18 +344,52 @@
 @endsection
 
 @section('scripts')
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
+function toggleMetodoFields() {
+    var metodo = $('#metodo_pago').val();
+    if (metodo === 'Efectivo') {
+        $('#div_cuenta').hide();
+        $('#label_referencia').text('Referencia / Comentarios');
+        $('#referencia').attr('placeholder', 'Registro de Reserva');
+    } else {
+        $('#div_cuenta').show();
+        $('#label_referencia').html('N° Referencia / Transferencia <span class="text-danger">*</span>');
+        $('#referencia').attr('placeholder', 'Ej: TR-8945201');
+    }
+}
+
 $(document).ready(function() {
-    // Evitar que el scroll del mouse cambie el valor de los inputs tipo número
+    toggleMetodoFields();
+
+    // Evitar scroll en inputs tipo número
     $('input[type=number]').on('wheel', function(e) {
         e.preventDefault();
+    });
+
+    $('#bloque_select').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Seleccione Bloque'
+    });
+
+    $('#lote_select').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Seleccione un Bloque primero'
     });
 
     $('#bloque_select').change(function() {
         var bloqueId = $(this).val();
         var loteSelect = $('#lote_select');
 
-        loteSelect.html('<option value="">Cargando lotes...</option>').prop('disabled', true);
+        loteSelect.html('<option value=""></option>').prop('disabled', true);
+        loteSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Cargando lotes...' });
+        $('#extension_lote_value').val('');
+        $('#monto_lote').val('');
+        $('#display_extension').html('0.00 <small class="fs-6">vrs²</small>');
 
         if (bloqueId) {
             var ajaxUrl = '{{ url("api/bloques") }}' + '/' + bloqueId + '/lotes';
@@ -231,29 +399,66 @@ $(document).ready(function() {
                 type: 'GET',
                 dataType: 'json',
                 success: function(data) {
-                    loteSelect.html('<option value="">Seleccione uno o más Lotes</option>');
+                    loteSelect.html('<option value=""></option>');
+
                     if (data.length > 0) {
                         $.each(data, function(key, lote) {
-                            loteSelect.append('<option value="' + lote.id_lote + '">' + lote.numero_lote + '</option>');
+                            loteSelect.append('<option value="' + lote.id_lote + '" data-extension="' + lote.area_metros + '" data-precio="' + lote.precio_base + '">' + lote.numero_lote + '</option>');
                         });
                         loteSelect.prop('disabled', false);
+                        loteSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccione uno o más Lotes' });
                     } else {
-                        loteSelect.html('<option value="">No hay lotes disponibles (vendidos o reservados)</option>');
+                        loteSelect.prop('disabled', true);
+                        loteSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'No hay lotes disponibles' });
                     }
+                },
+                error: function(xhr, status, error) {
+                    loteSelect.html('<option value=""></option>').prop('disabled', true);
+                    loteSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Error al cargar lotes' });
+                    console.error("AJAX Error:", error, status, xhr.responseText);
                 }
             });
         }
     });
 
-    // Disparar el evento change si hay un bloque preseleccionado al cargar la página
-    if ($('#bloque_select').val()) {
-        $('#bloque_select').trigger('change');
-    }
+    $('#lote_select').change(function() {
+        var totalExtensionMetros = 0;
+        var totalMonto = 0;
+
+        $(this).find('option:selected').each(function() {
+            var extension = parseFloat($(this).data('extension'));
+            var precio = parseFloat($(this).data('precio'));
+            if (!isNaN(extension)) {
+                totalExtensionMetros += extension;
+            }
+            if (!isNaN(precio)) {
+                totalMonto += precio;
+            }
+        });
+
+        // Convertir m² a vrs² para mostrar en UI
+        var factorVara = 1.418415;
+        var totalExtensionVaras = totalExtensionMetros * factorVara;
+
+        if (Math.abs(Math.round(totalExtensionVaras) - totalExtensionVaras) < 0.02) {
+            totalExtensionVaras = Math.round(totalExtensionVaras);
+        }
+
+        $('#extension_lote_value').val(totalExtensionMetros.toFixed(2));
+        $('#display_extension').html(totalExtensionVaras.toFixed(2) + ' <small class="fs-6">vrs²</small> <span class="fs-6 font-weight-normal text-white-50 ms-2">(' + totalExtensionMetros.toFixed(2) + ' m²)</span>');
+        $('#monto_lote').val(totalMonto.toFixed(2));
+        
+        // Feedback visual
+        $('.financial-card').css('transform', 'scale(1.02)');
+        setTimeout(function() {
+            $('.financial-card').css('transform', 'scale(1)');
+        }, 200);
+    });
 
     // Modal de Confirmación de Reserva
     var modalReservaEl = document.getElementById('modalConfirmarReserva');
     var modalReserva = new bootstrap.Modal(modalReservaEl);
-    var formReserva = $('form')[0];
+    var formReserva = document.getElementById('form-registro-reserva');
 
     $('#btn-preparar-reserva').on('click', function(e) {
         e.preventDefault();
@@ -266,12 +471,16 @@ $(document).ready(function() {
         var lotesSeleccionados = $('#lote_select').val();
         if (!lotesSeleccionados || lotesSeleccionados.length === 0 || lotesSeleccionados[0] === "") {
             alert('Debe seleccionar al menos un lote para la reserva.');
-            $('#lote_select').focus();
+            $('#lote_select').select2('open');
             return;
         }
 
-        var clienteTexto = $('#id_cliente option:selected').text();
-        $('#modal-res-cliente').text(clienteTexto.trim());
+        var clienteNombre = $('#nombre_completo').val();
+        var cedula = $('#cedula').val();
+        var telefono = $('#telefono').val() || 'No especificado';
+        $('#modal-res-cliente').text(clienteNombre);
+        $('#modal-res-cedula').text('Cédula: ' + cedula);
+        $('#modal-res-telefono').text('Tel: ' + telefono);
 
         var bloqueTexto = $('#bloque_select option:selected').text();
         $('#modal-res-bloque').text(bloqueTexto.trim());
@@ -280,15 +489,20 @@ $(document).ready(function() {
         containerLotes.empty();
         $('#lote_select option:selected').each(function() {
             if ($(this).val()) {
-                containerLotes.append('<span class="badge bg-dark text-white me-1 mb-1">Lote ' + $(this).text() + '</span>');
+                containerLotes.append('<span class="badge bg-dark text-white me-1 mb-1 fs-6 px-3 py-2">Lote ' + $(this).text() + '</span>');
             }
         });
 
+        var extensionTxt = $('#display_extension').text();
+        $('#modal-res-extension').text('Extensión: ' + extensionTxt);
+
         var montoVal = parseFloat($('#monto_reserva').val()) || 0;
         var diasVal = parseInt($('#dias_validez').val()) || 15;
+        var metodo = $('#metodo_pago').val();
 
         $('#modal-res-monto').text('$' + montoVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         $('#modal-res-dias').text(diasVal + ' Días de Validez');
+        $('#modal-res-metodo').text(metodo);
 
         modalReserva.show();
     });
