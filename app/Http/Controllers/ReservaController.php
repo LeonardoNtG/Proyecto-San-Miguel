@@ -135,15 +135,22 @@ class ReservaController extends Controller
         }
 
         $request->validate([
+            'lotes_a_formalizar' => 'required|array|min:1',
+            'lotes_a_formalizar.*' => 'exists:lotes,id_lote',
             'precio_final' => 'required|numeric|min:0',
             'plazo_meses' => 'required|integer|min:1',
             'cuota_mensual' => 'required|numeric|min:0',
-            'primer_abono' => 'required|numeric|min:' . $reserva->monto_reserva,
+            'primer_abono' => 'required|numeric|min:0',
             'fecha_ultimo_abono' => 'nullable|date',
+            'metodo_pago' => 'nullable|string',
+            'referencia' => 'nullable|string',
         ]);
 
         DB::beginTransaction();
         try {
+            $lotesFormalizarIds = $request->lotes_a_formalizar;
+            $extensionTotal = \App\Models\Lote::whereIn('id_lote', $lotesFormalizarIds)->sum('area_metros');
+
             // 1. Crear la Venta
             $venta = \App\Models\Venta::create([
                 'id_cliente' => $reserva->id_cliente,
@@ -152,22 +159,32 @@ class ReservaController extends Controller
                 'precio_final' => $request->precio_final,
                 'plazo_meses' => $request->plazo_meses,
                 'estado_contrato' => 'Vigente',
-                'extension_lote' => $reserva->lotes->sum('area_metros'),
+                'extension_lote' => $extensionTotal,
                 'cuota_mensual' => $request->cuota_mensual,
             ]);
 
-            // 2. Transición de Lotes (De Reserva a Venta)
-            foreach ($reserva->lotes as $lote) {
-                // El lote pasa a 'Vendido' en la tabla lotes
-                $lote->update(['estado' => 'Vendido']);
-                
-                // Actualizar el historial_lotes para este lote
-                HistorialLote::where('id_lote', $lote->id_lote)
-                             ->where('id_reserva', $reserva->id_reserva)
-                             ->update([
-                                 'id_venta' => $venta->id_venta, // Transferimos al id_venta
-                                 'estado' => 'Activo', // Ya no es 'Reservado'
-                             ]);
+            // 2. Transición de Lotes:
+            // A. Lotes formalizados -> Pasan a 'Vendido' y se transfieren a la Venta
+            \App\Models\Lote::whereIn('id_lote', $lotesFormalizarIds)->update(['estado' => 'Vendido']);
+            HistorialLote::whereIn('id_lote', $lotesFormalizarIds)
+                ->where('id_reserva', $reserva->id_reserva)
+                ->update([
+                    'id_venta' => $venta->id_venta,
+                    'estado' => 'Activo',
+                ]);
+
+            // B. Lotes de la reserva no seleccionados -> Se liberan automáticamente a 'Disponible'
+            $todosLotesReserva = $reserva->lotes->pluck('id_lote')->toArray();
+            $lotesALiberar = array_values(array_diff($todosLotesReserva, $lotesFormalizarIds));
+
+            if (!empty($lotesALiberar)) {
+                \App\Models\Lote::whereIn('id_lote', $lotesALiberar)->update(['estado' => 'Disponible']);
+                HistorialLote::whereIn('id_lote', $lotesALiberar)
+                    ->where('id_reserva', $reserva->id_reserva)
+                    ->update([
+                        'estado' => 'Rescindido',
+                        'fecha_liberacion' => now(),
+                    ]);
             }
 
             // 3. Crear el primer abono (Prima)
