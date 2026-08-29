@@ -113,112 +113,162 @@
         </div>
     </div>
     
-    {{-- PLAN DE PAGOS (CUOTAS) --}}
+    {{-- PLAN DE PAGOS (CUOTAS) - TIPO ACORDEÓN --}}
     @if($venta && $venta->cuotas->count())
-        <div class="card shadow mb-4">
-            <div class="card-header bg-secondary text-white">
-                <h5 class="m-0">Plan de Pagos (Cuotas)</h5>
+        <div class="card shadow mb-4 border-secondary">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center py-3" 
+                 data-bs-toggle="collapse" data-bs-target="#collapsePlanCuotas" 
+                 data-toggle="collapse" data-target="#collapsePlanCuotas"
+                 style="cursor: pointer;" title="Clic para expandir u ocultar el Plan de Pagos">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-calendar-alt fa-lg me-2"></i>
+                    <h5 class="m-0 fw-bold">Plan de Pagos (Cuotas)</h5>
+                </div>
+                <div class="d-flex align-items-center flex-wrap">
+                    <span class="badge bg-light text-dark fw-bold me-2 shadow-sm">{{ $venta->cuotas->count() }} Cuotas</span>
+                    <span class="badge bg-success text-white fw-bold me-2 shadow-sm">
+                        <i class="fas fa-check me-1"></i> {{ $venta->cuotas->where('estado', 'Pagada')->count() }} Pagadas
+                    </span>
+                    <span class="badge bg-warning text-dark fw-bold me-2 shadow-sm">
+                        <i class="fas fa-clock me-1"></i> {{ $venta->cuotas->where('estado', 'Pendiente')->count() }} Pendientes
+                    </span>
+                    @if($venta->cuotas->where('estado', 'Mora')->count() > 0)
+                        <span class="badge bg-danger text-white fw-bold me-2 shadow-sm">
+                            <i class="fas fa-exclamation-triangle me-1"></i> {{ $venta->cuotas->where('estado', 'Mora')->count() }} en Mora
+                        </span>
+                    @endif
+                    <span class="btn btn-sm btn-outline-light ms-2 px-2 py-1">
+                        <i class="fas fa-chevron-down" id="chevronCuotas"></i>
+                    </span>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-sm">
-                        <thead class="bg-light">
-                            <tr>
-                                <th># Cuota</th>
-                                <th>Fecha Vencimiento</th>
-                                <th>Monto Total</th>
-                                <th>Mora</th>
-                                <th>Saldo Restante</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($venta->cuotas as $cuota)
-                                <tr class="{{ $cuota->estado === 'Pagada' ? 'table-success' : ($cuota->estado === 'Mora' ? 'table-danger' : '') }}">
-                                    <td>{{ $cuota->numero_cuota }}</td>
-                                    <td>{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
-                                    <td>${{ number_format($cuota->monto_total, 2) }}</td>
-                                    <td>
-                                        @if($cuota->mora_calculada > 0)
-                                            <span class="text-danger font-weight-bold" title="Mora Calculada: ${{ number_format($cuota->mora_calculada, 2) }} | Pagada: ${{ number_format($cuota->mora_pagada, 2) }} | Exonerada: ${{ number_format($cuota->mora_exonerada, 2) }}">
-                                                ${{ number_format($cuota->mora_pendiente, 2) }}
+            <div class="collapse" id="collapsePlanCuotas">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover table-sm align-middle">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-center"># Cuota</th>
+                                    <th>Fecha Vencimiento</th>
+                                    <th>Monto Total</th>
+                                    <th>Mora</th>
+                                    <th>Saldo Restante</th>
+                                    <th class="text-center">Estado</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($venta->cuotas as $cuota)
+                                    <tr class="{{ $cuota->estado === 'Pagada' ? 'table-success' : ($cuota->estado === 'Mora' ? 'table-danger' : '') }}">
+                                        <td class="text-center fw-bold">{{ $cuota->numero_cuota }}</td>
+                                        <td>{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
+                                        <td class="fw-bold">${{ number_format($cuota->monto_total, 2) }}</td>
+                                        <td>
+                                            @if($cuota->mora_calculada > 0)
+                                                <span class="text-danger font-weight-bold" title="Mora Calculada: ${{ number_format($cuota->mora_calculada, 2) }} | Pagada: ${{ number_format($cuota->mora_pagada, 2) }} | Exonerada: ${{ number_format($cuota->mora_exonerada, 2) }}">
+                                                    ${{ number_format($cuota->mora_pendiente, 2) }}
+                                                </span>
+                                            @else
+                                                <span class="text-muted">$0.00</span>
+                                            @endif
+                                        </td>
+                                        <td class="fw-bold text-secondary">${{ number_format($cuota->saldo_restante, 2) }}</td>
+                                        <td class="text-center">
+                                            <span class="badge 
+                                                {{ $cuota->estado === 'Pagada' ? 'bg-success text-white' : ($cuota->estado === 'Pendiente' ? 'bg-warning text-dark' : 'bg-danger text-white') }}">
+                                                {{ $cuota->estado }}
                                             </span>
-                                        @else
-                                            $0.00
-                                        @endif
-                                    </td>
-                                    <td>${{ number_format($cuota->saldo_restante, 2) }}</td>
-                                    <td>
-                                        <span class="badge 
-                                            {{ $cuota->estado === 'Pagada' ? 'bg-success' : ($cuota->estado === 'Pendiente' ? 'bg-warning text-dark' : 'bg-danger') }}">
-                                            {{ $cuota->estado }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        @if($cuota->mora_pendiente > 0)
-                                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#exonerarMoraModal{{ $cuota->id_cuota }}">
-                                                <i class="fas fa-handshake"></i>
-                                            </button>
-                                            
-                                            {{-- Modal para Exonerar Mora --}}
-                                            <div class="modal fade" id="exonerarMoraModal{{ $cuota->id_cuota }}" tabindex="-1" aria-labelledby="exonerarMoraModalLabel{{ $cuota->id_cuota }}" aria-hidden="true">
-                                                <div class="modal-dialog">
-                                                    <div class="modal-content">
-                                                        <div class="modal-header bg-danger text-white">
-                                                            <h5 class="modal-title" id="exonerarMoraModalLabel{{ $cuota->id_cuota }}">Negociar Mora - Cuota #{{ $cuota->numero_cuota }}</h5>
-                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                        </div>
-                                                        <form action="{{ route('cuotas.exonerarMora', $cuota->id_cuota) }}" method="POST">
-                                                            @csrf
-                                                            <div class="modal-body text-start">
-                                                                <p>Mora Pendiente Actual: <strong>${{ number_format($cuota->mora_pendiente, 2) }}</strong></p>
-                                                                <div class="mb-3">
-                                                                    <label for="monto_exonerar" class="form-label">Monto a Exonerar / Perdonar ($)</label>
-                                                                    <input type="number" step="0.01" max="{{ $cuota->mora_pendiente }}" class="form-control" name="monto_exonerar" value="{{ $cuota->mora_pendiente }}" required>
-                                                                    <small class="text-muted">Si quieres perdonar toda la mora, deja el valor por defecto. Si el cliente pagará una parte, reduce el monto a perdonar.</small>
+                                        </td>
+                                        <td class="text-center">
+                                            @if($cuota->mora_pendiente > 0)
+                                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#exonerarMoraModal{{ $cuota->id_cuota }}">
+                                                    <i class="fas fa-handshake"></i> Negociar Mora
+                                                </button>
+                                                
+                                                {{-- Modal para Exonerar Mora --}}
+                                                <div class="modal fade" id="exonerarMoraModal{{ $cuota->id_cuota }}" tabindex="-1" aria-labelledby="exonerarMoraModalLabel{{ $cuota->id_cuota }}" aria-hidden="true">
+                                                    <div class="modal-dialog">
+                                                        <div class="modal-content">
+                                                            <div class="modal-header bg-danger text-white">
+                                                                <h5 class="modal-title" id="exonerarMoraModalLabel{{ $cuota->id_cuota }}">Negociar Mora - Cuota #{{ $cuota->numero_cuota }}</h5>
+                                                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                            </div>
+                                                            <form action="{{ route('cuotas.exonerarMora', $cuota->id_cuota) }}" method="POST">
+                                                                @csrf
+                                                                <div class="modal-body text-start">
+                                                                    <p>Mora Pendiente Actual: <strong>${{ number_format($cuota->mora_pendiente, 2) }}</strong></p>
+                                                                    <div class="mb-3">
+                                                                        <label for="monto_exonerar" class="form-label font-weight-bold">Monto a Exonerar / Perdonar ($)</label>
+                                                                        <input type="number" step="0.01" max="{{ $cuota->mora_pendiente }}" class="form-control" name="monto_exonerar" value="{{ $cuota->mora_pendiente }}" required>
+                                                                        <small class="text-muted">Si quieres perdonar toda la mora, deja el valor por defecto. Si el cliente pagará una parte, reduce el monto a perdonar.</small>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                                                <button type="submit" class="btn btn-danger">Confirmar Exoneración</button>
-                                                            </div>
-                                                        </form>
+                                                                <div class="modal-footer">
+                                                                    <button type="button" class="btn btn-secondary text-white" data-bs-dismiss="modal">Cancelar</button>
+                                                                    <button type="submit" class="btn btn-danger">Confirmar Exoneración</button>
+                                                                </div>
+                                                            </form>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                                            @else
+                                                <span class="text-muted small">—</span>
+                                            @endif
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     @endif
 
-    {{--HISTORIAL DE ABONOS --}}
+    {{-- HISTORIAL DE ABONOS - TIPO ACORDEÓN --}}
     @if($venta && $venta->abonos->count())
-    <div class="card shadow mb-4">
-            <div class="card-header bg-primary text-white">
-                <h5 class="m-0">Historial de Pagos (Abonos)</h5>
-            </div>
-            <div class="card-body">
-                <div class="alert alert-info">
-                    <strong>Deuda Pendiente:</strong> ${{ number_format($venta->precio_final - $venta->total_abonado, 2) }} 
-                    (Abonado: ${{ number_format($venta->total_abonado, 2) }})
+        <div class="card shadow mb-4 border-primary">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3"
+                 data-bs-toggle="collapse" data-bs-target="#collapseHistorialAbonos" 
+                 data-toggle="collapse" data-target="#collapseHistorialAbonos"
+                 style="cursor: pointer;" title="Clic para expandir u ocultar el Historial de Pagos">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-receipt fa-lg me-2"></i>
+                    <h5 class="m-0 fw-bold">Historial de Pagos (Abonos)</h5>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-striped table-sm">
-                        <thead>
+                <div class="d-flex align-items-center flex-wrap">
+                    <span class="badge bg-light text-primary fw-bold me-2 shadow-sm">{{ $venta->abonos->count() }} Recibos</span>
+                    <span class="badge bg-success text-white fw-bold me-2 shadow-sm">
+                        Abonado: ${{ number_format($venta->total_abonado, 2) }}
+                    </span>
+                    <span class="badge bg-warning text-dark fw-bold me-2 shadow-sm">
+                        Deuda: ${{ number_format(max(0, $venta->precio_final - $venta->total_abonado), 2) }}
+                    </span>
+                    <span class="btn btn-sm btn-outline-light ms-2 px-2 py-1">
+                        <i class="fas fa-chevron-down" id="chevronAbonos"></i>
+                    </span>
+                </div>
+            </div>
+            <div class="collapse show" id="collapseHistorialAbonos">
+                <div class="card-body">
+                    <div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <strong><i class="fas fa-info-circle me-1"></i> Resumen de Cuenta:</strong> 
+                            Total Venta: <strong>${{ number_format($venta->precio_final, 2) }}</strong> &nbsp;|&nbsp; 
+                            Total Abonado: <strong class="text-success">${{ number_format($venta->total_abonado, 2) }}</strong> &nbsp;|&nbsp; 
+                            Saldo Restante: <strong class="text-danger">${{ number_format(max(0, $venta->precio_final - $venta->total_abonado), 2) }}</strong>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-sm align-middle">
+                            <thead class="bg-light">
                                 <tr>
                                     <th>Fecha</th>
-                                    <th>Monto</th>
+                                    <th>Monto Abonado</th>
                                     <th>Concepto</th>
-                                    <th>Método</th>
-                                    <th>Referencia</th>
-                                    <th>Recibo</th>
+                                    <th>Método de Pago</th>
+                                    <th>Referencia / Banco</th>
+                                    <th class="text-center">Recibo</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -226,23 +276,23 @@
                                 <tr>
                                     <td>{{ \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') }}</td>
                                     <td class="text-success fw-bold">+${{ number_format($abono->monto_abonado, 2) }}</td>
-                                    <td>{{ $abono->tipo_pago }}</td>
+                                    <td><span class="badge bg-info text-dark">{{ $abono->tipo_pago }}</span></td>
                                     <td>{{ $abono->metodo_pago ?? 'Efectivo' }}</td>
                                     <td>
                                         {{ $abono->referencia ?? '-' }}
                                         @if($abono->cuenta_destino)
-                                            <br><small class="text-muted"><i class="fas fa-university"></i> {{ $abono->cuenta_destino }}</small>
+                                            <br><small class="text-muted"><i class="fas fa-university me-1"></i>{{ $abono->cuenta_destino }}</small>
                                         @endif
                                     </td>
-                                    <td>
-                                        <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                                            <i class="fas fa-print"></i>
+                                    <td class="text-center">
+                                        <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Imprimir Recibo">
+                                            <i class="fas fa-print me-1"></i> Imprimir
                                         </a>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center">No hay abonos registrados.</td>
+                                    <td colspan="6" class="text-center py-3 text-muted">No hay abonos registrados.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -250,6 +300,7 @@
                 </div>
             </div>
         </div>
+    </div>
     @endif
     
     {{-- Modal de Confirmación de Borrado --}}
@@ -391,6 +442,19 @@
 
             inputPrecio.addEventListener('input', calcularPlazo);
             inputCuota.addEventListener('input', calcularPlazo);
+
+            // Animación de Chevrons en Acordeones
+            $('#collapsePlanCuotas').on('show.bs.collapse', function() {
+                $('#chevronCuotas').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+            }).on('hide.bs.collapse', function() {
+                $('#chevronCuotas').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+            });
+
+            $('#collapseHistorialAbonos').on('show.bs.collapse', function() {
+                $('#chevronAbonos').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+            }).on('hide.bs.collapse', function() {
+                $('#chevronAbonos').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+            });
         });
     </script>
         <script src="{{ asset('js/jqueryEM.js') }}"></script>
