@@ -229,11 +229,6 @@
                         <label class="btn btn-outline-info py-2 fw-bold flex-fill" for="metodo_deposito">
                             <i class="fas fa-university me-1"></i> Depósito
                         </label>
-
-                        <input type="radio" class="btn-check" name="metodo_pago" id="metodo_cheque" value="Cheque" autocomplete="off" {{ old('metodo_pago') == 'Cheque' ? 'checked' : '' }} onchange="toggleMetodoFields()">
-                        <label class="btn btn-outline-secondary py-2 fw-bold flex-fill" for="metodo_cheque">
-                            <i class="fas fa-money-check me-1"></i> Cheque
-                        </label>
                     </div>
                 </div>
                 <div class="col-md-3 mb-3" id="div_cuenta" style="display: none;">

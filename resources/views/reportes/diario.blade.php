@@ -227,8 +227,7 @@
                         <select name="metodo_pago" class="form-select" required>
                             <option value="Efectivo" selected>Efectivo (Caja)</option>
                             <option value="Transferencia Bancaria">Transferencia Bancaria</option>
-                            <option value="Cheque">Cheque</option>
-                            <option value="Tarjeta">Tarjeta</option>
+                            <option value="Depósito Bancario">Depósito Bancario</option>
                         </select>
                     </div>
                     <input type="hidden" name="fecha" value="{{ $fecha }}">

@@ -166,11 +166,6 @@
                                 <label class="btn btn-outline-info py-2 fw-bold flex-fill" for="metodo_abono_deposito">
                                     <i class="fas fa-university me-1"></i> Depósito
                                 </label>
-
-                                <input type="radio" class="btn-check" name="metodo_pago" id="metodo_abono_cheque" value="Cheque" autocomplete="off" {{ old('metodo_pago') == 'Cheque' ? 'checked' : '' }} onchange="toggleMetodoPagoFields()">
-                                <label class="btn btn-outline-secondary py-2 fw-bold flex-fill" for="metodo_abono_cheque">
-                                    <i class="fas fa-money-check me-1"></i> Cheque
-                                </label>
                             </div>
                         </div>
 
@@ -353,13 +348,13 @@
         var refInput = document.getElementById('referencia_bancaria');
         var labelRef = document.getElementById('label_referencia');
 
-        if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario' || metodo === 'Cheque') {
+        if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario') {
             if (bancoSection) bancoSection.style.display = 'block';
             if (cuentaInput) cuentaInput.required = true;
             if (refInput) {
-                refInput.required = (metodo !== 'Cheque');
+                refInput.required = true;
             }
-            if (labelRef) labelRef.textContent = (metodo === 'Cheque') ? 'N° de Cheque (Opcional)' : 'N° de Referencia / Comprobante';
+            if (labelRef) labelRef.textContent = 'N° de Referencia / Comprobante';
         } else {
             if (bancoSection) bancoSection.style.display = 'none';
             if (cuentaInput) {

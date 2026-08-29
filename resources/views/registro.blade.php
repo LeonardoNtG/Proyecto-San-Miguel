@@ -243,11 +243,6 @@
                         <label class="btn btn-outline-info py-2 fw-bold flex-fill" for="metodo_prima_deposito">
                             <i class="fas fa-university me-1"></i> Depósito
                         </label>
-
-                        <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_cheque" value="Cheque" autocomplete="off" {{ old('metodo_pago_prima') == 'Cheque' ? 'checked' : '' }} onchange="togglePrimaFields()">
-                        <label class="btn btn-outline-secondary py-2 fw-bold flex-fill" for="metodo_prima_cheque">
-                            <i class="fas fa-money-check me-1"></i> Cheque
-                        </label>
                     </div>
                 </div>
                 <div class="col-md-3 mb-3" id="div_cuenta_prima" style="display: none;">
@@ -636,14 +631,14 @@ $(document).ready(function() {
         var inputRef = document.getElementById('referencia_prima');
         var divRef = document.getElementById('div_referencia_prima');
 
-        if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario' || metodo === 'Cheque') {
+        if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario') {
             if (divCuenta) divCuenta.style.display = 'block';
             if (inputCuenta) inputCuenta.required = true;
             if (divRef) divRef.className = 'col-md-3 mb-3';
             if (labelRef) labelRef.innerText = 'N° de Referencia / Comprobante';
             if (inputRef) {
                 inputRef.placeholder = 'N° de transacción';
-                inputRef.required = (metodo !== 'Cheque');
+                inputRef.required = true;
             }
         } else {
             if (divCuenta) divCuenta.style.display = 'none';
