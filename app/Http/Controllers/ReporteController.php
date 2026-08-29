@@ -69,23 +69,35 @@ class ReporteController extends Controller
         $esGlobal = false;
         $targetLotificacionId = null;
 
+        $abonosRelations = [
+            'venta' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+            'venta.cliente' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+            'venta.lotes' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+            'venta.lotes.bloque' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+            'venta.lotificacion' => fn($q) => $q->withoutGlobalScope('lotificacion')
+        ];
+
         if ($esAdmin && ($proyectoFiltro === 'global' || $proyectoFiltro === 'todos')) {
             $esGlobal = true;
             $etiquetaProyecto = 'CONSOLIDADO GLOBAL (TODAS LAS LOTIFICACIONES)';
-            $abonosQuery = Abono::withoutGlobalScope('lotificacion')->with(['venta.cliente', 'venta.lotes.bloque', 'venta.lotificacion']);
+            $abonosQuery = Abono::withoutGlobalScope('lotificacion')->with($abonosRelations);
             $salidasQuery = Salida::withoutGlobalScope('lotificacion');
         } elseif ($esAdmin && is_numeric($proyectoFiltro)) {
             $targetLotificacionId = (int) $proyectoFiltro;
             $lotObj = \App\Models\Lotificacion::find($targetLotificacionId);
             $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Seleccionado';
-            $abonosQuery = Abono::withoutGlobalScope('lotificacion')->whereHas('venta', fn($q) => $q->where('lotificacion_id', $targetLotificacionId))->with(['venta.cliente', 'venta.lotes.bloque', 'venta.lotificacion']);
+            $abonosQuery = Abono::withoutGlobalScope('lotificacion')
+                ->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId))
+                ->with($abonosRelations);
             $salidasQuery = Salida::withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId);
         } else {
             // Usuario normal o Admin en modo proyecto actual
             $targetLotificacionId = $activeLotificacionId;
             $lotObj = \App\Models\Lotificacion::find($activeLotificacionId);
             $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Actual';
-            $abonosQuery = Abono::withoutGlobalScope('lotificacion')->whereHas('venta', fn($q) => $q->where('lotificacion_id', $activeLotificacionId))->with(['venta.cliente', 'venta.lotes.bloque', 'venta.lotificacion']);
+            $abonosQuery = Abono::withoutGlobalScope('lotificacion')
+                ->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $activeLotificacionId))
+                ->with($abonosRelations);
             $salidasQuery = Salida::withoutGlobalScope('lotificacion')->where('lotificacion_id', $activeLotificacionId);
         }
 
@@ -164,11 +176,18 @@ class ReporteController extends Controller
 
         $filasAbonos = $abonos->map(function ($abono) {
             $venta = $abono->venta;
-            $cliente = $venta->cliente ?? null;
-            $lotes = $venta->lotes ?? collect();
+            $cliente = $venta ? $venta->cliente : null;
+            $lotes = $venta ? $venta->lotes : collect();
 
             $lotesTexto = $lotes->isNotEmpty()
-                ? $lotes->map(fn ($lote) => ($lote->bloque->nombre ?? 'N/A') . '-' . $lote->numero_lote)->implode(', ')
+                ? $lotes->map(function ($lote) {
+                    $bloqueNom = $lote->bloque->nombre ?? '';
+                    $numLote = $lote->numero_lote;
+                    if ($bloqueNom && !str_starts_with(strtoupper($numLote), strtoupper($bloqueNom))) {
+                        return $bloqueNom . '-' . $numLote;
+                    }
+                    return $numLote;
+                })->implode(', ')
                 : 'N/A';
 
             $bloquesTexto = $lotes->isNotEmpty()
@@ -180,10 +199,10 @@ class ReporteController extends Controller
             return [
                 'fecha' => Carbon::parse($abono->fecha_pago)->format('d/m/Y'),
                 'hora' => $abono->created_at ? $abono->created_at->format('h:i A') : '-',
-                'cliente' => $cliente->nombres_apellidos ?? 'Cliente Desconocido',
-                'pv' => $cliente->pv_num ?? '-',
-                'bloques' => $bloquesTexto,
-                'lotes' => $lotesTexto,
+                'cliente' => $cliente ? $cliente->nombres_apellidos : 'Cliente Desconocido',
+                'pv' => $cliente ? $cliente->pv_num : '-',
+                'bloques' => $bloquesTexto ?: 'N/A',
+                'lotes' => $lotesTexto ?: 'N/A',
                 'proyecto' => $proyectoNombre,
                 'monto' => (float) $abono->monto_abonado,
                 'tipo' => $abono->tipo_pago,

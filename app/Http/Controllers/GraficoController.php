@@ -43,14 +43,14 @@ class GraficoController extends Controller
             $targetLotificacionId = (int) $proyectoFiltro;
             $lotObj = \App\Models\Lotificacion::find($targetLotificacionId);
             $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Seleccionado';
-            $abonosBase = Abono::withoutGlobalScope('lotificacion')->whereHas('venta', fn($q) => $q->where('lotificacion_id', $targetLotificacionId));
+            $abonosBase = Abono::withoutGlobalScope('lotificacion')->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId));
             $salidasBase = Salida::withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId);
             $ventasBase = Venta::withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId);
         } else {
             $targetLotificacionId = $activeLotificacionId;
             $lotObj = \App\Models\Lotificacion::find($activeLotificacionId);
             $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Actual';
-            $abonosBase = Abono::withoutGlobalScope('lotificacion')->whereHas('venta', fn($q) => $q->where('lotificacion_id', $activeLotificacionId));
+            $abonosBase = Abono::withoutGlobalScope('lotificacion')->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $activeLotificacionId));
             $salidasBase = Salida::withoutGlobalScope('lotificacion')->where('lotificacion_id', $activeLotificacionId);
             $ventasBase = Venta::withoutGlobalScope('lotificacion')->where('lotificacion_id', $activeLotificacionId);
         }
