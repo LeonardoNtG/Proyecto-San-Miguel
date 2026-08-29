@@ -70,6 +70,15 @@
                     <textarea class="form-control" id="direccion" name="direccion" rows="2">{{ old('direccion', $cliente->direccion) }}</textarea>
                 </div>
                 
+                <div class="mb-4 p-3 bg-light border rounded">
+                    <label for="motivo_modificacion" class="form-label fw-bold text-dark">
+                        <i class="fas fa-clipboard-list text-warning"></i> Motivo de la Modificación o Cesión: <span class="text-danger">*</span>
+                    </label>
+                    <textarea class="form-control" id="motivo_modificacion" name="motivo_modificacion" rows="2" 
+                              placeholder="Ejemplo: Cesión de derechos de lote a familiar / Corrección ortográfica en apellido / Actualización de número de cédula / Cambio de número de teléfono..." required>{{ old('motivo_modificacion') }}</textarea>
+                    <small class="text-muted"><i class="fas fa-shield-alt text-primary"></i> Este motivo y los datos anteriores quedarán registrados en el historial de auditoría y expediente del cliente como respaldo legal.</small>
+                </div>
+                
                 <hr class="my-4">
                 
                 <button type="submit" class="btn btn-warning btn-lg">

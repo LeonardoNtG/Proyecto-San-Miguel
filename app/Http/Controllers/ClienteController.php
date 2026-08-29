@@ -267,7 +267,13 @@ class ClienteController extends Controller
             $venta->total_abonado = $venta->abonos->sum('monto_abonado');
         });
 
-        return view('show', compact('cliente'));
+        $historialModificaciones = \App\Models\Auditoria::where('modelo', 'Cliente')
+            ->where('modelo_id', $cliente->id_cliente)
+            ->with('user')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('show', compact('cliente', 'historialModificaciones'));
     }
 
     /**
@@ -300,18 +306,53 @@ class ClienteController extends Controller
             'direccion' => 'nullable|string|max:500',
             'estado_civil' => 'nullable|string|max:50',
             'oficio' => 'nullable|string|max:100',
+            'motivo_modificacion' => 'required|string|max:500',
         ]);
 
         DB::beginTransaction();
         try {
+            $campos = [
+                'nombres_apellidos' => 'Nombre / Titular',
+                'identificacion' => 'Cédula / Identificación',
+                'pv_num' => 'N° Promesa de Venta (PV)',
+                'expediente_num' => 'N° Expediente',
+                'telefono' => 'Teléfono',
+                'direccion' => 'Dirección',
+                'estado_civil' => 'Estado Civil',
+                'oficio' => 'Oficio',
+            ];
+
+            $cambios = [];
+            $esCesion = false;
+
+            foreach ($campos as $campo => $etiqueta) {
+                $valorAnterior = trim((string)$cliente->getOriginal($campo));
+                $valorNuevo = trim((string)$request->input($campo));
+
+                if ($valorAnterior !== $valorNuevo) {
+                    $cambios[] = "• <strong>{$etiqueta}:</strong> '{$valorAnterior}' ➔ '{$valorNuevo}'";
+                    if ($campo === 'nombres_apellidos' || $campo === 'identificacion') {
+                        $esCesion = true;
+                    }
+                }
+            }
+
             $cliente->update($request->only([
                 'expediente_num', 'pv_num', 'nombres_apellidos', 'identificacion',
                 'telefono', 'direccion', 'estado_civil', 'oficio'
             ]));
 
+            if (!empty($cambios)) {
+                $motivo = $request->input('motivo_modificacion');
+                $accion = $esCesion ? 'Cesión de Derechos / Cambio de Titular' : 'Modificación de Datos';
+                $detalles = implode('<br>', $cambios) . "<br><strong>Motivo / Justificación:</strong> " . e($motivo);
+
+                \App\Models\Auditoria::log($accion, 'Cliente', $cliente->id_cliente, $detalles);
+            }
+
             DB::commit();
             return redirect()->route('registro.show', $cliente->id_cliente)
-                         ->with('success', 'Información del cliente actualizada correctamente.');
+                         ->with('success', 'Información del cliente actualizada y registrada en el historial de auditoría correctamente.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Error al actualizar: ' . $e->getMessage());

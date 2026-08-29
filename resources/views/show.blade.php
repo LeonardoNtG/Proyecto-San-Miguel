@@ -298,6 +298,71 @@
         </div>
     </div>
     @endif
+
+    {{-- HISTORIAL DE MODIFICACIONES Y CESIONES - TIPO ACORDEÓN --}}
+    <div class="card shadow mb-4 border-info">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3"
+             id="headerHistorialModificaciones"
+             style="cursor: pointer; user-select: none;" title="Clic para expandir u ocultar el Historial de Modificaciones">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-history fa-lg text-warning me-2"></i>
+                <h5 class="m-0 fw-bold">Historial de Modificaciones y Cesiones</h5>
+            </div>
+            <div class="d-flex align-items-center flex-wrap">
+                <span class="badge bg-warning text-dark fw-bold me-2 shadow-sm">
+                    {{ isset($historialModificaciones) ? $historialModificaciones->count() : 0 }} Registros
+                </span>
+                <span class="btn btn-sm btn-outline-light ms-2 px-2 py-1">
+                    <i class="fas {{ (isset($historialModificaciones) && $historialModificaciones->count() > 0) ? 'fa-chevron-up' : 'fa-chevron-down' }}" id="chevronModificaciones"></i>
+                </span>
+            </div>
+        </div>
+        <div id="bodyHistorialModificaciones" style="display: {{ (isset($historialModificaciones) && $historialModificaciones->count() > 0) ? 'block' : 'none' }};">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered table-sm align-middle">
+                        <thead class="bg-light">
+                            <tr>
+                                <th style="width: 15%;">Fecha y Hora</th>
+                                <th style="width: 15%;">Responsable</th>
+                                <th style="width: 20%;">Tipo de Acción</th>
+                                <th>Detalle del Cambio (Antes ➔ Después)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($historialModificaciones ?? [] as $historial)
+                            <tr>
+                                <td>
+                                    <i class="far fa-clock text-secondary me-1"></i>
+                                    {{ $historial->created_at->format('d/m/Y h:i A') }}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary text-white">
+                                        <i class="fas fa-user me-1"></i>{{ $historial->user ? $historial->user->name : 'Sistema' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge {{ str_contains($historial->accion, 'Cesión') ? 'bg-primary text-white' : 'bg-info text-dark' }}">
+                                        {{ $historial->accion }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {!! $historial->detalles !!}
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="4" class="text-center py-3 text-muted">
+                                    <i class="fas fa-info-circle me-1"></i> No se registran modificaciones ni cesiones en este expediente.
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
     
     {{-- Modal de Confirmación de Borrado --}}
     <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
@@ -458,6 +523,19 @@
                         $('#chevronAbonos').removeClass('fa-chevron-down').addClass('fa-chevron-up');
                     } else {
                         $('#chevronAbonos').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+                    }
+                });
+            });
+
+            // Toggle Acordeón Historial de Modificaciones y Cesiones (Abre y Cierra)
+            $('#headerHistorialModificaciones').on('click', function(e) {
+                if ($(e.target).closest('button, a, input').length) return;
+                
+                $('#bodyHistorialModificaciones').slideToggle(200, function() {
+                    if ($(this).is(':visible')) {
+                        $('#chevronModificaciones').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+                    } else {
+                        $('#chevronModificaciones').removeClass('fa-chevron-up').addClass('fa-chevron-down');
                     }
                 });
             });
