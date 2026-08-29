@@ -28,11 +28,18 @@ class AbonoController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function create(Cliente $cliente)
+    public function create(Cliente $cliente, Request $request)
     {
-        
-        //Cargar Venta Activa y Abonos Relacionados
-        $venta = $cliente->ventas->first();
+        // Si el cliente tiene múltiples ventas, permitir seleccionar cuál pagar
+        $ventas = $cliente->ventas()->with(['lotes.bloque'])->where('estado_contrato', '!=', 'Rescindido')->get();
+
+        // Si se especifica id_venta en la URL, usarla; si no, tomar la primera activa
+        $ventaId = $request->get('venta_id');
+        if ($ventaId) {
+            $venta = $ventas->firstWhere('id_venta', $ventaId);
+        } else {
+            $venta = $ventas->first();
+        }
 
         if (!$venta) {
             return redirect()->route('registro.index')->with('error', 'El cliente no tiene una venta activa para registrar abonos.');
@@ -59,20 +66,21 @@ class AbonoController extends Controller
         $detallesLotes = $venta->lotes->map(function ($lote) {
             return [
                 'bloque' => $lote->bloque->nombre,
-                'lote' => $lote->numero_lote,
-                'area' => $lote->area_metros,
+                'lote'   => $lote->numero_lote,
+                'area'   => $lote->area_metros,
             ];
         });
 
         // Preparar datos para la vista
         $data = [
-            'cliente' => $cliente,
-            'venta' => $venta,
-            'totalAbonado' => $totalAbonado,
-            'saldoPendiente' => $saldoPendiente,
-            'cuotasPendientes' => max(0, $cuotasPendientes), // Asegura que no sea negativo
+            'cliente'          => $cliente,
+            'venta'            => $venta,
+            'ventas'           => $ventas,            // todas las ventas del cliente
+            'totalAbonado'     => $totalAbonado,
+            'saldoPendiente'   => $saldoPendiente,
+            'cuotasPendientes' => max(0, $cuotasPendientes),
             'fechaPagoTeorica' => $fechaPagoTeorica,
-            'detallesLotes' => $detallesLotes,
+            'detallesLotes'    => $detallesLotes,
         ];
 
         return view('abonos.create', $data);

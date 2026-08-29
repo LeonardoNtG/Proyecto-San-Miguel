@@ -20,12 +20,65 @@
         <small class="text-muted fs-5 ms-3">Exp. N°: {{ $cliente->expediente_num }}</small>
     </h2>
 
+    {{-- SELECTOR DE CONTRATO (solo si tiene múltiples ventas independientes) --}}
+    @if($ventas->count() > 1)
+    <div class="card shadow mb-4 border-warning">
+        <div class="card-header bg-warning text-dark py-2">
+            <h6 class="m-0 fw-bold"><i class="fas fa-exchange-alt me-1"></i> Este cliente tiene {{ $ventas->count() }} Contratos Independientes — Seleccione el que desea abonar:</h6>
+        </div>
+        <div class="card-body p-2">
+            <div class="row g-2">
+                @foreach($ventas as $v)
+                    @php
+                        $lotesV = $v->lotes;
+                        $nombreLotes = $lotesV->map(fn($l) => 'Lote ' . $l->numero_lote)->implode(', ');
+                        $cuotasPendientesV = \App\Models\Cuota::where('id_venta', $v->id_venta)->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])->count();
+                        $enMora = \App\Models\Cuota::where('id_venta', $v->id_venta)->where('estado', 'Mora')->exists();
+                    @endphp
+                    <div class="col-md-4">
+                        <a href="{{ route('abonos.create', [$cliente->id_cliente, 'venta_id' => $v->id_venta]) }}"
+                           class="text-decoration-none">
+                            <div class="p-3 rounded border {{ $v->id_venta == $venta->id_venta ? 'border-primary bg-primary text-white' : ($enMora ? 'border-danger bg-light' : 'border-secondary bg-light') }} h-100">
+                                <div class="fw-bold fs-6 mb-1">
+                                    <i class="fas fa-map-marker-alt me-1"></i>{{ $nombreLotes ?: 'Sin lote asignado' }}
+                                </div>
+                                @if($v->beneficiario_final)
+                                    <div class="small {{ $v->id_venta == $venta->id_venta ? 'text-white-50' : 'text-muted' }}">
+                                        <i class="fas fa-user-tie me-1"></i> {{ $v->beneficiario_final }}
+                                    </div>
+                                @endif
+                                <div class="mt-1 d-flex justify-content-between align-items-center">
+                                    <span class="small fw-bold">${{ number_format($v->cuota_mensual, 2) }}/mes</span>
+                                    @if($enMora)
+                                        <span class="badge bg-danger">⚠ Mora</span>
+                                    @elseif($cuotasPendientesV == 0)
+                                        <span class="badge bg-success">Al día ✓</span>
+                                    @else
+                                        <span class="badge bg-secondary">{{ $cuotasPendientesV }} pendiente(s)</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- ================================================= --}}
     {{-- SECCIÓN SUPERIOR: RESUMEN FINANCIERO --}}
     {{-- ================================================= --}}
     <div class="card shadow mb-4">
         <div class="card-header bg-primary text-white">
-            <h5 class="m-0">Resumen de Venta (N° PV: {{ $cliente->pv_num }})</h5>
+            <h5 class="m-0">
+                Resumen — Contrato Lote(s): {{ $venta->lotes->map(fn($l) => 'Lote '.$l->numero_lote)->implode(', ') ?: $cliente->pv_num }}
+                @if($venta->beneficiario_final)
+                    <span class="badge bg-warning text-dark ms-2 small fw-normal">
+                        <i class="fas fa-user-tie me-1"></i>{{ $venta->beneficiario_final }}
+                    </span>
+                @endif
+            </h5>
         </div>
         <div class="card-body">
             <div class="row text-center">

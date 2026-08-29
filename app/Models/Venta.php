@@ -22,11 +22,13 @@ class Venta extends Model
         'id_cliente',
         'lotificacion_id',
         'fecha_venta',
-        'precio_final', // Monto total del lote
+        'precio_final',
         'plazo_meses',
         'estado_contrato',
         'extension_lote',
         'cuota_mensual',
+        'beneficiario_final',
+        'nota_beneficiario',
     ];
 
     public function lotificacion()

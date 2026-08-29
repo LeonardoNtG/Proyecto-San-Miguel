@@ -44,8 +44,10 @@
     <hr>
 
     @php
-        // Asumimos que solo gestionamos la primera (activa) de las ventas relacionadas
-        $venta = $cliente->ventas->first(); 
+        // Usamos la primera venta activa o la primera disponible
+        $venta = $cliente->ventas->firstWhere('estado_contrato', 'Vigente') 
+                 ?? $cliente->ventas->first();
+        $tieneMultiplesContratos = $cliente->ventas->count() > 1;
     @endphp
 
     <div class="row">
@@ -71,8 +73,14 @@
         {{-- SECCIÓN 2: DETALLES DE LA VENTA ACTIVA --}}
         <div class="col-md-8">
             <div class="card shadow mb-4">
-                <div class="card-header bg-success text-white">
-                    <h5 class="m-0">Detalles de la Venta </h5>
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                    <h5 class="m-0">
+                        Detalles de la Venta
+                        @if($tieneMultiplesContratos)
+                            <span class="badge bg-warning text-dark ms-2">{{ $cliente->ventas->count() }} Contratos Independientes</span>
+                        @endif
+                    </h5>
+                </div>
                 </div>
                 <div class="card-body">
                     @if($venta)
@@ -94,6 +102,15 @@
                                     @endif
                                 </p>
                                 <p><strong>Extensión Total:</strong> {{ $venta->extension_lote }} m²</p>
+                                @if($venta->beneficiario_final)
+                                    <div class="alert alert-warning py-2 px-3 mt-2 mb-0">
+                                        <small class="fw-bold d-block"><i class="fas fa-user-tie me-1"></i> Beneficiario Final / Futuro Titular:</small>
+                                        <strong>{{ $venta->beneficiario_final }}</strong>
+                                        @if($venta->nota_beneficiario)
+                                            <br><small class="text-muted">{{ $venta->nota_beneficiario }}</small>
+                                        @endif
+                                    </div>
+                                @endif
                             </div>
                             <div class="col-md-6">
                                 <h5>Lotes Activos en Contrato ({{ $venta->lotes->count() }}):</h5>

@@ -134,6 +134,8 @@ class ClienteController extends Controller
             return back()->withInput()->withErrors(['lotes_ids' => 'Debe seleccionar al menos un lote para la venta.']);
         }
 
+        $tipoContrato = $request->input('tipo_contrato', 'unificado');
+
         DB::beginTransaction();
 
         try {
@@ -143,98 +145,152 @@ class ClienteController extends Controller
 
             $cliente = Cliente::create([
                 'expediente_num' => $expedienteNum,
-                'pv_num' => $pvNum,
-                'nombres_apellidos' => $request->nombres_apellidos, 
-                'identificacion' => $request->identificacion,       
-                'telefono' => $request->telefono,                   
-                'direccion' => $request->direccion,                 
-                'estado_civil' => $request->estado_civil,          
-                'oficio' => $request->oficio ?? $request->profesion_oficio,                       
+                'pv_num'         => $pvNum,
+                'nombres_apellidos' => $request->nombres_apellidos,
+                'identificacion'   => $request->identificacion,
+                'telefono'         => $request->telefono,
+                'direccion'        => $request->direccion,
+                'estado_civil'     => $request->estado_civil,
+                'oficio'           => $request->oficio ?? $request->profesion_oficio,
             ]);
 
-            // Proyecto: estrictamente el proyecto activo de la sesión
             $activeLotificacionId = session('lotificacion_id');
             $lotificacionId = $activeLotificacionId ?: $request->lotificacion_id;
 
-            // CREA LA VENTA/PROMESA
-            $venta = Venta::create([
-                'id_cliente' => $cliente->id_cliente,
-                'lotificacion_id' => $lotificacionId,
-                'fecha_venta' => now(),
-                'precio_final' => $request->precio_final,
-                'plazo_meses' => $request->plazo_meses,
-                'estado_contrato' => 'Vigente',
-                'extension_lote' => $request->extension_value,
-                'cuota_mensual' => $request->cuota_mensual,
-            ]);
+            // ─── MODO UNIFICADO (flujo original) ────────────────────────────────
+            if ($tipoContrato !== 'individual' || count($lotesIds) === 1) {
 
-            // ASOCIA LOS LOTES A LA VENTA (A través del historial)
-            Lote::whereIn('id_lote', $lotesIds)->update([
-                'estado' => 'Vendido',
-            ]);
-            
-            foreach ($lotesIds as $loteId) {
-                \App\Models\HistorialLote::create([
-                    'id_lote' => $loteId,
-                    'id_venta' => $venta->id_venta,
-                    'estado' => 'Activo',
-                    'fecha_asignacion' => now(),
+                $venta = Venta::create([
+                    'id_cliente'        => $cliente->id_cliente,
+                    'lotificacion_id'   => $lotificacionId,
+                    'fecha_venta'       => now(),
+                    'precio_final'      => $request->precio_final,
+                    'plazo_meses'       => $request->plazo_meses,
+                    'estado_contrato'   => 'Vigente',
+                    'extension_lote'    => $request->extension_value,
+                    'cuota_mensual'     => $request->cuota_mensual,
+                    'beneficiario_final'=> $request->beneficiario_final,
+                    'nota_beneficiario' => $request->nota_beneficiario,
                 ]);
+
+                Lote::whereIn('id_lote', $lotesIds)->update(['estado' => 'Vendido']);
+
+                foreach ($lotesIds as $loteId) {
+                    \App\Models\HistorialLote::create([
+                        'id_lote'         => $loteId,
+                        'id_venta'        => $venta->id_venta,
+                        'estado'          => 'Activo',
+                        'fecha_asignacion'=> now(),
+                    ]);
+                }
+
+                $abonoInicial = Abono::create([
+                    'id_venta'      => $venta->id_venta,
+                    'fecha_pago'    => $request->fecha_ultimo_abono ?? now(),
+                    'monto_abonado' => $request->primer_abono,
+                    'tipo_pago'     => 'Prima/Primer Abono',
+                    'metodo_pago'   => $request->metodo_pago_prima ?? 'Efectivo',
+                    'referencia'    => $request->referencia_prima ?? 'Registro Inicial de Venta',
+                    'cuenta_destino'=> $request->cuenta_destino_prima ?? null,
+                    'user_id'       => auth()->id()
+                ]);
+
+                $this->generarPlanCuotas($venta, $abonoInicial->fecha_pago);
+                \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
+
+            // ─── MODO INDIVIDUAL (un contrato/plan por lote) ────────────────────
+            } else {
+                $lotes = Lote::with('bloque')->whereIn('id_lote', $lotesIds)->get();
+                $totalLotes = $lotes->count();
+                $cuotaPorLote = $totalLotes > 0 ? round((float)$request->cuota_mensual / $totalLotes, 2) : (float)$request->cuota_mensual;
+                $precioPorLote = $totalLotes > 0 ? round((float)$request->precio_final / $totalLotes, 2) : (float)$request->precio_final;
+
+                // Leer beneficiarios individuales (enviados como arrays por JS)
+                $beneficiarios = $request->input('beneficiarios', []);
+                $notas         = $request->input('notas_beneficiario', []);
+                $primerAbonoTotal = (float)$request->primer_abono;
+                $abonosPorLote = $totalLotes > 0 ? round($primerAbonoTotal / $totalLotes, 2) : $primerAbonoTotal;
+
+                foreach ($lotes as $index => $lote) {
+                    $venta = Venta::create([
+                        'id_cliente'        => $cliente->id_cliente,
+                        'lotificacion_id'   => $lotificacionId,
+                        'fecha_venta'       => now(),
+                        'precio_final'      => $precioPorLote,
+                        'plazo_meses'       => $request->plazo_meses,
+                        'estado_contrato'   => 'Vigente',
+                        'extension_lote'    => (float)$lote->area_metros,
+                        'cuota_mensual'     => $cuotaPorLote,
+                        'beneficiario_final'=> $beneficiarios[$index] ?? null,
+                        'nota_beneficiario' => $notas[$index] ?? null,
+                    ]);
+
+                    $lote->estado = 'Vendido';
+                    $lote->save();
+
+                    \App\Models\HistorialLote::create([
+                        'id_lote'         => $lote->id_lote,
+                        'id_venta'        => $venta->id_venta,
+                        'estado'          => 'Activo',
+                        'fecha_asignacion'=> now(),
+                    ]);
+
+                    $abonoInicial = Abono::create([
+                        'id_venta'      => $venta->id_venta,
+                        'fecha_pago'    => $request->fecha_ultimo_abono ?? now(),
+                        'monto_abonado' => $abonosPorLote,
+                        'tipo_pago'     => 'Prima/Primer Abono',
+                        'metodo_pago'   => $request->metodo_pago_prima ?? 'Efectivo',
+                        'referencia'    => $request->referencia_prima ?? 'Registro Inicial - Lote ' . $lote->numero_lote,
+                        'cuenta_destino'=> $request->cuenta_destino_prima ?? null,
+                        'user_id'       => auth()->id()
+                    ]);
+
+                    $this->generarPlanCuotas($venta, $abonoInicial->fecha_pago);
+                    \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
+                }
             }
 
-        // CREA EL PRIMER ABONO (Igual)
-        $abonoInicial = Abono::create([
-                'id_venta' => $venta->id_venta,
-                'fecha_pago' => $request->fecha_ultimo_abono ?? now(),
-                'monto_abonado' => $request->primer_abono,
-                'tipo_pago' => 'Prima/Primer Abono',
-                'metodo_pago' => $request->metodo_pago_prima ?? 'Efectivo',
-                'referencia' => $request->referencia_prima ?? 'Registro Inicial de Venta',
-                'cuenta_destino' => $request->cuenta_destino_prima ?? null,
-                'user_id' => auth()->id()
-        ]);
+            DB::commit();
+            return redirect()->route('registro.index')->with('success', 'Cliente y Venta(s) registrados exitosamente.');
 
-        // GENERAR PLAN DE PAGOS (CUOTAS)
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withInput()->with('error', 'Ocurrió un error al registrar: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Genera el Plan de Cuotas para una venta a partir de la fecha del primer pago.
+     */
+    private function generarPlanCuotas(Venta $venta, $fechaInicio): void
+    {
         $plazoRestante = $venta->plazo_meses;
         $saldoRestante = $venta->precio_final;
-        $cuotaMensual = $venta->cuota_mensual;
+        $cuotaMensual  = $venta->cuota_mensual;
 
         if ($plazoRestante > 0 && $saldoRestante > 0) {
-            $fechaVencimiento = \Carbon\Carbon::parse($abonoInicial->fecha_pago);
-            
+            $fechaVencimiento = \Carbon\Carbon::parse($fechaInicio);
+
             for ($i = 1; $i <= $plazoRestante; $i++) {
                 $fechaVencimiento->addMonth();
-                
-                // La última cuota puede variar ligeramente por redondeos, la ajustamos
                 $montoCuota = ($i == $plazoRestante) ? $saldoRestante : $cuotaMensual;
-                
+
                 \App\Models\Cuota::create([
-                    'id_venta' => $venta->id_venta,
-                    'numero_cuota' => $i,
+                    'id_venta'          => $venta->id_venta,
+                    'numero_cuota'      => $i,
                     'fecha_vencimiento' => $fechaVencimiento->format('Y-m-d'),
-                    'monto_total' => $montoCuota,
-                    'capital' => $montoCuota, // Asumimos sin interés desglosado por ahora
-                    'interes' => 0,
-                    'saldo_restante' => $montoCuota,
-                    'estado' => 'Pendiente',
+                    'monto_total'       => $montoCuota,
+                    'capital'           => $montoCuota,
+                    'interes'           => 0,
+                    'saldo_restante'    => $montoCuota,
+                    'estado'            => 'Pendiente',
                 ]);
-                
+
                 $saldoRestante -= $montoCuota;
             }
         }
-
-        // Aplicamos el abono inicial automáticamente a las cuotas generadas
-        \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
-
-        DB::commit();
-
-        return redirect()->route('registro.index')->with('success', 'Cliente y Ventas de múltiples lotes registrados exitosamente.');
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return back()->withInput()->with('error', 'Ocurrió un error al registrar: ' . $e->getMessage());
     }
-}
 
     /**
      * Display the specified resource.

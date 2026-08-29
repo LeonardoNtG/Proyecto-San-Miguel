@@ -130,6 +130,32 @@
             <h6 class="m-0 font-weight-bold text-info"><i class="fas fa-layer-group"></i> Asignación de Terreno / Lotes</h6>
         </div>
         <div class="card-body bg-light">
+
+            {{-- TIPO DE CONTRATO --}}
+            <div class="row g-3 mb-3">
+                <div class="col-12">
+                    <label class="form-label font-weight-bold text-secondary d-block">
+                        <i class="fas fa-file-contract text-info me-1"></i> Tipo de Contrato <span class="text-danger">*</span>
+                    </label>
+                    <div class="btn-group w-100" role="group" id="group_tipo_contrato">
+                        <input type="radio" class="btn-check" name="tipo_contrato" id="tipo_unificado" value="unificado" autocomplete="off" checked>
+                        <label class="btn btn-outline-primary py-2 fw-bold" for="tipo_unificado">
+                            <i class="fas fa-layer-group me-1"></i> Contrato Unificado
+                            <small class="d-block fw-normal opacity-75">Un plan de pago para todos los lotes</small>
+                        </label>
+                        <input type="radio" class="btn-check" name="tipo_contrato" id="tipo_individual" value="individual" autocomplete="off">
+                        <label class="btn btn-outline-warning py-2 fw-bold" for="tipo_individual">
+                            <i class="fas fa-user-friends me-1"></i> Contratos por Lote
+                            <small class="d-block fw-normal opacity-75">Cada lote con su propio plan y beneficiario</small>
+                        </label>
+                    </div>
+                    <small class="text-muted mt-1 d-block">
+                        <i class="fas fa-info-circle text-warning"></i>
+                        <strong>Contratos por Lote</strong>: Úselo cuando cada lote tiene un futuro propietario diferente (hermanos, socios, familiares). Cada lote genera su propio plan de cuotas independiente.
+                    </small>
+                </div>
+            </div>
+
             <div class="row g-3">
                 <!-- Proyecto Bloqueado -->
                 <div class="col-md-4 mb-3">
@@ -161,11 +187,32 @@
                     <label for="lote_select" class="form-label font-weight-bold text-secondary">Lote(s) a Asignar <span class="text-danger">*</span></label>
                     <select class="custom-select form-control" id="lote_select" name="lotes_ids[]" multiple="multiple" required disabled>
                     </select>
-                    <small class="text-muted">Puede seleccionar múltiples lotes si es una venta unificada.</small>
+                    <small class="text-muted" id="hint_lote_select">Puede seleccionar múltiples lotes si es una venta unificada.</small>
                 </div>
             </div>
+
+            {{-- BENEFICIARIO FINAL (solo modo Unificado con un solo lote, o modo Individual lo muestra dinámicamente) --}}
+            <div class="row g-3 mt-2 p-3 border rounded bg-white shadow-sm" id="seccion_beneficiario">
+                <div class="col-12 mb-1">
+                    <h6 class="text-warning fw-bold mb-0">
+                        <i class="fas fa-user-tie me-1"></i> Beneficiario Final / Futuro Titular
+                        <span class="badge bg-warning text-dark ms-1 fw-normal small">Opcional</span>
+                    </h6>
+                    <small class="text-muted">Si el lote será transferido a otra persona al finalizar los pagos (hermano, socio, familiar), indíquelo aquí. El contrato permanece a nombre del representante hasta que se escriture.</small>
+                </div>
+                <div class="col-md-5 mb-2">
+                    <label for="beneficiario_final" class="form-label font-weight-bold text-secondary">Nombre del Beneficiario Final</label>
+                    <input type="text" class="form-control" id="beneficiario_final" name="beneficiario_final" placeholder="Ej: Carlos García (Hermano - USA)" value="{{ old('beneficiario_final') }}">
+                </div>
+                <div class="col-md-7 mb-2">
+                    <label for="nota_beneficiario" class="form-label font-weight-bold text-secondary">Nota / Aclaración Legal</label>
+                    <input type="text" class="form-control" id="nota_beneficiario" name="nota_beneficiario" placeholder="Ej: Hermano en el exterior. Escritura final a su nombre al finalizar el contrato." value="{{ old('nota_beneficiario') }}">
+                </div>
+            </div>
+
         </div>
     </div>
+
 
     {{-- SECCIÓN 3: PLAN FINANCIERO DE LA VENTA --}}
     <div class="card shadow-sm border-left-success mb-4">
