@@ -202,18 +202,20 @@
             <!-- Inputs de Anticipo y Días -->
             <div class="row g-3 mb-3">
                 <div class="col-md-4 mb-3">
-                    <label for="monto_reserva" class="form-label font-weight-bold text-secondary"><i class="fas fa-money-bill-wave text-success"></i> Monto de Reserva (Anticipo) <span class="text-danger">*</span></label>
+                    <label for="monto_reserva" class="form-label font-weight-bold text-secondary"><i class="fas fa-money-bill-wave text-success"></i> Monto de Reserva (Anticipo)</label>
                     <div class="input-group input-group-lg shadow-sm">
                         <span class="input-group-text bg-success text-white border-success">$</span>
-                        <input type="number" step="0.01" min="0" class="form-control border-success font-weight-bold text-success" id="monto_reserva" name="monto_reserva" placeholder="0.00" value="{{ old('monto_reserva') }}" required>
+                        <input type="number" step="0.01" min="0" class="form-control border-success font-weight-bold text-success" id="monto_reserva" name="monto_reserva" placeholder="0.00" value="{{ old('monto_reserva', '0.00') }}">
                     </div>
+                    <small class="text-muted"><i class="fas fa-info-circle text-info"></i> Opcional (dejar en $0.00 si no requiere pago).</small>
                 </div>
                 <div class="col-md-4 mb-3">
                     <label for="dias_validez" class="form-label font-weight-bold text-secondary"><i class="fas fa-hourglass-half text-warning"></i> Días de Validez (Plazo Formalizar) <span class="text-danger">*</span></label>
                     <div class="input-group input-group-lg shadow-sm">
-                        <input type="number" min="1" max="90" class="form-control font-weight-bold" id="dias_validez" name="dias_validez" value="{{ old('dias_validez', 15) }}" required>
+                        <input type="number" min="1" max="90" class="form-control font-weight-bold" id="dias_validez" name="dias_validez" value="{{ old('dias_validez', 5) }}" required>
                         <span class="input-group-text bg-white">Días</span>
                     </div>
+                    <small class="text-muted"><i class="fas fa-calendar-check text-primary"></i> Plazo por defecto: 5 días.</small>
                 </div>
                 <div class="col-md-4 mb-3">
                     <label for="fecha_reserva" class="form-label font-weight-bold text-secondary"><i class="fas fa-calendar-alt text-primary"></i> Fecha de Registro</label>
@@ -225,10 +227,11 @@
             </div>
 
             <!-- Datos de pago del Anticipo -->
-            <div class="row g-3 bg-white p-3 mb-3 rounded border shadow-sm">
+            <div class="row g-3 bg-white p-3 mb-3 rounded border shadow-sm" id="seccion_pago_anticipo">
                 <div class="col-md-4 mb-3">
-                    <label for="metodo_pago" class="form-label font-weight-bold text-secondary">Método de Pago (Anticipo) <span class="text-danger">*</span></label>
-                    <select class="custom-select form-control" id="metodo_pago" name="metodo_pago" required onchange="toggleMetodoFields()">
+                    <label for="metodo_pago" class="form-label font-weight-bold text-secondary">Método de Pago (Anticipo)</label>
+                    <select class="custom-select form-control" id="metodo_pago" name="metodo_pago" onchange="toggleMetodoFields()">
+                        <option value="Sin Anticipo" {{ old('metodo_pago') == 'Sin Anticipo' ? 'selected' : '' }}>Sin Anticipo ($0.00)</option>
                         <option value="Efectivo" {{ old('metodo_pago') == 'Efectivo' ? 'selected' : '' }}>Efectivo</option>
                         <option value="Transferencia Bancaria" {{ old('metodo_pago') == 'Transferencia Bancaria' ? 'selected' : '' }}>Transferencia Bancaria</option>
                         <option value="Depósito Bancario" {{ old('metodo_pago') == 'Depósito Bancario' ? 'selected' : '' }}>Depósito Bancario</option>
@@ -350,7 +353,7 @@
 <script>
 function toggleMetodoFields() {
     var metodo = $('#metodo_pago').val();
-    if (metodo === 'Efectivo') {
+    if (metodo === 'Efectivo' || metodo === 'Sin Anticipo') {
         $('#div_cuenta').hide();
         $('#label_referencia').text('Referencia / Comentarios');
         $('#referencia').attr('placeholder', 'Registro de Reserva');
@@ -363,6 +366,18 @@ function toggleMetodoFields() {
 
 $(document).ready(function() {
     toggleMetodoFields();
+
+    // Auto-ajustar método de pago al escribir monto
+    $('#monto_reserva').on('input', function() {
+        var val = parseFloat($(this).val()) || 0;
+        if (val > 0 && $('#metodo_pago').val() === 'Sin Anticipo') {
+            $('#metodo_pago').val('Efectivo');
+            toggleMetodoFields();
+        } else if (val <= 0 && $('#metodo_pago').val() !== 'Sin Anticipo') {
+            $('#metodo_pago').val('Sin Anticipo');
+            toggleMetodoFields();
+        }
+    });
 
     // Evitar scroll en inputs tipo número
     $('input[type=number]').on('wheel', function(e) {
@@ -497,12 +512,17 @@ $(document).ready(function() {
         $('#modal-res-extension').text('Extensión: ' + extensionTxt);
 
         var montoVal = parseFloat($('#monto_reserva').val()) || 0;
-        var diasVal = parseInt($('#dias_validez').val()) || 15;
+        var diasVal = parseInt($('#dias_validez').val()) || 5;
         var metodo = $('#metodo_pago').val();
 
-        $('#modal-res-monto').text('$' + montoVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        if (montoVal <= 0) {
+            $('#modal-res-monto').text('$0.00 (Sin Anticipo)');
+            $('#modal-res-metodo').text('Sin Anticipo');
+        } else {
+            $('#modal-res-monto').text('$' + montoVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+            $('#modal-res-metodo').text(metodo);
+        }
         $('#modal-res-dias').text(diasVal + ' Días de Validez');
-        $('#modal-res-metodo').text(metodo);
 
         modalReserva.show();
     });

@@ -34,9 +34,13 @@ class ReservaController extends Controller
             'identificacion' => 'required|string|max:20',
             'lotes_ids' => 'required|array',
             'lotes_ids.*' => 'exists:lotes,id_lote',
-            'monto_reserva' => 'required|numeric|min:0',
-            'dias_validez' => 'required|integer|min:1',
+            'monto_reserva' => 'nullable|numeric|min:0',
+            'dias_validez' => 'nullable|integer|min:1',
+            'metodo_pago' => 'nullable|string',
         ]);
+
+        $montoReserva = floatval($request->input('monto_reserva', 0) ?: 0);
+        $diasValidez = intval($request->input('dias_validez', 5) ?: 5);
 
         $activeLotificacionId = session('lotificacion_id');
         $lotificacionId = $activeLotificacionId ?: $request->lotificacion_id;
@@ -60,9 +64,9 @@ class ReservaController extends Controller
             $reserva = Reserva::create([
                 'id_cliente' => $cliente->id_cliente,
                 'lotificacion_id' => $lotificacionId,
-                'monto_reserva' => $request->monto_reserva,
+                'monto_reserva' => $montoReserva,
                 'fecha_reserva' => now()->format('Y-m-d'),
-                'fecha_vencimiento' => now()->addDays($request->dias_validez)->format('Y-m-d'),
+                'fecha_vencimiento' => now()->addDays($diasValidez)->format('Y-m-d'),
                 'estado' => 'Activa',
             ]);
 
