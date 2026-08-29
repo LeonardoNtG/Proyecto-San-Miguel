@@ -163,6 +163,7 @@
 <body>
 
     <h1>Reporte Financiero</h1>
+    <div class="rfpdf-subtitulo" style="font-weight:bold; color:#1a4f8b; font-size:13px; margin-bottom: 2px;">{{ $etiquetaProyecto }}</div>
     <div class="rfpdf-subtitulo">{{ $etiquetaPeriodo }}</div>
 
     <div class="rfpdf-saldo-anterior">
@@ -201,6 +202,9 @@
         <thead>
             <tr>
                 <th>Fecha</th>
+                @if($esGlobal)
+                    <th>Proyecto</th>
+                @endif
                 <th>Cliente</th>
                 <th>N° Bloque</th>
                 <th>N° Lote(s)</th>
@@ -213,6 +217,9 @@
             @forelse ($filasAbonos as $fila)
                 <tr>
                     <td>{{ $fila['fecha'] }}</td>
+                    @if($esGlobal)
+                        <td style="font-weight: bold; color: #4e73df;">{{ $fila['proyecto'] }}</td>
+                    @endif
                     <td>{{ $fila['cliente'] }} ({{ $fila['pv'] }})</td>
                     <td>{{ $fila['bloques'] }}</td>
                     <td>{{ $fila['lotes'] }}</td>
@@ -221,13 +228,13 @@
                     <td>{{ $fila['referencia'] }}</td>
                 </tr>
             @empty
-                <tr><td colspan="7" class="rfpdf-vacio">No se registraron abonos en el periodo seleccionado.</td></tr>
+                <tr><td colspan="{{ $esGlobal ? '8' : '7' }}" class="rfpdf-vacio">No se registraron abonos en el periodo seleccionado.</td></tr>
             @endforelse
         </tbody>
         @if ($filasAbonos->isNotEmpty())
         <tfoot>
             <tr>
-                <td colspan="5">TOTAL REGISTRADO EN ABONOS</td>
+                <td colspan="{{ $esGlobal ? '6' : '5' }}">TOTAL REGISTRADO EN ABONOS</td>
                 <td class="rfpdf-num">${{ number_format($totalIngresos, 2) }}</td>
                 <td></td>
             </tr>
@@ -240,6 +247,9 @@
         <thead>
             <tr>
                 <th>Fecha</th>
+                @if($esGlobal)
+                    <th>Proyecto</th>
+                @endif
                 <th>Descripción</th>
                 <th class="rfpdf-num">Monto</th>
             </tr>
@@ -248,17 +258,20 @@
             @forelse ($filasSalidas as $fila)
                 <tr>
                     <td>{{ $fila['fecha'] }}</td>
+                    @if($esGlobal)
+                        <td style="font-weight: bold; color: #4e73df;">{{ $fila['proyecto'] }}</td>
+                    @endif
                     <td>{{ $fila['descripcion'] }}</td>
                     <td class="rfpdf-num">${{ number_format($fila['monto'], 2) }}</td>
                 </tr>
             @empty
-                <tr><td colspan="3" class="rfpdf-vacio">No se registraron salidas en el periodo seleccionado.</td></tr>
+                <tr><td colspan="{{ $esGlobal ? '4' : '3' }}" class="rfpdf-vacio">No se registraron salidas en el periodo seleccionado.</td></tr>
             @endforelse
         </tbody>
         @if ($filasSalidas->isNotEmpty())
         <tfoot>
             <tr>
-                <td colspan="2">TOTAL REGISTRADO EN SALIDAS</td>
+                <td colspan="{{ $esGlobal ? '3' : '2' }}">TOTAL REGISTRADO EN SALIDAS</td>
                 <td class="rfpdf-num">${{ number_format($totalGastos, 2) }}</td>
             </tr>
         </tfoot>

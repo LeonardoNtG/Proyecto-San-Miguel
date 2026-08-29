@@ -25,6 +25,35 @@ class GraficoController extends Controller
         $agrupacion = $request->get('agrupacion', 'mes');
         $anio = (int) $request->get('anio', now()->year);
         $mes = (int) $request->get('mes', now()->month);
+        $proyectoFiltro = $request->get('proyecto_id', 'actual');
+
+        $esAdmin = auth()->check() && auth()->user()->hasRole('Administrador');
+        $activeLotificacionId = session('lotificacion_id');
+
+        $esGlobal = false;
+        $targetLotificacionId = null;
+
+        if ($esAdmin && ($proyectoFiltro === 'global' || $proyectoFiltro === 'todos')) {
+            $esGlobal = true;
+            $etiquetaProyecto = 'CONSOLIDADO GLOBAL (TODAS LAS LOTIFICACIONES)';
+            $abonosBase = Abono::withoutGlobalScope('lotificacion');
+            $salidasBase = Salida::withoutGlobalScope('lotificacion');
+            $ventasBase = Venta::withoutGlobalScope('lotificacion');
+        } elseif ($esAdmin && is_numeric($proyectoFiltro)) {
+            $targetLotificacionId = (int) $proyectoFiltro;
+            $lotObj = \App\Models\Lotificacion::find($targetLotificacionId);
+            $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Seleccionado';
+            $abonosBase = Abono::withoutGlobalScope('lotificacion')->whereHas('venta', fn($q) => $q->where('lotificacion_id', $targetLotificacionId));
+            $salidasBase = Salida::withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId);
+            $ventasBase = Venta::withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId);
+        } else {
+            $targetLotificacionId = $activeLotificacionId;
+            $lotObj = \App\Models\Lotificacion::find($activeLotificacionId);
+            $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Actual';
+            $abonosBase = Abono::withoutGlobalScope('lotificacion')->whereHas('venta', fn($q) => $q->where('lotificacion_id', $activeLotificacionId));
+            $salidasBase = Salida::withoutGlobalScope('lotificacion')->where('lotificacion_id', $activeLotificacionId);
+            $ventasBase = Venta::withoutGlobalScope('lotificacion')->where('lotificacion_id', $activeLotificacionId);
+        }
 
         if (!in_array($agrupacion, ['anio', 'mes', 'dia'], true)) {
             $agrupacion = 'mes';
@@ -35,14 +64,14 @@ class GraficoController extends Controller
 
         [$labels, $claves, $etiquetaGrupo] = $this->construirBuckets($agrupacion, $anio, $mes);
 
-        $ingresosPorBucket = $this->agruparPorBucket(Abono::query(), 'fecha_pago', 'monto_abonado', $agrupacion, $anio, $mes, $claves);
-        $gastosPorBucket = $this->agruparPorBucket(Salida::query(), 'fecha', 'monto', $agrupacion, $anio, $mes, $claves);
+        $ingresosPorBucket = $this->agruparPorBucket($abonosBase->clone(), 'fecha_pago', 'monto_abonado', $agrupacion, $anio, $mes, $claves);
+        $gastosPorBucket = $this->agruparPorBucket($salidasBase->clone(), 'fecha', 'monto', $agrupacion, $anio, $mes, $claves);
 
         $estados = ['Vigente', 'Finalizado', 'Rescindido'];
         $contratosPorEstado = [];
         foreach ($estados as $estado) {
             $contratosPorEstado[$estado] = $this->agruparPorBucket(
-                Venta::where('estado_contrato', $estado),
+                $ventasBase->clone()->where('estado_contrato', $estado),
                 'fecha_venta',
                 null,
                 $agrupacion,
@@ -64,7 +93,7 @@ class GraficoController extends Controller
         $totalGastos = array_sum($dataGastos);
         $balanceNeto = $totalIngresos - $totalGastos;
 
-        $distribucionEstados = Venta::selectRaw('estado_contrato, COUNT(*) as total')
+        $distribucionEstados = $ventasBase->clone()->selectRaw('estado_contrato, COUNT(*) as total')
             ->groupBy('estado_contrato')
             ->pluck('total', 'estado_contrato');
 
@@ -73,6 +102,11 @@ class GraficoController extends Controller
             'anio' => $anio,
             'mes' => $mes,
             'etiquetaGrupo' => $etiquetaGrupo,
+            'esGlobal' => $esGlobal,
+            'etiquetaProyecto' => $etiquetaProyecto,
+            'proyectoFiltro' => $proyectoFiltro,
+            'esAdmin' => $esAdmin,
+            'proyectosDisponibles' => \App\Models\Lotificacion::orderBy('nombre')->get(),
             'labels' => $labels,
             'dataIngresos' => $dataIngresos,
             'dataGastos' => $dataGastos,
@@ -83,11 +117,7 @@ class GraficoController extends Controller
             'totalIngresos' => $totalIngresos,
             'totalGastos' => $totalGastos,
             'balanceNeto' => $balanceNeto,
-            'totalClientes' => Cliente::count(),
-            'totalContratos' => Venta::count(),
-            'totalVigentes' => (int) ($distribucionEstados['Vigente'] ?? 0),
-            'totalFinalizados' => (int) ($distribucionEstados['Finalizado'] ?? 0),
-            'totalRescindidos' => (int) ($distribucionEstados['Rescindido'] ?? 0),
+            'distribucionEstados' => $distribucionEstados,
             'aniosDisponibles' => $this->aniosDisponibles(),
             'nombresMeses' => [
                 1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril',

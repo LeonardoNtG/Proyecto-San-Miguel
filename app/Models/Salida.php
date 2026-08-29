@@ -7,13 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 
 class Salida extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\ScopedByLotificacion;
     protected $fillable = [
         'monto',
         'descripcion',
         'metodo_pago',
         'fecha',
-        'user_id'
+        'user_id',
+        'lotificacion_id'
     ];
 
     // Opcional: Si quieres que siempre se trate como número

@@ -62,6 +62,11 @@
         <button type="button" class="btn btn-secondary text-white" disabled title="Último turno cerrado">
             <i class="fas fa-lock"></i> Turno Cerrado
         </button>
+        @if(isset($cierresHoy) && $cierresHoy->isNotEmpty())
+        <a href="{{ route('reportes.cierre_turno.pdf', $cierresHoy->first()->id) }}" target="_blank" class="btn btn-outline-dark fw-bold">
+            <i class="fas fa-print"></i> Imprimir Reporte
+        </a>
+        @endif
         <button type="button" class="btn btn-warning fw-bold px-4 text-dark" data-bs-toggle="modal" data-bs-target="#modalAbrirCaja">
             <i class="fas fa-box-open"></i> Abrir Nuevo Turno
         </button>
@@ -118,6 +123,48 @@
         </table>
     </div>
 </div>
+
+@if(isset($cierresHoy) && $cierresHoy->isNotEmpty())
+<div class="card mt-4 shadow-sm border-0 border-top border-dark border-3">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-dark"><i class="fas fa-archive text-secondary"></i> Turnos Cerrados el Día de Hoy</h6>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Hora de Cierre</th>
+                    <th>Efectivo Reportado</th>
+                    <th>Diferencia</th>
+                    <th class="text-center">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($cierresHoy as $cierre)
+                <tr>
+                    <td class="align-middle">{{ $cierre->created_at->format('h:i A') }}</td>
+                    <td class="align-middle">${{ number_format($cierre->efectivo_real, 2) }}</td>
+                    <td class="align-middle">
+                        @if($cierre->diferencia == 0)
+                            <span class="badge bg-success">Cuadrado</span>
+                        @elseif($cierre->diferencia > 0)
+                            <span class="badge bg-warning text-dark">+${{ number_format($cierre->diferencia, 2) }}</span>
+                        @else
+                            <span class="badge bg-danger">-${{ number_format(abs($cierre->diferencia), 2) }}</span>
+                        @endif
+                    </td>
+                    <td class="text-center align-middle">
+                        <a href="{{ route('reportes.cierre_turno.pdf', $cierre->id) }}" target="_blank" class="btn btn-sm btn-outline-dark" title="Imprimir PDF del Cierre">
+                            <i class="fas fa-file-pdf"></i> Imprimir Reporte
+                        </a>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+@endif
 
 {{-- Modal para Abrir Caja --}}
 <div class="modal fade" id="modalAbrirCaja" tabindex="-1" aria-labelledby="modalAbrirCajaLabel" aria-hidden="true">

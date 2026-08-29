@@ -118,21 +118,24 @@
                 </div>
                 <div class="card-body">
                     {{-- Formulario para registrar el abono  --}}
-                    <form action="{{ route('abono.store', $cliente->id_cliente) }}" method="POST" enctype="multipart/form-data">
+                    <form id="form-abono" action="{{ route('abono.store', $cliente->id_cliente) }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         <div class="mb-3">
-                            <label for="monto" class="form-label">Monto del Abono ($)</label>
-                            <input type="number" step="0.01" min="0.01" class="form-control" id="monto" name="monto_abonado" required>
+                            <label for="monto" class="form-label font-weight-bold">Monto del Abono ($) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-success text-white fw-bold">$</span>
+                                <input type="number" step="0.01" min="0.01" class="form-control form-control-lg fw-bold text-success border-success" id="monto" name="monto_abonado" placeholder="0.00" required>
+                            </div>
                         </div>
                         
                         <div class="mb-3">
-                            <label for="fecha" class="form-label">Fecha de Pago</label>
+                            <label for="fecha" class="form-label font-weight-bold">Fecha de Pago <span class="text-danger">*</span></label>
                             <input type="date" class="form-control" id="fecha" name="fecha_pago" value="{{ now()->format('Y-m-d') }}" required>
                         </div>
 
                         <!-- Tipo de Pago -->
                         <div class="mb-3">
-                            <label for="tipo_pago" class="form-label fw-bold">Tipo de Abono / Concepto</label>
+                            <label for="tipo_pago" class="form-label font-weight-bold">Tipo de Abono / Concepto <span class="text-danger">*</span></label>
                             <select class="form-select @error('tipo_pago') is-invalid @enderror" id="tipo_pago" name="tipo_pago" required>
                                 <option value="Mensualidad" {{ old('tipo_pago') == 'Mensualidad' ? 'selected' : '' }}>Mensualidad</option>
                                 <option value="Extraordinario" {{ old('tipo_pago') == 'Extraordinario' ? 'selected' : '' }}>Extraordinario / Abono a Capital</option>
@@ -145,7 +148,7 @@
 
                         <!-- Método de Pago -->
                         <div class="mb-3">
-                            <label for="metodo_pago" class="form-label fw-bold">Método de Pago</label>
+                            <label for="metodo_pago" class="form-label font-weight-bold">Método de Pago <span class="text-danger">*</span></label>
                             <select class="form-select @error('metodo_pago') is-invalid @enderror" id="metodo_pago" name="metodo_pago" required onchange="toggleMetodoPagoFields()">
                                 <option value="Efectivo" {{ old('metodo_pago') == 'Efectivo' ? 'selected' : '' }}>Efectivo</option>
                                 <option value="Transferencia Bancaria" {{ old('metodo_pago') == 'Transferencia Bancaria' ? 'selected' : '' }}>Transferencia Bancaria</option>
@@ -170,109 +173,267 @@
                         </div>
 
                         <div id="campos_efectivo" class="mb-4">
-                            <label for="referencia_efectivo" class="form-label">Comentarios (Opcional)</label>
-                            <input type="text" class="form-control" id="referencia_efectivo" name="referencia" disabled>
+                            <label for="referencia_efectivo" class="form-label font-weight-bold">Comentarios (Opcional)</label>
+                            <input type="text" class="form-control" id="referencia_efectivo" name="referencia_efectivo_coment" placeholder="Observaciones opcionales">
                         </div>
                         
                         <hr>
-                        <div class="mb-4 text-center p-3 border rounded">
-                            <label for="recibo_imagen" class="form-label d-block">Imagen del Recibo (Opcional)</label>
-                        
+                        <div class="mb-4 text-center p-3 border rounded bg-light">
+                            <label for="ruta_recibo" class="form-label d-block fw-bold text-secondary">Imagen del Recibo / Comprobante (Opcional)</label>
                             <input type="file" class="form-control" id="ruta_recibo" name="ruta_recibo" accept="image/*">
                             <small class="text-muted mt-2 d-block">JPG o PNG del comprobante de pago.</small>
                         </div>
 
-                        <button type="submit" class="btn btn-success w-100">
-                            <i class="fas fa-plus-circle"></i> Guardar Abono 
+                        <button type="button" id="btn-preparar-abono" class="btn btn-success btn-lg w-100 shadow-sm py-2">
+                            <i class="fas fa-check-circle me-1"></i> Revisar y Guardar Abono
                         </button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
-    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="deleteModalLabel">Confirmar Eliminación</h5>
-            </div>
-            <div class="modal-body">
-                <p>¿Estás ABSOLUTAMENTE SEGURO de que deseas eliminar este registro?</p>
-                <p class="text-danger">Esta acción es irreversible y eliminará los datos del abono.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                
-                <form id="form-eliminar-abono" action="" method="POST">
-                    @csrf
-                    @method('DELETE')
-                    <button type="submit" class="btn btn-danger">Sí, Eliminar</button>
-                </form>
+
+    {{-- ================================================= --}}
+    {{-- MODAL DE RESUMEN Y CONFIRMACIÓN CONSCIENTE DE ABONO --}}
+    {{-- ================================================= --}}
+    <div class="modal fade" id="modalConfirmarAbono" tabindex="-1" aria-labelledby="modalConfirmarAbonoLabel" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-success text-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="modal-title fw-bold text-white mb-0" id="modalConfirmarAbonoLabel">
+                        <i class="fas fa-receipt me-2"></i> Confirmación de Abono
+                    </h5>
+                    <button type="button" class="close text-white" id="btn-x-modal-abono" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Cerrar" style="font-size: 1.8rem; line-height: 1; border: none; background: transparent; opacity: 1; color: #fff;">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-info py-2 px-3 mb-4 d-flex align-items-center">
+                        <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
+                        <div>
+                            <strong>Verificación consciente de pago:</strong>
+                            <div class="small">Revise detenidamente los datos antes de procesar la transacción y registrar el comprobante en el sistema.</div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded border h-100">
+                                <span class="text-secondary d-block small text-uppercase fw-bold">Cliente</span>
+                                <span class="fs-5 fw-bold text-dark d-block">{{ $cliente->nombres_apellidos }}</span>
+                                <span class="badge bg-secondary text-white me-1 px-2 py-1">Exp: {{ $cliente->expediente_num }}</span>
+                                <span class="badge bg-primary text-white px-2 py-1">PV: {{ $cliente->pv_num }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded border h-100">
+                                <span class="text-secondary d-block small text-uppercase fw-bold">Inmueble / Lotes</span>
+                                <div class="mt-1">
+                                    @foreach ($detallesLotes as $detalle)
+                                        <span class="badge bg-dark text-white me-1 mb-1 px-2 py-1">
+                                            Bloque {{ $detalle['bloque'] }} - Lote {{ $detalle['lote'] }}
+                                        </span>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card border-success mb-3">
+                        <div class="card-body p-3 bg-light">
+                            <div class="row text-center align-items-center">
+                                <div class="col-md-4 border-end">
+                                    <span class="text-muted small d-block text-uppercase">Monto a Ingresar</span>
+                                    <span class="fs-3 fw-bold text-success" id="resumen-monto">$0.00</span>
+                                </div>
+                                <div class="col-md-4 border-end">
+                                    <span class="text-muted small d-block text-uppercase">Concepto / Tipo</span>
+                                    <span class="fs-5 fw-bold text-primary" id="resumen-tipo">-</span>
+                                </div>
+                                <div class="col-md-4">
+                                    <span class="text-muted small d-block text-uppercase">Método de Pago</span>
+                                    <span class="fs-5 fw-bold text-dark" id="resumen-metodo">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="resumen-banco-fila" class="p-3 mb-3 bg-white rounded border border-info" style="display:none;">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <span class="text-muted small d-block">Cuenta Destino:</span>
+                                <strong class="text-dark" id="resumen-cuenta">-</strong>
+                            </div>
+                            <div class="col-md-6">
+                                <span class="text-muted small d-block">N° Referencia:</span>
+                                <strong class="text-primary font-monospace" id="resumen-referencia">-</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- IMPACTO FINANCIERO --}}
+                    <div class="p-3 bg-white rounded border mb-2">
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                            <span class="text-muted">Fecha del Pago:</span>
+                            <strong class="text-dark" id="resumen-fecha">-</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-2">
+                            <span class="text-muted">Saldo Pendiente Actual:</span>
+                            <strong class="text-danger">${{ number_format($saldoPendiente, 2) }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center pt-1">
+                            <span class="fw-bold text-dark">Saldo Pendiente Estimado Posterior:</span>
+                            <strong class="fs-5 text-success" id="resumen-saldo-posterior">$0.00</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light py-3 border-top">
+                    <button type="button" class="btn btn-secondary text-white px-4 fw-bold" id="btn-cancelar-modal-abono" data-bs-dismiss="modal" data-dismiss="modal">
+                        <i class="fas fa-edit me-1"></i> Modificar / Volver
+                    </button>
+                    <button type="button" id="btn-confirmar-guardar-abono" class="btn btn-success text-white px-4 fw-bold shadow-sm">
+                        <i class="fas fa-check-circle me-1"></i> Sí, Confirmar y Guardar Abono
+                    </button>
+                </div>
             </div>
         </div>
     </div>
-</div>
+
+    {{-- MODAL DE ELIMINACIÓN --}}
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow">
+                <div class="modal-header bg-danger text-white d-flex justify-content-between align-items-center">
+                    <h5 class="modal-title text-white mb-0" id="deleteModalLabel"><i class="fas fa-exclamation-triangle me-2"></i> Confirmar Eliminación</h5>
+                    <button type="button" class="close text-white" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Cerrar" style="font-size: 1.8rem; line-height: 1; border: none; background: transparent; opacity: 1; color: #fff;">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <p class="fs-5 mb-2">¿Estás seguro de que deseas eliminar este abono?</p>
+                    <p class="text-danger small mb-0">Esta acción es irreversible y recalculará el saldo pendiente y las cuotas del cliente.</p>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary text-white" data-bs-dismiss="modal" data-dismiss="modal">Cancelar</button>
+                    <form id="form-eliminar-abono" action="" method="POST">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn btn-danger">Sí, Eliminar Abono</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 
 @endsection
 
 @section('scripts')
 <script>
+    var saldoActualVenta = {{ (float)$saldoPendiente }};
+
     function toggleMetodoPagoFields() {
         var metodo = document.getElementById('metodo_pago').value;
-        var camposTransf = document.getElementById('campos_transferencia');
-        var camposEfectivo = document.getElementById('campos_efectivo');
-        
-        var inputCuenta = document.getElementById('cuenta_destino');
-        var inputRef = document.getElementById('referencia');
-        var inputRefEfectivo = document.getElementById('referencia_efectivo');
+        var bancoSection = document.getElementById('banco_section');
+        var cuentaInput = document.getElementById('cuenta_destino');
+        var refInput = document.getElementById('referencia_bancaria');
+        var labelRef = document.getElementById('label_referencia');
 
         if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario' || metodo === 'Cheque') {
-            camposTransf.style.display = 'block';
-            camposEfectivo.style.display = 'none';
-            
-            // Habilitar y requerir
-            inputCuenta.disabled = false;
-            inputCuenta.required = true;
-            inputRef.disabled = false;
-            inputRef.required = (metodo !== 'Cheque'); // Opcional o requerido según necesidad
-
-            inputRefEfectivo.disabled = true;
+            bancoSection.style.display = 'block';
+            cuentaInput.required = true;
+            refInput.required = (metodo !== 'Cheque');
+            labelRef.textContent = (metodo === 'Cheque') ? 'N° de Cheque (Opcional)' : 'N° de Referencia / Comprobante';
         } else {
-            // Efectivo
-            camposTransf.style.display = 'none';
-            camposEfectivo.style.display = 'block';
-
-            inputCuenta.disabled = true;
-            inputCuenta.required = false;
-            inputRef.disabled = true;
-            inputRef.required = false;
-
-            inputRefEfectivo.disabled = false;
+            bancoSection.style.display = 'none';
+            cuentaInput.required = false;
+            cuentaInput.value = '';
+            refInput.required = false;
+            refInput.value = '';
         }
     }
 
-    // Ejecutar al cargar la página por si hay valores "old"
-    document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener("DOMContentLoaded", function () {
         toggleMetodoPagoFields();
+
+        var formAbono = document.getElementById('form-abono');
+        var modalEl = document.getElementById('modalConfirmarAbono');
+        var modalInstance = new bootstrap.Modal(modalEl);
+
+        document.getElementById('btn-preparar-abono').addEventListener('click', function(e) {
+            e.preventDefault();
+
+            if (!formAbono.checkValidity()) {
+                formAbono.reportValidity();
+                return;
+            }
+
+            var montoVal = parseFloat(document.getElementById('monto_abonado').value) || 0;
+            var tipoVal = document.getElementById('tipo_pago').value;
+            var metodoVal = document.getElementById('metodo_pago').value;
+            var fechaVal = document.getElementById('fecha_abono').value;
+            var cuentaVal = document.getElementById('cuenta_destino').value || '-';
+            var refVal = document.getElementById('referencia_bancaria').value || '-';
+
+            if (montoVal <= 0) {
+                alert('Por favor ingrese un monto de abono válido mayor a 0.');
+                document.getElementById('monto_abonado').focus();
+                return;
+            }
+
+            document.getElementById('resumen-monto').textContent = '$' + montoVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            document.getElementById('resumen-tipo').textContent = (tipoVal === 'Mensualidad') ? 'Cuota / Mensualidad' : 'Abono Extraordinario';
+            document.getElementById('resumen-metodo').textContent = metodoVal;
+            document.getElementById('resumen-fecha').textContent = fechaVal;
+
+            var saldoPosterior = Math.max(0, saldoActualVenta - montoVal);
+            document.getElementById('resumen-saldo-posterior').textContent = '$' + saldoPosterior.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+            var filaBanco = document.getElementById('resumen-banco-fila');
+            if (metodoVal !== 'Efectivo') {
+                document.getElementById('resumen-cuenta').textContent = cuentaVal;
+                document.getElementById('resumen-referencia').textContent = refVal;
+                filaBanco.style.display = 'block';
+            } else {
+                filaBanco.style.display = 'none';
+            }
+
+            modalInstance.show();
+        });
+
+        // Cerrar modal
+        $('#btn-cancelar-modal-abono, #btn-x-modal-abono').on('click', function(e) {
+            e.preventDefault();
+            try { modalInstance.hide(); } catch(err) {}
+            $('#modalConfirmarAbono').modal('hide');
+            $('.modal-backdrop').remove();
+            $('body').removeClass('modal-open').css('padding-right', '');
+        });
+
+        document.getElementById('btn-confirmar-guardar-abono').addEventListener('click', function(e) {
+            e.preventDefault();
+            this.disabled = true;
+            this.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando Abono...';
+            formAbono.submit();
+        });
+
+        // Configuración del botón eliminar abono en la tabla
+        var deleteButtons = document.querySelectorAll('.delete-abono');
+        deleteButtons.forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var abonoId = this.getAttribute('data-id');
+                var formEliminar = document.getElementById('form-eliminar-abono');
+                formEliminar.action = '/abono/' + abonoId;
+            });
+        });
     });
 </script>
 @endsection
 
-
 @push('scripts')
-<script>
-     <script src="{{ asset('js/jqueryEM.js') }}"></script>
-
-         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
-
-    <!-- Custom scripts for all pages-->
+    <script src="{{ asset('js/jqueryEM.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="{{ asset('js/sbAdmin2M.js') }}"></script>
-
-    <!-- Page level plugins -->
     <script src="{{ asset('js/chartM.js') }}"></script>
-
-    <!-- Page level custom scripts -->
     <script src="{{ asset('js/chartAD.js') }}"></script>
     <script src="{{ asset('js/chartPD.js') }}"></script>
-</script>
 @endpush

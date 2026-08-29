@@ -61,6 +61,33 @@ class ReporteController extends Controller
         $anio = (int) $request->get('anio', now()->year);
         $mes = (int) $request->get('mes', now()->month);
         $fechaSeleccionada = $request->get('fecha', now()->format('Y-m-d'));
+        $proyectoFiltro = $request->get('proyecto_id', 'actual');
+
+        $esAdmin = auth()->check() && auth()->user()->hasRole('Administrador');
+        $activeLotificacionId = session('lotificacion_id');
+
+        $esGlobal = false;
+        $targetLotificacionId = null;
+
+        if ($esAdmin && ($proyectoFiltro === 'global' || $proyectoFiltro === 'todos')) {
+            $esGlobal = true;
+            $etiquetaProyecto = 'CONSOLIDADO GLOBAL (TODAS LAS LOTIFICACIONES)';
+            $abonosQuery = Abono::withoutGlobalScope('lotificacion')->with(['venta.cliente', 'venta.lotes.bloque', 'venta.lotificacion']);
+            $salidasQuery = Salida::withoutGlobalScope('lotificacion');
+        } elseif ($esAdmin && is_numeric($proyectoFiltro)) {
+            $targetLotificacionId = (int) $proyectoFiltro;
+            $lotObj = \App\Models\Lotificacion::find($targetLotificacionId);
+            $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Seleccionado';
+            $abonosQuery = Abono::withoutGlobalScope('lotificacion')->whereHas('venta', fn($q) => $q->where('lotificacion_id', $targetLotificacionId))->with(['venta.cliente', 'venta.lotes.bloque', 'venta.lotificacion']);
+            $salidasQuery = Salida::withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId);
+        } else {
+            // Usuario normal o Admin en modo proyecto actual
+            $targetLotificacionId = $activeLotificacionId;
+            $lotObj = \App\Models\Lotificacion::find($activeLotificacionId);
+            $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Actual';
+            $abonosQuery = Abono::withoutGlobalScope('lotificacion')->whereHas('venta', fn($q) => $q->where('lotificacion_id', $activeLotificacionId))->with(['venta.cliente', 'venta.lotes.bloque', 'venta.lotificacion']);
+            $salidasQuery = Salida::withoutGlobalScope('lotificacion')->where('lotificacion_id', $activeLotificacionId);
+        }
 
         if (!in_array($periodo, ['hoy', 'dia', 'mes', 'anio', 'ytd'], true)) {
             $periodo = 'mes';
@@ -110,13 +137,14 @@ class ReporteController extends Controller
                 break;
         }
 
-        $abonos = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
+        $abonos = $abonosQuery
             ->whereBetween('fecha_pago', [$inicio->format('Y-m-d'), $fin->format('Y-m-d')])
             ->orderBy('fecha_pago')
             ->orderBy('created_at')
             ->get();
 
-        $salidas = Salida::whereBetween('fecha', [$inicio->format('Y-m-d'), $fin->format('Y-m-d')])
+        $salidas = $salidasQuery
+            ->whereBetween('fecha', [$inicio->format('Y-m-d'), $fin->format('Y-m-d')])
             ->orderBy('fecha')
             ->orderBy('created_at')
             ->get();
@@ -126,10 +154,13 @@ class ReporteController extends Controller
         $balanceNeto = $totalIngresos - $totalGastos;
 
         // Efectivo que venía arrastrado (sin cerrar) antes de iniciar el periodo filtrado
-        $saldoAnterior = $this->calcularSaldoAnterior($inicio->format('Y-m-d'));
+        $saldoAnterior = $this->calcularSaldoAnterior($inicio->format('Y-m-d'), $esGlobal, $targetLotificacionId);
         $totalConSaldoAnterior = $saldoAnterior + $totalIngresos;
 
         $clientesAbonaron = $abonos->pluck('venta.cliente.id_cliente')->filter()->unique()->count();
+
+        // Mapa de lotificaciones para nombres rápidos en salidas
+        $mapaLotificaciones = \App\Models\Lotificacion::pluck('nombre', 'id')->toArray();
 
         $filasAbonos = $abonos->map(function ($abono) {
             $venta = $abono->venta;
@@ -144,6 +175,8 @@ class ReporteController extends Controller
                 ? $lotes->pluck('bloque.nombre')->filter()->unique()->implode(', ')
                 : 'N/A';
 
+            $proyectoNombre = $venta && $venta->lotificacion ? $venta->lotificacion->nombre : 'N/A';
+
             return [
                 'fecha' => Carbon::parse($abono->fecha_pago)->format('d/m/Y'),
                 'hora' => $abono->created_at ? $abono->created_at->format('h:i A') : '-',
@@ -151,17 +184,23 @@ class ReporteController extends Controller
                 'pv' => $cliente->pv_num ?? '-',
                 'bloques' => $bloquesTexto,
                 'lotes' => $lotesTexto,
+                'proyecto' => $proyectoNombre,
                 'monto' => (float) $abono->monto_abonado,
                 'tipo' => $abono->tipo_pago,
                 'referencia' => $abono->referencia ?: '-',
             ];
         })->values();
 
-        $filasSalidas = $salidas->map(function ($salida) {
+        $filasSalidas = $salidas->map(function ($salida) use ($mapaLotificaciones) {
+            $proyectoNombre = $salida->lotificacion_id && isset($mapaLotificaciones[$salida->lotificacion_id])
+                ? $mapaLotificaciones[$salida->lotificacion_id]
+                : 'N/A';
+
             return [
                 'fecha' => $salida->fecha ? Carbon::parse($salida->fecha)->format('d/m/Y') : '-',
                 'hora' => $salida->created_at ? $salida->created_at->format('h:i A') : '-',
                 'descripcion' => $salida->descripcion,
+                'proyecto' => $proyectoNombre,
                 'monto' => (float) $salida->monto,
             ];
         })->values();
@@ -172,6 +211,11 @@ class ReporteController extends Controller
             'mes' => $mes,
             'fechaSeleccionada' => $fechaSeleccionada,
             'etiquetaPeriodo' => $etiquetaPeriodo,
+            'esGlobal' => $esGlobal,
+            'etiquetaProyecto' => $etiquetaProyecto,
+            'proyectoFiltro' => $proyectoFiltro,
+            'esAdmin' => $esAdmin,
+            'proyectosDisponibles' => \App\Models\Lotificacion::orderBy('nombre')->get(),
             'inicio' => $inicio,
             'fin' => $fin,
             'totalIngresos' => $totalIngresos,
@@ -249,13 +293,21 @@ class ReporteController extends Controller
 
         $ingresosHoy = $listaIngresos->sum('monto_abonado');
         $egresosHoy = $listaSalidas->sum('monto');
-
-        $efectivoTotalSuma = $saldoInicial + $ingresosHoy;
-        $saldoFinalCaja = $efectivoTotalSuma - $egresosHoy;
+        $saldoFinalCaja = $saldoInicial + $ingresosHoy - $egresosHoy;
+        
+        $cierresHoy = \App\Models\CierreCaja::where('fecha', $fecha)->where('user_id', auth()->id())->latest()->get();
 
         return view('reportes.diario', compact(
-            'fecha', 'saldoInicial', 'ingresosHoy', 
-            'egresosHoy', 'listaSalidas', 'listaIngresos', 'efectivoTotalSuma', 'saldoFinalCaja', 'cajaAbierta', 'cajaCerrada'
+            'saldoInicial',
+            'ingresosHoy',
+            'egresosHoy',
+            'saldoFinalCaja',
+            'fecha',
+            'cajaAbierta',
+            'cajaCerrada',
+            'listaSalidas',
+            'listaIngresos',
+            'cierresHoy'
         ));
     }
 
@@ -381,27 +433,44 @@ class ReporteController extends Controller
      * posteriores al último cierre que todavía NO se han cerrado (aunque
      * hayan pasado varios días sin usar "Realizar Cierre de Caja").
      */
-    private function calcularSaldoAnterior(string $fecha): float
+    private function calcularSaldoAnterior(string $fecha, bool $esGlobal = false, ?int $targetLotificacionId = null): float
     {
-        $ultimoCierre = CierreCaja::where('fecha', '<', $fecha)
-            ->where('user_id', auth()->id())
-            ->orderByDesc('fecha')
-            ->first();
+        if (!$esGlobal && $targetLotificacionId === null) {
+            $targetLotificacionId = session('lotificacion_id');
+        }
+
+        $cierreQuery = CierreCaja::withoutGlobalScope('lotificacion')
+            ->where('fecha', '<', $fecha)
+            ->where('user_id', auth()->id());
+
+        if (!$esGlobal && $targetLotificacionId) {
+            $cierreQuery->where('lotificacion_id', $targetLotificacionId);
+        }
+
+        $ultimoCierre = $cierreQuery->orderByDesc('fecha')->first();
 
         $saldo = 0.0;
         $desde = $ultimoCierre ? Carbon::parse($ultimoCierre->fecha)->addDay()->format('Y-m-d') : null;
         $hasta = Carbon::parse($fecha)->subDay()->format('Y-m-d');
 
         if (!$desde || $desde <= $hasta) {
-            $ingresosPendientes = Abono::when($desde, fn ($q) => $q->where('fecha_pago', '>=', $desde))
+            $ingresosQuery = Abono::withoutGlobalScope('lotificacion')
+                ->when($desde, fn ($q) => $q->where('fecha_pago', '>=', $desde))
                 ->where('fecha_pago', '<=', $hasta)
-                ->where('user_id', auth()->id())
-                ->sum('monto_abonado');
+                ->where('user_id', auth()->id());
 
-            $egresosPendientes = Salida::when($desde, fn ($q) => $q->where('fecha', '>=', $desde))
+            $egresosQuery = Salida::withoutGlobalScope('lotificacion')
+                ->when($desde, fn ($q) => $q->where('fecha', '>=', $desde))
                 ->where('fecha', '<=', $hasta)
-                ->where('user_id', auth()->id())
-                ->sum('monto');
+                ->where('user_id', auth()->id());
+
+            if (!$esGlobal && $targetLotificacionId) {
+                $ingresosQuery->whereHas('venta', fn($q) => $q->where('lotificacion_id', $targetLotificacionId));
+                $egresosQuery->where('lotificacion_id', $targetLotificacionId);
+            }
+
+            $ingresosPendientes = $ingresosQuery->sum('monto_abonado');
+            $egresosPendientes = $egresosQuery->sum('monto');
 
             $saldo += (float) $ingresosPendientes - (float) $egresosPendientes;
         }
@@ -452,5 +521,120 @@ class ReporteController extends Controller
         \App\Models\Auditoria::log('Eliminó Egreso', 'Salida', $id, "Monto: $" . number_format($monto, 2));
 
         return redirect()->back()->with('success', 'Salida eliminada correctamente.');
+    }
+
+    public function imprimirCierreTurnoPdf($id)
+    {
+        $cierre = \App\Models\CierreCaja::with('user')->findOrFail($id);
+        
+        if ($cierre->user_id !== auth()->id() && !auth()->user()->hasRole('Administrador')) {
+            abort(403, 'No autorizado para ver este cierre.');
+        }
+
+        $apertura = \App\Models\AperturaCaja::where('user_id', $cierre->user_id)
+            ->where('created_at', '<=', $cierre->created_at)
+            ->latest()
+            ->first();
+
+        $inicioTurno = $apertura ? $apertura->created_at : $cierre->created_at->startOfDay();
+        $finTurno = $cierre->created_at;
+
+        $abonos = \App\Models\Abono::with(['venta.cliente', 'venta.lotes.bloque'])
+            ->where('user_id', $cierre->user_id)
+            ->whereBetween('created_at', [$inicioTurno, $finTurno])
+            ->get();
+
+        $salidas = \App\Models\Salida::where('user_id', $cierre->user_id)
+            ->whereBetween('created_at', [$inicioTurno, $finTurno])
+            ->get();
+
+        $abonosEfectivo = [];
+        $abonosTransferencia = [];
+        $totalEfectivo = 0;
+        $totalTransferencias = 0;
+
+        foreach ($abonos as $abono) {
+            $cliente = $abono->venta && $abono->venta->cliente ? $abono->venta->cliente->nombres_apellidos : 'Cliente Desconocido';
+            $lotes = '';
+            $bloques = '';
+            if ($abono->venta) {
+                $lotesArr = [];
+                $bloquesArr = [];
+                foreach ($abono->venta->lotes as $lote) {
+                    $lotesArr[] = $lote->numero_lote;
+                    if ($lote->bloque) {
+                        $bloquesArr[] = $lote->bloque->nombre;
+                    }
+                }
+                $lotes = implode(', ', array_unique($lotesArr));
+                $bloques = implode(', ', array_unique($bloquesArr));
+            }
+
+            $item = [
+                'cliente' => $cliente,
+                'lotes' => $lotes,
+                'bloques' => $bloques,
+                'monto' => $abono->monto_abonado,
+                'hora' => $abono->created_at->format('h:i a'),
+                'referencia' => $abono->referencia ?? 'N/A',
+                'metodo_pago' => $abono->metodo_pago,
+                'cuenta_destino' => $abono->cuenta_destino ?? 'N/A',
+            ];
+
+            if ($abono->metodo_pago === 'Efectivo') {
+                $abonosEfectivo[] = $item;
+                $totalEfectivo += $abono->monto_abonado;
+            } else {
+                $abonosTransferencia[] = $item;
+                $totalTransferencias += $abono->monto_abonado;
+            }
+        }
+
+        // Salidas en efectivo vs otras salidas
+        $totalSalidasEfectivo = 0;
+        foreach ($salidas as $salida) {
+            if (empty($salida->metodo_pago) || $salida->metodo_pago === 'Efectivo') {
+                $totalSalidasEfectivo += $salida->monto;
+            }
+        }
+
+        $totalSalidas = $salidas->sum('monto');
+        
+        // Existencia real de efectivo en la gaveta
+        $saldoInicial = $cierre->saldo_inicial;
+        $existenciaEnCaja = $saldoInicial + $totalEfectivo - $totalSalidasEfectivo;
+        
+        $lotificacionNombre = null;
+        if (!empty($cierre->lotificacion_id)) {
+            $lot = \App\Models\Lotificacion::find($cierre->lotificacion_id);
+            $lotificacionNombre = $lot ? $lot->nombre : null;
+        }
+        if (!$lotificacionNombre) {
+            try {
+                $lotificacion = app(\App\Services\LotificacionService::class)->getActiveLotificacion();
+                $lotificacionNombre = $lotificacion ? $lotificacion->nombre : 'Proyecto';
+            } catch (\Exception $e) {
+                $lotificacionNombre = 'Proyecto';
+            }
+        }
+
+        $data = [
+            'fechaFormateada' => \Carbon\Carbon::parse($cierre->fecha)->format('d/m/Y'),
+            'horaGeneracion' => now()->format('h:i a'),
+            'cajero' => $cierre->user ? $cierre->user->name : 'Cajero',
+            'lotificacionNombre' => $lotificacionNombre,
+            'saldoInicial' => $saldoInicial,
+            'totalEfectivo' => $totalEfectivo,
+            'totalSalidas' => $totalSalidasEfectivo,
+            'saldoFinalCaja' => $existenciaEnCaja,
+            'totalTransferencias' => $totalTransferencias,
+            'abonosEfectivo' => $abonosEfectivo,
+            'abonosTransferencia' => $abonosTransferencia,
+        ];
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reportes.cierre_turno_pdf', $data)
+            ->setPaper('letter', 'portrait');
+
+        return $pdf->download('Cierre_Turno_' . \Carbon\Carbon::parse($cierre->fecha)->format('Ymd') . '_' . $cierre->id . '.pdf');
     }
 }

@@ -9,7 +9,12 @@
 <div class="rf-page-header">
     <div>
         <h1><i class="fas fa-folder-open me-2 text-primary"></i> Reporte Financiero — Archivos</h1>
-        <div class="rf-subtitulo">{{ $etiquetaPeriodo }} &middot; Generado el {{ $generadoEl }}</div>
+        <div class="rf-subtitulo">
+            <span class="badge bg-{{ $esGlobal ? 'warning text-dark' : 'primary text-white' }} me-2 px-2 py-1">
+                <i class="fas fa-project-diagram me-1"></i> {{ $etiquetaProyecto }}
+            </span>
+            {{ $etiquetaPeriodo }} &middot; Generado el {{ $generadoEl }}
+        </div>
     </div>
     <div class="rf-acciones-exportar d-flex gap-2">
         <a href="{{ route('reportes.financiero.pdf', request()->query()) }}"
@@ -31,7 +36,22 @@
 <div class="rf-filtros">
     <form id="rf-form-filtros" method="GET" action="{{ route('reportes.financiero') }}">
         <div class="row g-3 align-items-end">
-            <div class="col-6 col-md-3">
+            @if(isset($esAdmin) && $esAdmin)
+            <div class="col-12 col-md-3">
+                <label for="rf-proyecto" class="font-weight-bold text-primary"><i class="fas fa-building me-1"></i> Proyecto / Consolidado</label>
+                <select id="rf-proyecto" name="proyecto_id" class="form-select border-primary">
+                    <option value="actual" @selected($proyectoFiltro === 'actual')>Proyecto Actual ({{ $userLotificaciones->firstWhere('id', session('lotificacion_id'))->nombre ?? 'Activo' }})</option>
+                    <option value="global" @selected($proyectoFiltro === 'global' || $proyectoFiltro === 'todos')>⭐ CONSOLIDADO GLOBAL (TODAS)</option>
+                    <optgroup label="Filtrar por Proyecto Específico">
+                        @foreach ($proyectosDisponibles as $proy)
+                            <option value="{{ $proy->id }}" @selected((string)$proyectoFiltro === (string)$proy->id)>{{ $proy->nombre }}</option>
+                        @endforeach
+                    </optgroup>
+                </select>
+            </div>
+            @endif
+
+            <div class="col-6 col-md-{{ isset($esAdmin) && $esAdmin ? '2' : '3' }}">
                 <label for="rf-periodo">Periodo</label>
                 <select id="rf-periodo" name="periodo" class="form-select">
                     <option value="hoy" @selected($periodo === 'hoy')>Solo el día actual</option>
@@ -42,12 +62,12 @@
                 </select>
             </div>
 
-            <div class="col-6 col-md-3 {{ $periodo === 'dia' ? '' : 'd-none' }}" id="rf-grupo-fecha">
+            <div class="col-6 col-md-2 {{ $periodo === 'dia' ? '' : 'd-none' }}" id="rf-grupo-fecha">
                 <label for="rf-fecha">Fecha</label>
                 <input type="date" id="rf-fecha" name="fecha" class="form-control" value="{{ $fechaSeleccionada }}" max="{{ now()->format('Y-m-d') }}">
             </div>
 
-            <div class="col-6 col-md-3 {{ in_array($periodo, ['mes', 'anio', 'ytd']) ? '' : 'd-none' }}" id="rf-grupo-anio">
+            <div class="col-6 col-md-2 {{ in_array($periodo, ['mes', 'anio', 'ytd']) ? '' : 'd-none' }}" id="rf-grupo-anio">
                 <label for="rf-anio">Año</label>
                 <select id="rf-anio" name="anio" class="form-select">
                     @foreach ($aniosDisponibles as $anioOpcion)
@@ -56,7 +76,7 @@
                 </select>
             </div>
 
-            <div class="col-6 col-md-3 {{ $periodo === 'mes' ? '' : 'd-none' }}" id="rf-grupo-mes">
+            <div class="col-6 col-md-2 {{ $periodo === 'mes' ? '' : 'd-none' }}" id="rf-grupo-mes">
                 <label for="rf-mes">Mes</label>
                 @php
                     $nombresMeses = [
@@ -72,7 +92,7 @@
                 </select>
             </div>
 
-            <div class="col-6 col-md-3">
+            <div class="col-6 col-md-{{ isset($esAdmin) && $esAdmin ? '3' : '3' }}">
                 <button type="submit" class="btn btn-primary w-100">
                     <i class="fas fa-filter me-1"></i> Generar Reporte
                 </button>
@@ -103,14 +123,14 @@
         <div class="rf-kpi-icono"><i class="fas fa-balance-scale"></i></div>
         <div class="rf-kpi-texto">
             <p class="rf-kpi-label">Balance Neto</p>
-            <p class="rf-kpi-valor" data-rf-contador="{{ $balanceNeto }}" data-rf-moneda>$0.00</p>
+            <p class="rf-kpi-valor {{ $balanceNeto >= 0 ? 'rf-positivo' : 'rf-negativo' }}" data-rf-contador="{{ $balanceNeto }}" data-rf-moneda>$0.00</p>
         </div>
     </div>
     <div class="rf-kpi">
         <div class="rf-kpi-icono"><i class="fas fa-users"></i></div>
         <div class="rf-kpi-texto">
-            <p class="rf-kpi-label">Clientes que Abonaron</p>
-            <p class="rf-kpi-valor" data-rf-contador="{{ $clientesAbonaron }}">0</p>
+            <p class="rf-kpi-label">Clientes que abonaron</p>
+            <p class="rf-kpi-valor" data-rf-contador="{{ $clientesAbonaron }}">{{ $clientesAbonaron }}</p>
         </div>
     </div>
     <div class="rf-kpi">
@@ -123,7 +143,7 @@
 </div>
 
 {{-- ================================================= --}}
-{{-- CUADRO 1: ABONOS EN EFECTIVO / INGRESOS --}}
+{{-- CUADRO 1: ABONOS / INGRESOS --}}
 {{-- ================================================= --}}
 <div class="rf-cuadro">
     <div class="rf-cuadro-header rf-header-ingresos">
@@ -139,6 +159,9 @@
                 <tr>
                     <th>Fecha</th>
                     <th>Hora</th>
+                    @if($esGlobal)
+                        <th>Proyecto</th>
+                    @endif
                     <th>Cliente</th>
                     <th>Bloque</th>
                     <th>Lote(s)</th>
@@ -152,6 +175,9 @@
                     <tr data-rf-fila>
                         <td>{{ $fila['fecha'] }}</td>
                         <td>{{ $fila['hora'] }}</td>
+                        @if($esGlobal)
+                            <td><span class="badge bg-secondary text-white">{{ $fila['proyecto'] }}</span></td>
+                        @endif
                         <td>{{ $fila['cliente'] }} <span class="rf-pv-badge">{{ $fila['pv'] }}</span></td>
                         <td>{{ $fila['bloques'] }}</td>
                         <td>{{ $fila['lotes'] }}</td>
@@ -161,7 +187,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="rf-vacio">No se registraron abonos en el periodo seleccionado.</td>
+                        <td colspan="{{ $esGlobal ? '9' : '8' }}" class="rf-vacio">No se registraron abonos en el periodo seleccionado.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -183,6 +209,9 @@
                 <tr>
                     <th>Fecha</th>
                     <th>Hora</th>
+                    @if($esGlobal)
+                        <th>Proyecto</th>
+                    @endif
                     <th>Descripción</th>
                     <th class="rf-num">Monto</th>
                 </tr>
@@ -192,12 +221,15 @@
                     <tr>
                         <td>{{ $fila['fecha'] }}</td>
                         <td>{{ $fila['hora'] }}</td>
+                        @if($esGlobal)
+                            <td><span class="badge bg-secondary text-white">{{ $fila['proyecto'] }}</span></td>
+                        @endif
                         <td>{{ $fila['descripcion'] }}</td>
                         <td class="rf-num rf-monto-gasto">${{ number_format($fila['monto'], 2) }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="4" class="rf-vacio">No se registraron salidas en el periodo seleccionado.</td>
+                        <td colspan="{{ $esGlobal ? '5' : '4' }}" class="rf-vacio">No se registraron salidas en el periodo seleccionado.</td>
                     </tr>
                 @endforelse
             </tbody>

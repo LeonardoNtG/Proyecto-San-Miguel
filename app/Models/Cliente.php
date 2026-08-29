@@ -28,6 +28,34 @@ class Cliente extends Model
         'token_seguimiento',
     ];
 
+    public static function generarSiguienteExpediente()
+    {
+        $ultimoCliente = static::withoutGlobalScope('lotificacion')
+            ->orderBy('id_cliente', 'desc')
+            ->first();
+
+        $siguienteNumero = 1;
+        if ($ultimoCliente) {
+            preg_match('/(\d+)/', $ultimoCliente->expediente_num ?? '', $matches);
+            if (!empty($matches[1])) {
+                $numeroExtraido = intval($matches[1]);
+                $siguienteNumero = max($numeroExtraido + 1, $ultimoCliente->id_cliente + 1);
+            } else {
+                $siguienteNumero = $ultimoCliente->id_cliente + 1;
+            }
+        }
+
+        do {
+            $codigo = 'EXP-' . str_pad($siguienteNumero, 4, '0', STR_PAD_LEFT);
+            $existe = static::withoutGlobalScope('lotificacion')->where('expediente_num', $codigo)->exists();
+            if ($existe) {
+                $siguienteNumero++;
+            }
+        } while ($existe);
+
+        return $codigo;
+    }
+
     protected static function boot()
     {
         parent::boot();
@@ -35,6 +63,12 @@ class Cliente extends Model
         static::creating(function ($cliente) {
             if (empty($cliente->token_seguimiento)) {
                 $cliente->token_seguimiento = \Illuminate\Support\Str::uuid()->toString();
+            }
+            if (empty($cliente->expediente_num)) {
+                $cliente->expediente_num = static::generarSiguienteExpediente();
+            }
+            if (empty($cliente->pv_num)) {
+                $cliente->pv_num = 'PP';
             }
         });
     }

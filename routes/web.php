@@ -77,6 +77,7 @@ Route::prefix('reportes')->name('reportes.')->group(function () {
     Route::post('abrir-caja', [App\Http\Controllers\ReporteController::class, 'abrirCaja'])->name('abrirCaja');
     Route::post('cerrar-caja', [App\Http\Controllers\ReporteController::class, 'cerrarCaja'])->name('cerrarCaja');
     Route::get('cierre-caja', [App\Http\Controllers\ReportesController::class, 'cierreCaja'])->name('cierre_caja');
+    Route::get('cierre-turno/{id}/pdf', [App\Http\Controllers\ReporteController::class, 'imprimirCierreTurnoPdf'])->name('cierre_turno.pdf');
 });
 Route::resource('reportes', App\Http\Controllers\ReporteController::class)->except(['show']);
 

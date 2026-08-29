@@ -59,7 +59,7 @@
     <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-user-plus text-primary"></i> Registro de Cliente y Promesa de Venta</h1>
 </div>
 
-<form action="{{ route('registro.store') }}" method="POST">
+<form id="form-registro-venta" action="{{ route('registro.store') }}" method="POST">
     @csrf
 
     {{-- SECCIÓN 1: DATOS PERSONALES DEL CLIENTE --}}
@@ -70,20 +70,22 @@
         <div class="card-body bg-light">
             <div class="row g-3">
                 <div class="col-md-5 mb-3">
-                    <label for="nombre_completo" class="form-label font-weight-bold text-secondary">Nombre Completo / Representante</label>
+                    <label for="nombre_completo" class="form-label font-weight-bold text-secondary">Nombre Completo / Representante <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" id="nombre_completo" name="nombres_apellidos" value="{{ old('nombres_apellidos') }}" required>
                 </div>
                 <div class="col-md-3 mb-3">
-                    <label for="cedula" class="form-label font-weight-bold text-secondary">Cédula</label>
+                    <label for="cedula" class="form-label font-weight-bold text-secondary">Cédula <span class="text-danger">*</span></label>
                     <input type="text" class="form-control" id="cedula" name="identificacion" value="{{ old('identificacion') }}" placeholder="000-000000-0000A" required>
                 </div>
                 <div class="col-md-2 mb-3">
-                    <label for="pv_num" class="form-label font-weight-bold text-secondary">N° PV</label>
-                    <input type="text" class="form-control" id="pv_num" name="pv_num" value="{{ old('pv_num') }}" placeholder="PV-001" required>
+                    <label for="pv_num" class="form-label font-weight-bold text-secondary">N° PV (Promesa)</label>
+                    <input type="text" class="form-control" id="pv_num" name="pv_num" value="{{ old('pv_num', 'PP') }}" placeholder="PP">
+                    <small class="text-muted"><i class="fas fa-info-circle text-info"></i> Por defecto PP</small>
                 </div>
                 <div class="col-md-2 mb-3">
                     <label for="expediente_num" class="form-label font-weight-bold text-secondary">N° Expediente</label>
-                    <input type="text" class="form-control" id="expediente_num" name="expediente_num" value="{{ old('expediente_num') }}" placeholder="EXP-005" required>
+                    <input type="text" class="form-control bg-light font-monospace fw-bold text-primary" id="expediente_num" name="expediente_num" value="{{ old('expediente_num', $siguienteExpediente ?? '') }}" readonly>
+                    <small class="text-muted"><i class="fas fa-magic text-primary"></i> Automático</small>
                 </div>
             </div>
 
@@ -93,72 +95,82 @@
                     <input type="tel" class="form-control" id="telefono" name="telefono" value="{{ old('telefono') }}" placeholder="+505 0000-0000">
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label for="estado_civil" class="form-label font-weight-bold text-secondary">Estado Civil</label>
+                    <label for="estado_civil" class="form-label font-weight-bold text-secondary">Estado Civil <span class="text-danger">*</span></label>
                     <select class="custom-select form-control" id="estado_civil" name="estado_civil" required>
                         <option value="">Seleccione...</option>
                         <option value="soltero" @selected(old('estado_civil') == 'soltero')>Soltero(a)</option>
                         <option value="casado" @selected(old('estado_civil') == 'casado')>Casado(a)</option>
-                        <option value="union_libre" @selected(old('estado_civil') == 'union_libre')>Unión Libre</option>
+                        <option value="union_de_hecho" @selected(old('estado_civil') == 'union_de_hecho')>Unión de Hecho</option>
                         <option value="divorciado" @selected(old('estado_civil') == 'divorciado')>Divorciado(a)</option>
                         <option value="viudo" @selected(old('estado_civil') == 'viudo')>Viudo(a)</option>
                     </select>
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label for="oficio" class="form-label font-weight-bold text-secondary">Oficio</label>
-                    <input type="text" class="form-control" id="oficio" name="oficio" value="{{ old('oficio') }}">
+                    <label for="profesion_oficio" class="form-label font-weight-bold text-secondary">Profesión u Oficio</label>
+                    <input type="text" class="form-control" id="profesion_oficio" name="profesion_oficio" value="{{ old('profesion_oficio') }}">
                 </div>
             </div>
 
-            <div class="mb-3">
-                <label for="direccion" class="form-label font-weight-bold text-secondary">Dirección Exacta</label>
-                <textarea class="form-control" id="direccion" name="direccion" rows="2" placeholder="Ingrese la dirección completa del cliente">{{ old('direccion') }}</textarea>
+            <div class="row g-3">
+                <div class="col-md-6 mb-3">
+                    <label for="domicilio" class="form-label font-weight-bold text-secondary">Domicilio / Municipio</label>
+                    <input type="text" class="form-control" id="domicilio" name="domicilio" value="{{ old('domicilio') }}" placeholder="Ej: San Miguel, San Rafael del Sur">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="direccion" class="form-label font-weight-bold text-secondary">Dirección Exacta</label>
+                    <textarea class="form-control" id="direccion" name="direccion" rows="1">{{ old('direccion') }}</textarea>
+                </div>
             </div>
         </div>
     </div>
 
-    {{-- SECCIÓN 2: DATOS DE LA VENTA / LOTE --}}
+    {{-- SECCIÓN 2: ASIGNACIÓN DE LOTES (INVENTARIO) --}}
     <div class="card shadow-sm border-left-info mb-4">
         <div class="card-header py-3 bg-white">
-            <h6 class="m-0 font-weight-bold text-info"><i class="fas fa-map-marked-alt"></i> Selección de Lotes</h6>
+            <h6 class="m-0 font-weight-bold text-info"><i class="fas fa-layer-group"></i> Asignación de Terreno / Lotes</h6>
         </div>
         <div class="card-body bg-light">
             <div class="row g-3">
-                {{-- Proyecto (Select) --}}
+                <!-- Proyecto Bloqueado -->
                 <div class="col-md-4 mb-3">
-                    <label for="proyecto_select" class="form-label font-weight-bold text-secondary">1. Seleccione Proyecto</label>
-                    <select class="custom-select form-control border-info" id="proyecto_select" name="lotificacion_id" required>
-                        <option value="">-- Escoger Proyecto --</option>
-                        @isset($proyectos)
-                            @foreach ($proyectos as $proyecto)
-                                <option value="{{ $proyecto->id }}" @selected(old('lotificacion_id') == $proyecto->id)>{{ $proyecto->nombre }}</option>
-                            @endforeach
-                        @endisset
+                    <label class="form-label font-weight-bold text-secondary">
+                        <i class="fas fa-building text-primary"></i> Proyecto Activo
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-primary text-white"><i class="fas fa-lock"></i></span>
+                        <input type="text" class="form-control bg-white fw-bold text-primary" value="{{ $lotificacionActiva->nombre ?? 'Proyecto Activo' }}" readonly>
+                    </div>
+                    <small class="text-muted"><i class="fas fa-info-circle"></i> Para registrar en otro proyecto, cámbielo en la barra superior.</small>
+                </div>
+
+                <!-- Bloque -->
+                <div class="col-md-4 mb-3">
+                    <label for="bloque_select" class="form-label font-weight-bold text-secondary">Bloque / Manzana <span class="text-danger">*</span></label>
+                    <select class="custom-select form-control" id="bloque_select" name="id_bloque" required>
+                        <option value="">-- Seleccionar Bloque --</option>
+                        @foreach ($bloques as $bloque)
+                            <option value="{{ $bloque->id_bloque }}" @selected(old('id_bloque') == $bloque->id_bloque)>
+                                {{ $bloque->nombre }}
+                            </option>
+                        @endforeach
                     </select>
                 </div>
 
-                {{-- Bloque (Select dinámico) --}}
+                <!-- Lotes (Múltiple) -->
                 <div class="col-md-4 mb-3">
-                    <label for="bloque" class="form-label font-weight-bold text-secondary">2. Seleccione Bloque</label>
-                    <select class="custom-select form-control border-info" id="bloque_select" name="bloque_id" required disabled>
-                        <option value="">Seleccione un Proyecto primero</option>
+                    <label for="lote_select" class="form-label font-weight-bold text-secondary">Lote(s) a Asignar <span class="text-danger">*</span></label>
+                    <select class="custom-select form-control" id="lote_select" name="lotes_ids[]" multiple="multiple" required disabled>
                     </select>
-                </div>
-
-                <div class="col-md-4 mb-3">
-                    <label for="lotes_seleccionados" class="form-label font-weight-bold text-secondary">3. Lotes a Vender (Máx. 20)</label>
-                    <select class="custom-select form-control border-info shadow-sm select2-multiple" id="lote_select" name="lotes_ids[]" multiple required disabled style="width: 100%;">
-                        <option value="">Seleccione un Bloque primero</option>
-                    </select>
-                    <small class="text-muted"><i class="fas fa-info-circle"></i> Haga clic y escriba para buscar los lotes. Puede seleccionar varios.</small>
+                    <small class="text-muted">Puede seleccionar múltiples lotes si es una venta unificada.</small>
                 </div>
             </div>
         </div>
     </div>
 
-    {{-- SECCIÓN 3: PLAN DE PAGOS --}}
+    {{-- SECCIÓN 3: PLAN FINANCIERO DE LA VENTA --}}
     <div class="card shadow-sm border-left-success mb-4">
         <div class="card-header py-3 bg-white">
-            <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-hand-holding-usd"></i> Detalles Financieros (Plan de Pagos)</h6>
+            <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-hand-holding-usd"></i> Condiciones Financieras del Contrato</h6>
         </div>
         <div class="card-body bg-light">
             <!-- Tarjetas de Totales -->
@@ -195,17 +207,17 @@
             <!-- Inputs de Prima y Fecha -->
             <div class="row g-3 mb-2">
                 <div class="col-md-6 mb-3">
-                    <label for="primer_abono" class="form-label font-weight-bold text-secondary"><i class="fas fa-money-bill-wave text-success"></i> Prima / Enganche</label>
+                    <label for="primer_abono" class="form-label font-weight-bold text-secondary"><i class="fas fa-money-bill-wave text-success"></i> Prima / Enganche <span class="text-danger">*</span></label>
                     <div class="input-group input-group-lg shadow-sm">
                         <span class="input-group-text bg-success text-white border-success">$</span>
                         <input type="number" step="0.01" min="0" class="form-control border-success" id="primer_abono" name="primer_abono" placeholder="0.00" value="{{ old('primer_abono') }}" required>
                     </div>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label for="fecha_ultimo_abono" class="form-label font-weight-bold text-secondary"><i class="fas fa-calendar-alt text-primary"></i> Fecha del 1° Pago</label>
+                    <label for="fecha_ultimo_abono" class="form-label font-weight-bold text-secondary"><i class="fas fa-calendar-alt text-primary"></i> Fecha del 1° Pago <span class="text-danger">*</span></label>
                     <div class="input-group input-group-lg shadow-sm">
                         <span class="input-group-text bg-white border-end-0"><i class="fas fa-calendar text-muted"></i></span>
-                        <input type="date" class="form-control border-start-0 ps-0" id="fecha_ultimo_abono" name="fecha_ultimo_abono" value="{{ old('fecha_ultimo_abono', now()->format('Y-m-d')) }}">
+                        <input type="date" class="form-control border-start-0 ps-0" id="fecha_ultimo_abono" name="fecha_ultimo_abono" value="{{ old('fecha_ultimo_abono', now()->format('Y-m-d')) }}" required>
                     </div>
                 </div>
             </div>
@@ -213,7 +225,7 @@
             <!-- Datos de pago de la Prima -->
             <div class="row g-3 bg-white p-2 mb-3 rounded border">
                 <div class="col-md-3 mb-3">
-                    <label for="metodo_pago_prima" class="form-label font-weight-bold text-secondary">Método de Pago (Prima)</label>
+                    <label for="metodo_pago_prima" class="form-label font-weight-bold text-secondary">Método de Pago (Prima) <span class="text-danger">*</span></label>
                     <select class="form-select" id="metodo_pago_prima" name="metodo_pago_prima" required onchange="togglePrimaFields()">
                         <option value="Efectivo" {{ old('metodo_pago_prima') == 'Efectivo' ? 'selected' : '' }}>Efectivo</option>
                         <option value="Transferencia Bancaria" {{ old('metodo_pago_prima') == 'Transferencia Bancaria' ? 'selected' : '' }}>Transferencia Bancaria</option>
@@ -233,14 +245,14 @@
 
             <div class="row g-3 align-items-end">
                 <div class="col-md-4 mb-3">
-                    <label for="plazo_cuotas" class="form-label font-weight-bold text-secondary">Plazo de Financiamiento</label>
+                    <label for="plazo_cuotas" class="form-label font-weight-bold text-secondary">Plazo de Financiamiento <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <input type="number" class="form-control" id="plazo_cuotas" name="plazo_meses" value="{{ old('plazo_meses') }}" required placeholder="Ej: 60">
                         <span class="input-group-text">Meses</span>
                     </div>
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label for="cuotas" class="form-label font-weight-bold text-secondary">Cuota Mensual Sugerida</label>
+                    <label for="cuotas" class="form-label font-weight-bold text-secondary">Cuota Mensual Sugerida <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text text-danger font-weight-bold">$</span>
                         <input type="number" step="0.01" class="form-control font-weight-bold" style="font-size: 1.1rem; color: #e74a3b;" id="cuotas" name="cuota_mensual" placeholder="0.00" value="{{ old('cuota_mensual') }}" required>
@@ -252,10 +264,109 @@
     </div>
 
     <div class="d-flex justify-content-end mb-5">
-        <a href="{{ route('registro.index') }}" class="btn btn-secondary btn-lg mr-3 shadow-sm"><i class="fas fa-times"></i> Cancelar</a>
-        <button type="submit" class="btn btn-success btn-lg shadow-sm px-5"><i class="fas fa-check-circle"></i> Confirmar y Guardar Venta</button>
+        <a href="{{ route('registro.index') }}" class="btn btn-secondary btn-lg me-3 shadow-sm"><i class="fas fa-times"></i> Cancelar</a>
+        <button type="button" id="btn-preparar-registro" class="btn btn-success btn-lg shadow-sm px-5 py-2">
+            <i class="fas fa-check-circle me-1"></i> Revisar y Registrar Venta
+        </button>
     </div>
 </form>
+
+{{-- ================================================= --}}
+{{-- MODAL DE RESUMEN Y CONFIRMACIÓN DE VENTA --}}
+{{-- ================================================= --}}
+<div class="modal fade" id="modalConfirmarVenta" tabindex="-1" aria-labelledby="modalConfirmarVentaLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="modal-title fw-bold text-white mb-0" id="modalConfirmarVentaLabel">
+                    <i class="fas fa-file-contract me-2"></i> Resumen de Promesa de Venta
+                </h5>
+                <button type="button" class="close text-white" id="btn-x-modal-venta" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Cerrar" style="font-size: 1.8rem; line-height: 1; border: none; background: transparent; opacity: 1; color: #fff;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-4 bg-white">
+                <div class="alert alert-info py-2 px-3 mb-3 d-flex align-items-center border-info">
+                    <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
+                    <div>
+                        <strong class="text-dark">Confirmación Consciente de Venta:</strong>
+                        <div class="small text-secondary">Verifique que todos los datos del cliente, asignación de lotes y condiciones de financiamiento sean correctos antes de guardar.</div>
+                    </div>
+                </div>
+
+                {{-- PROYECTO & CLIENTE --}}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <span class="text-secondary d-block small text-uppercase fw-bold">Cliente / Titular</span>
+                            <span class="fs-5 fw-bold text-dark d-block" id="modal-resumen-cliente">-</span>
+                            <div class="small text-dark mt-1">
+                                <span>Cédula: <strong class="text-dark font-weight-bold" id="modal-resumen-cedula">-</strong></span> &middot;
+                                <span>Tel: <strong class="text-dark font-weight-bold" id="modal-resumen-telefono">-</strong></span>
+                            </div>
+                            <div class="mt-2">
+                                <span class="badge bg-secondary text-white me-1 px-2 py-1" id="modal-resumen-pv">PV: -</span>
+                                <span class="badge bg-dark text-white px-2 py-1" id="modal-resumen-exp">Exp: -</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <span class="text-secondary d-block small text-uppercase fw-bold">Proyecto y Ubicación</span>
+                            <span class="badge bg-primary text-white fs-6 mb-2 mt-1 px-3 py-1">
+                                <i class="fas fa-map-marker-alt me-1"></i> {{ $lotificacionActiva->nombre ?? 'Proyecto Activo' }}
+                            </span>
+                            <div class="text-dark">
+                                <span>Bloque: <strong class="text-primary fw-bold" id="modal-resumen-bloque">-</strong></span>
+                            </div>
+                            <div class="mt-1" id="modal-resumen-lotes-container">
+                                <!-- Badges de lotes -->
+                            </div>
+                            <div class="small text-dark mt-2">
+                                Extensión Total: <strong class="text-dark font-weight-bold" id="modal-resumen-extension">0.00 vrs²</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- PLAN FINANCIERO --}}
+                <div class="card border-primary mb-2">
+                    <div class="card-header bg-light py-2 border-bottom">
+                        <strong class="text-primary small text-uppercase"><i class="fas fa-coins me-1"></i> Plan Financiero y Cuotas</strong>
+                    </div>
+                    <div class="card-body p-3 bg-white">
+                        <div class="row text-center align-items-center">
+                            <div class="col-6 col-md-3 border-end">
+                                <span class="text-muted small d-block">Precio Total</span>
+                                <span class="fs-5 fw-bold text-dark" id="modal-resumen-precio">$0.00</span>
+                            </div>
+                            <div class="col-6 col-md-3 border-end">
+                                <span class="text-muted small d-block">Prima Inicial</span>
+                                <span class="fs-5 fw-bold text-success" id="modal-resumen-prima">$0.00</span>
+                            </div>
+                            <div class="col-6 col-md-3 border-end">
+                                <span class="text-muted small d-block">Plazo Total</span>
+                                <span class="fs-5 fw-bold text-primary" id="modal-resumen-plazo">0 Meses</span>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <span class="text-muted small d-block">Cuota Mensual</span>
+                                <span class="fs-5 fw-bold text-danger" id="modal-resumen-cuota">$0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-3 border-top">
+                <button type="button" class="btn btn-secondary text-white px-4 fw-bold" id="btn-cancelar-modal-venta" data-bs-dismiss="modal" data-dismiss="modal">
+                    <i class="fas fa-edit me-1"></i> Modificar Datos
+                </button>
+                <button type="button" id="btn-confirmar-guardar-venta" class="btn btn-success text-white px-4 fw-bold shadow-sm">
+                    <i class="fas fa-check-circle me-1"></i> Confirmar y Registrar Venta
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @endsection 
 
@@ -312,52 +423,10 @@ $(document).ready(function() {
         }
     }
 
-    $('#proyecto_select').change(function() {
-        var proyecto = $(this).val();
-        var bloqueSelect = $('#bloque_select');
-        var loteSelect = $('#lote_select');
-
-        bloqueSelect.html('<option value=""></option>').prop('disabled', true);
-        bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Cargando bloques...' });
-        
-        loteSelect.html('<option value=""></option>').prop('disabled', true);
-        loteSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccione un Bloque primero' });
-        $('#extension_lote').val('');
-        $('#extension_lote_value').val('');
-        $('#monto_lote').val('');
-        calcularCuota();
-
-        if (proyecto) {
-            var ajaxUrl = '{{ url("api/lotificaciones") }}' + '/' + encodeURIComponent(proyecto) + '/bloques';
-
-            $.ajax({
-                url: ajaxUrl,
-                type: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    bloqueSelect.html('<option value=""></option>');
-
-                    if (data.length > 0) {
-                        $.each(data, function(key, bloque) {
-                            bloqueSelect.append('<option value="' + bloque.id_bloque + '">Bloque ' + bloque.nombre + '</option>');
-                        });
-                        bloqueSelect.prop('disabled', false);
-                        bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccione Bloque' });
-                    } else {
-                        bloqueSelect.prop('disabled', true);
-                        bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'No hay bloques en este proyecto' });
-                    }
-                },
-                error: function(xhr, status, error) {
-                    bloqueSelect.html('<option value=""></option>').prop('disabled', true);
-                    bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Error al cargar bloques' });
-                    console.error("AJAX Error:", error, status, xhr.responseText);
-                }
-            });
-        } else {
-            bloqueSelect.html('<option value=""></option>').prop('disabled', true);
-            bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccione un Proyecto primero' });
-        }
+    $('#bloque_select').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Seleccione Bloque'
     });
 
     $('#bloque_select').change(function() {
@@ -446,10 +515,85 @@ $(document).ready(function() {
     // cuota sugerida, pero el usuario puede ajustarla manualmente después.
     $('#monto_lote, #plazo_cuotas, #primer_abono').on('input', calcularCuota);
     
-    // Disparar el evento change si hay un proyecto preseleccionado al cargar la página
-    if ($('#proyecto_select').val()) {
-        $('#proyecto_select').trigger('change');
+    // Disparar el evento change si hay un bloque preseleccionado al cargar la página
+    if ($('#bloque_select').val()) {
+        $('#bloque_select').trigger('change');
     }
+
+    // Modal de Confirmación Consciente de Venta
+    var modalConfirmarVentaEl = document.getElementById('modalConfirmarVenta');
+    var modalConfirmarVenta = new bootstrap.Modal(modalConfirmarVentaEl);
+    var formRegistro = document.getElementById('form-registro-venta');
+
+    $('#btn-preparar-registro').on('click', function(e) {
+        e.preventDefault();
+
+        if (!formRegistro.checkValidity()) {
+            formRegistro.reportValidity();
+            return;
+        }
+
+        var lotesSeleccionados = $('#lote_select').val();
+        if (!lotesSeleccionados || lotesSeleccionados.length === 0) {
+            alert('Debe seleccionar al menos un lote para poder realizar la venta.');
+            $('#lote_select').select2('open');
+            return;
+        }
+
+        // Poblar datos en el modal
+        $('#modal-resumen-cliente').text($('#nombre_completo').val() || '-');
+        $('#modal-resumen-cedula').text($('#cedula').val() || '-');
+        $('#modal-resumen-telefono').text($('#telefono').val() || 'No indicado');
+        $('#modal-resumen-pv').text('PV: ' + ($('#pv_num').val() || '-'));
+        $('#modal-resumen-exp').text('Exp: ' + ($('#expediente_num').val() || '-'));
+
+        var bloqueTexto = $('#bloque_select option:selected').text();
+        $('#modal-resumen-bloque').text(bloqueTexto.trim());
+
+        // Lotes badges
+        var containerLotes = $('#modal-resumen-lotes-container');
+        containerLotes.empty();
+        $('#lote_select option:selected').each(function() {
+            containerLotes.append('<span class="badge bg-dark text-white me-1 mb-1">Lote ' + $(this).text() + '</span>');
+        });
+
+        var extMetros = parseFloat($('#extension_lote').val()) || 0;
+        var factorVara = 1.418415;
+        var extVaras = extMetros * factorVara;
+        if (Math.abs(Math.round(extVaras) - extVaras) < 0.02) {
+            extVaras = Math.round(extVaras);
+        }
+        $('#modal-resumen-extension').html(parseFloat(extVaras).toFixed(2) + ' vrs² <span class="text-muted ms-1">(' + extMetros.toFixed(2) + ' m²)</span>');
+
+        var precioVal = parseFloat($('#monto_lote').val()) || 0;
+        var primaVal = parseFloat($('#primer_abono').val()) || 0;
+        var plazoVal = parseInt($('#plazo_cuotas').val()) || 0;
+        var cuotaVal = parseFloat($('#cuotas').val()) || 0;
+
+        $('#modal-resumen-precio').text('$' + precioVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        $('#modal-resumen-prima').text('$' + primaVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        $('#modal-resumen-plazo').text(plazoVal + ' Meses');
+        $('#modal-resumen-cuota').text('$' + cuotaVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
+        modalConfirmarVenta.show();
+    });
+
+    // Cerrar modal al hacer clic en "Modificar Datos" o en "X"
+    $('#btn-cancelar-modal-venta, #btn-x-modal-venta').on('click', function(e) {
+        e.preventDefault();
+        try {
+            modalConfirmarVenta.hide();
+        } catch(err) {}
+        $('#modalConfirmarVenta').modal('hide');
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open').css('padding-right', '');
+    });
+
+    $('#btn-confirmar-guardar-venta').on('click', function(e) {
+        e.preventDefault();
+        $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Registrando Venta...');
+        document.getElementById('form-registro-venta').submit();
+    });
 });
 </script>
             <script src="{{ asset('js/jqueryEM.js') }}"></script>

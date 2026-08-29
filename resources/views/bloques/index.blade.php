@@ -29,7 +29,12 @@
 
 <div class="card shadow mb-4">
     <div class="card-header py-3 d-flex justify-content-between align-items-center">
-        <h5 class="m-0 font-weight-bold text-primary">Bloques Registrados</h5>
+        <div>
+            <h5 class="m-0 font-weight-bold text-primary d-inline-block">Bloques Registrados</h5>
+            <span class="badge bg-primary text-white ms-2 px-3 py-2">
+                <i class="fas fa-project-diagram me-1"></i> {{ $userLotificaciones->firstWhere('id', $activeLotificacionId)->nombre ?? 'Proyecto Activo' }}
+            </span>
+        </div>
         <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalCrearBloque">
             <i class="fas fa-plus"></i> Agregar Bloque
         </button>
@@ -38,20 +43,12 @@
         <div class="row mb-3">
             <div class="col-md-12">
                 <form action="{{ route('bloques.index') }}" method="GET" class="d-flex flex-wrap align-items-center">
-                    <div class="me-2 mb-2">
+                    <div class="me-2 mb-2" style="min-width: 280px;">
                         <input type="text" name="search" class="form-control" placeholder="Buscar por Nombre o Descripción..." value="{{ request('search') }}">
                     </div>
-                    <div class="me-2 mb-2">
-                        <select name="lotificacion_id" class="form-control">
-                            <option value="">-- Todos los Proyectos --</option>
-                            @foreach($lotificaciones as $lot)
-                                <option value="{{ $lot->id }}" @selected(request('lotificacion_id') == $lot->id)>{{ $lot->nombre }}</option>
-                            @endforeach
-                        </select>
-                    </div>
                     <div class="mb-2">
-                        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Filtrar</button>
-                        @if(request('search') || request('lotificacion_id'))
+                        <button type="submit" class="btn btn-primary"><i class="fas fa-search"></i> Buscar</button>
+                        @if(request('search'))
                             <a href="{{ route('bloques.index') }}" class="btn btn-secondary ms-2" title="Limpiar búsqueda"><i class="fas fa-times"></i> Limpiar</a>
                         @endif
                     </div>

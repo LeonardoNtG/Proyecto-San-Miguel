@@ -9,48 +9,53 @@ trait ScopedByLotificacion
     protected static function bootScopedByLotificacion()
     {
         static::addGlobalScope('lotificacion', function (Builder $builder) {
-            // Check if user is logged in
             if (auth()->check()) {
-                $user = auth()->user();
-                
-                // If user is Admin, they see everything
-                if ($user->hasRole('Administrador')) {
-                    return;
-                }
-
-                // Get authorized lotificacion IDs using DB query to prevent infinite loop
-                $authorizedIds = \Illuminate\Support\Facades\DB::table('lotificacion_user')
-                    ->where('user_id', $user->id)
-                    ->pluck('lotificacion_id')
-                    ->toArray();
-
-                if (empty($authorizedIds)) {
-                    // If they have no authorized lotificaciones, they see nothing
-                    $builder->whereRaw('1 = 0');
-                    return;
-                }
-
-                // Get the table name to avoid ambiguity in joins
                 $table = (new static)->getTable();
-
+                
+                // No aplicar el scope a la tabla lotificaciones (los administradores deben poder ver todas,
+                // y los usuarios las ven a través de la relación pivot)
                 if ($table === 'lotificaciones' || $table === 'lotificacions') {
-                    $builder->whereIn("$table.id", $authorizedIds);
-                } elseif ($table === 'bloques') {
-                    $builder->whereIn("$table.lotificacion_id", $authorizedIds);
-                } elseif ($table === 'lotes') {
-                    $builder->whereHas('bloque', function ($q) use ($authorizedIds) {
-                        $q->whereIn('lotificacion_id', $authorizedIds);
-                    });
-                } elseif ($table === 'ventas') {
-                    $builder->whereIn("$table.lotificacion_id", $authorizedIds);
-                } elseif ($table === 'abonos') {
-                    $builder->whereHas('venta', function ($q) use ($authorizedIds) {
-                        $q->whereIn('lotificacion_id', $authorizedIds);
-                    });
-                } elseif ($table === 'clientes') {
-                    $builder->whereHas('ventas', function ($q) use ($authorizedIds) {
-                        $q->whereIn('lotificacion_id', $authorizedIds);
-                    });
+                    return;
+                }
+
+                $activeLotificacionId = session('lotificacion_id');
+
+                if ($activeLotificacionId) {
+                    if ($table === 'bloques') {
+                        $builder->where("$table.lotificacion_id", $activeLotificacionId);
+                    } elseif ($table === 'lotes') {
+                        $builder->whereHas('bloque', function ($q) use ($activeLotificacionId) {
+                            $q->where('lotificacion_id', $activeLotificacionId);
+                        });
+                    } elseif ($table === 'ventas') {
+                        $builder->where("$table.lotificacion_id", $activeLotificacionId);
+                    } elseif ($table === 'abonos') {
+                        $builder->whereHas('venta', function ($q) use ($activeLotificacionId) {
+                            $q->where('lotificacion_id', $activeLotificacionId);
+                        });
+                    } elseif ($table === 'clientes') {
+                        $builder->where(function($b) use ($activeLotificacionId) {
+                            $b->whereHas('ventas', function ($q) use ($activeLotificacionId) {
+                                $q->where('lotificacion_id', $activeLotificacionId);
+                            })->orWhereHas('reservas', function ($q) use ($activeLotificacionId) {
+                                $q->where('lotificacion_id', $activeLotificacionId);
+                            });
+                        });
+                    } elseif ($table === 'apertura_cajas' || $table === 'cierre_cajas' || $table === 'salidas' || $table === 'reservas') {
+                        $builder->where("$table.lotificacion_id", $activeLotificacionId);
+                    }
+                }
+            }
+        });
+
+        // Automatically assign lotificacion_id on creation if the model has that column
+        static::creating(function ($model) {
+            if (auth()->check() && session('lotificacion_id')) {
+                // Check if the model has a lotificacion_id column in its schema
+                if (\Illuminate\Support\Facades\Schema::hasColumn($model->getTable(), 'lotificacion_id')) {
+                    if (empty($model->lotificacion_id)) {
+                        $model->lotificacion_id = session('lotificacion_id');
+                    }
                 }
             }
         });

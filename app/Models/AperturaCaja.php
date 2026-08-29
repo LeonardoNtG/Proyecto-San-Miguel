@@ -7,14 +7,15 @@ use Illuminate\Database\Eloquent\Model;
 
 class AperturaCaja extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\ScopedByLotificacion;
     
     protected $table = 'apertura_cajas';
 
     protected $fillable = [
-        'fecha',
+        'user_id',
+        'lotificacion_id',
         'monto_inicial',
-        'user_id'
+        'fecha'
     ];
 
     protected $casts = [

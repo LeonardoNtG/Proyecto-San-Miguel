@@ -102,10 +102,12 @@ class ClienteController extends Controller
 
     public function create()
     {
-        // Proyectos (Lotificaciones) disponibles
-        $proyectos = \App\Models\Lotificacion::orderBy('nombre')->get();
+        $activeLotificacionId = session('lotificacion_id');
+        $lotificacionActiva = \App\Models\Lotificacion::find($activeLotificacionId);
+        $bloques = Bloque::where('lotificacion_id', $activeLotificacionId)->orderBy('nombre')->get();
+        $siguienteExpediente = Cliente::generarSiguienteExpediente();
 
-        return view('registro', compact('proyectos'));
+        return view('registro', compact('lotificacionActiva', 'bloques', 'siguienteExpediente'));
     }
 
     /**
@@ -115,64 +117,70 @@ class ClienteController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
-{
-    // 1. VALIDACIÓN
-    
-    $request->validate([
-        'pv_num' => 'required|string|unique:clientes,pv_num|max:20',
-        'expediente_num' => 'required|string|unique:clientes,expediente_num|max:20',    
-        'nombres_apellidos' => 'required|string|max:255', // ¿Estás enviando este campo?
-        'identificacion' => 'required|string|max:30', // Sin unique: una persona puede tener varios contratos
-        'lotes_ids' => 'required|array|min:1|max:20', // NUEVA VALIDACIÓN
-        'lotes_ids.*' => 'integer|exists:lotes,id_lote', // Asegura que los IDs sean válidos
-        'extension_value' => 'required|numeric|min:0', // Validar el campo oculto
-    ]);
-    
-
-    DB::beginTransaction();
-
-    try {
-          // CREAR EL CLIENTE (Igual)
-         $cliente = Cliente::create([
-        'expediente_num' => $request->expediente_num,
-        'pv_num' => $request->pv_num,
-        'nombres_apellidos' => $request->nombres_apellidos, 
-        'identificacion' => $request->identificacion,       
-        'telefono' => $request->telefono,                   
-        'direccion' => $request->direccion,                 
-         'estado_civil' => $request->estado_civil,          
-        'oficio' => $request->oficio,                       
-    ]);
-
-        // Proyecto: se hereda del Bloque de los lotes seleccionados
-        $primerLote = Lote::with('bloque')->whereIn('id_lote', $request->lotes_ids)->first();
-        $lotificacionId = $primerLote?->bloque?->lotificacion_id;
-
-        // CREA LA VENTA/PROMESA
-        $venta = Venta::create([
-            'id_cliente' => $cliente->id_cliente,
-            'lotificacion_id' => $lotificacionId,
-            'fecha_venta' => now(),
-            'precio_final' => $request->precio_final,
-            'plazo_meses' => $request->plazo_meses,
-            'estado_contrato' => 'Vigente',
-            'extension_lote' => $request->extension_value,
-            'cuota_mensual' => $request->cuota_mensual,
-        ]);
-
-        // ASOCIA LOS LOTES A LA VENTA (A través del historial)
-        Lote::whereIn('id_lote', $request->lotes_ids)->update([
-            'estado' => 'Vendido',
+    {
+        // 1. VALIDACIÓN
+        $request->validate([
+            'pv_num' => 'nullable|string|max:50',
+            'expediente_num' => 'nullable|string|max:50',    
+            'nombres_apellidos' => 'required|string|max:255',
+            'identificacion' => 'required|string|max:30',
+            'lotes_ids' => 'nullable|array|min:1|max:20',
+            'lotes' => 'nullable|array|min:1|max:20',
+            'extension_value' => 'required|numeric|min:0',
         ]);
         
-        foreach ($request->lotes_ids as $loteId) {
-            \App\Models\HistorialLote::create([
-                'id_lote' => $loteId,
-                'id_venta' => $venta->id_venta,
-                'estado' => 'Activo',
-                'fecha_asignacion' => now(),
-            ]);
+        $lotesIds = $request->input('lotes_ids') ?? $request->input('lotes');
+        if (empty($lotesIds) || !is_array($lotesIds)) {
+            return back()->withInput()->withErrors(['lotes_ids' => 'Debe seleccionar al menos un lote para la venta.']);
         }
+
+        DB::beginTransaction();
+
+        try {
+            // CREAR EL CLIENTE
+            $expedienteNum = $request->expediente_num ?: Cliente::generarSiguienteExpediente();
+            $pvNum = $request->pv_num ?: 'PP';
+
+            $cliente = Cliente::create([
+                'expediente_num' => $expedienteNum,
+                'pv_num' => $pvNum,
+                'nombres_apellidos' => $request->nombres_apellidos, 
+                'identificacion' => $request->identificacion,       
+                'telefono' => $request->telefono,                   
+                'direccion' => $request->direccion,                 
+                'estado_civil' => $request->estado_civil,          
+                'oficio' => $request->oficio ?? $request->profesion_oficio,                       
+            ]);
+
+            // Proyecto: estrictamente el proyecto activo de la sesión
+            $activeLotificacionId = session('lotificacion_id');
+            $lotificacionId = $activeLotificacionId ?: $request->lotificacion_id;
+
+            // CREA LA VENTA/PROMESA
+            $venta = Venta::create([
+                'id_cliente' => $cliente->id_cliente,
+                'lotificacion_id' => $lotificacionId,
+                'fecha_venta' => now(),
+                'precio_final' => $request->precio_final,
+                'plazo_meses' => $request->plazo_meses,
+                'estado_contrato' => 'Vigente',
+                'extension_lote' => $request->extension_value,
+                'cuota_mensual' => $request->cuota_mensual,
+            ]);
+
+            // ASOCIA LOS LOTES A LA VENTA (A través del historial)
+            Lote::whereIn('id_lote', $lotesIds)->update([
+                'estado' => 'Vendido',
+            ]);
+            
+            foreach ($lotesIds as $loteId) {
+                \App\Models\HistorialLote::create([
+                    'id_lote' => $loteId,
+                    'id_venta' => $venta->id_venta,
+                    'estado' => 'Activo',
+                    'fecha_asignacion' => now(),
+                ]);
+            }
 
         // CREA EL PRIMER ABONO (Igual)
         $abonoInicial = Abono::create([

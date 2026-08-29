@@ -20,8 +20,11 @@ class ReservaController extends Controller
 
     public function create()
     {
-        $proyectos = \App\Models\Lotificacion::orderBy('nombre')->get();
-        return view('reservas.create', compact('proyectos'));
+        $activeLotificacionId = session('lotificacion_id');
+        $lotificacionActiva = \App\Models\Lotificacion::find($activeLotificacionId);
+        $bloques = Bloque::where('lotificacion_id', $activeLotificacionId)->orderBy('nombre')->get();
+
+        return view('reservas.create', compact('lotificacionActiva', 'bloques'));
     }
 
     public function store(Request $request)
@@ -29,12 +32,14 @@ class ReservaController extends Controller
         $request->validate([
             'nombres_apellidos' => 'required|string|max:100',
             'identificacion' => 'required|string|max:20',
-            'lotificacion_id' => 'required|exists:lotificaciones,id',
             'lotes_ids' => 'required|array',
             'lotes_ids.*' => 'exists:lotes,id_lote',
             'monto_reserva' => 'required|numeric|min:0',
             'dias_validez' => 'required|integer|min:1',
         ]);
+
+        $activeLotificacionId = session('lotificacion_id');
+        $lotificacionId = $activeLotificacionId ?: $request->lotificacion_id;
 
         DB::beginTransaction();
 
@@ -54,7 +59,7 @@ class ReservaController extends Controller
 
             $reserva = Reserva::create([
                 'id_cliente' => $cliente->id_cliente,
-                'lotificacion_id' => $request->lotificacion_id,
+                'lotificacion_id' => $lotificacionId,
                 'monto_reserva' => $request->monto_reserva,
                 'fecha_reserva' => now()->format('Y-m-d'),
                 'fecha_vencimiento' => now()->addDays($request->dias_validez)->format('Y-m-d'),
@@ -167,12 +172,14 @@ class ReservaController extends Controller
                 'fecha_pago' => $request->fecha_ultimo_abono ?? now(),
                 'monto_abonado' => $request->primer_abono,
                 'tipo_pago' => 'Prima/Primer Abono',
-                'referencia' => 'Formalización de Reserva #' . $reserva->id_reserva,
+                'metodo_pago' => $request->metodo_pago ?? 'Efectivo',
+                'referencia' => $request->referencia ?? ('Formalización de Reserva #' . $reserva->id_reserva),
+                'user_id' => auth()->id(),
             ]);
 
             // 4. Generar el Plan de Pagos (Cuotas)
-            $plazoRestante = $venta->plazo_meses - 1;
-            $saldoRestante = $venta->precio_final - $request->primer_abono;
+            $plazoRestante = $venta->plazo_meses;
+            $saldoRestante = $venta->precio_final;
             $cuotaMensual = $venta->cuota_mensual;
 
             if ($plazoRestante > 0 && $saldoRestante > 0) {
@@ -195,6 +202,9 @@ class ReservaController extends Controller
                     $saldoRestante -= $montoCuota;
                 }
             }
+
+            // Aplicar el abono inicial automáticamente a las cuotas
+            \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
 
             // 5. Marcar reserva como Formalizada
             $reserva->update(['estado' => 'Formalizada']);
