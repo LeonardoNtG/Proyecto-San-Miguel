@@ -290,37 +290,28 @@ class ClienteController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function update(Request $request, Cliente $cliente)
-{
-    // Validacion de datos actualizados
-    DB::beginTransaction();
-    try {
-        $cliente->update($request->only([
-            'expediente_num', 'pv_num', 'nombres_apellidos', 'identificacion',
-            'telefono', 'direccion', 'estado_civil', 'oficio'
-        ]));
+    {
+        $request->validate([
+            'nombres_apellidos' => 'required|string|max:255',
+            'identificacion' => 'required|string|max:255',
+            'pv_num' => 'required|string|max:255',
+            'expediente_num' => 'required|string|max:255',
+            'telefono' => 'nullable|string|max:50',
+            'direccion' => 'nullable|string|max:500',
+            'estado_civil' => 'nullable|string|max:50',
+            'oficio' => 'nullable|string|max:100',
+        ]);
 
-        $venta = $cliente->ventas()->first();
-        if ($venta) {
-    
-        if ($venta->getOriginal('estado_contrato') === 'Rescindido') {
-         $nuevoEstado = 'Rescindido';
-         } else {
-         $nuevoEstado = $request->input('estado_contrato');
-            }
+        DB::beginTransaction();
+        try {
+            $cliente->update($request->only([
+                'expediente_num', 'pv_num', 'nombres_apellidos', 'identificacion',
+                'telefono', 'direccion', 'estado_civil', 'oficio'
+            ]));
 
-        $venta->update(['estado_contrato' => $nuevoEstado]);
-
-         if ($nuevoEstado === 'Rescindido') {
-         $loteIds = $venta->lotes()->pluck('lotes.id_lote')->toArray();
-
-            if (!empty($loteIds)) {
-            \App\Models\Lote::whereIn('id_lote', $loteIds)->update(['estado' => 'Disponible']);
-         }
-            }
-    }
             DB::commit();
             return redirect()->route('registro.show', $cliente->id_cliente)
-                         ->with('success', 'Información de Cliente y Estado de Venta actualizados.');
+                         ->with('success', 'Información del cliente actualizada correctamente.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Error al actualizar: ' . $e->getMessage());
