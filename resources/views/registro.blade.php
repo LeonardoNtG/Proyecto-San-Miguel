@@ -191,8 +191,8 @@
                 </div>
             </div>
 
-            {{-- BENEFICIARIO FINAL (solo modo Unificado con un solo lote, o modo Individual lo muestra dinámicamente) --}}
-            <div class="row g-3 mt-2 p-3 border rounded bg-white shadow-sm" id="seccion_beneficiario">
+            {{-- BENEFICIARIO FINAL: solo visible cuando se selecciona "Contratos por Lote" --}}
+            <div class="row g-3 mt-2 p-3 border rounded bg-white shadow-sm" id="seccion_beneficiario" style="display:none;">
                 <div class="col-12 mb-1">
                     <h6 class="text-warning fw-bold mb-0">
                         <i class="fas fa-user-tie me-1"></i> Beneficiario Final / Futuro Titular
@@ -702,9 +702,24 @@ $(document).ready(function() {
         }
     }
     
+    // Mostrar u ocultar la sección de Beneficiario Final según el tipo de contrato
+    function toggleBeneficiario() {
+        var esIndividual = document.getElementById('tipo_individual') && document.getElementById('tipo_individual').checked;
+        var seccion = document.getElementById('seccion_beneficiario');
+        if (seccion) {
+            seccion.style.display = esIndividual ? 'flex' : 'none';
+        }
+    }
+
     // Ejecutar al cargar la página por si hay valores "old"
     document.addEventListener("DOMContentLoaded", function() {
         togglePrimaFields();
+        toggleBeneficiario();
+
+        // Escuchar cambios en los radio de tipo de contrato
+        document.querySelectorAll('input[name="tipo_contrato"]').forEach(function(radio) {
+            radio.addEventListener('change', toggleBeneficiario);
+        });
     });
     </script>
 @endsection
