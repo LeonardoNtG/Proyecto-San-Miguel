@@ -179,12 +179,12 @@
                 <div class="modal-body">
                     <p>¿Con cuánto efectivo inicia la caja el día de hoy?</p>
                     <div class="mb-3">
-                        <label class="form-label">Monto de Apertura</label>
+                        <label class="form-label font-weight-bold">Monto de Apertura <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input type="number" step="0.01" name="monto_inicial" class="form-control" value="{{ old('monto_inicial', $saldoInicial) }}" required>
+                            <input type="number" step="0.01" min="0" name="monto_inicial" id="monto_inicial" class="form-control" value="{{ old('monto_inicial', $saldoInicial) }}" required>
                         </div>
-                        <small class="text-muted">Por defecto mostramos lo que se arrastra (si lo hay), pero puedes colocar 0 u otra cantidad.</small>
+                        <small class="text-muted"><i class="fas fa-info-circle me-1"></i> No se permiten valores negativos. Ingrese $0.00 o el monto con el que abre caja.</small>
                     </div>
                     <input type="hidden" name="fecha" value="{{ $fecha }}">
                 </div>
@@ -211,11 +211,12 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Monto a retirar</label>
+                        <label class="form-label font-weight-bold">Monto a retirar <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input type="number" step="0.01" name="monto" class="form-control" placeholder="0.00" required>
+                            <input type="number" step="0.01" min="0.01" name="monto" id="input_monto_salida" class="form-control" placeholder="0.00" required>
                         </div>
+                        <small class="text-muted"><i class="fas fa-info-circle me-1"></i> No se permiten valores negativos ni cero. Ingrese un monto positivo.</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Motivo de la salida</label>
@@ -310,12 +311,12 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Efectivo Real en Caja</label>
+                        <label class="form-label fw-bold">Efectivo Real en Caja <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input type="number" step="0.01" name="efectivo_real" id="efectivo_real" class="form-control" placeholder="0.00" required>
+                            <input type="number" step="0.01" min="0" name="efectivo_real" id="efectivo_real" class="form-control" placeholder="0.00" required>
                         </div>
-                        <small class="text-muted">Ingresa la cantidad física de dinero que tienes en tu gaveta.</small>
+                        <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Ingrese el dinero físico en gaveta (no se permiten números negativos).</small>
                     </div>
 
                     <div class="mb-3">
@@ -390,6 +391,20 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Bloqueo global de signos negativos y letras en inputs tipo número
+            document.querySelectorAll('input[type=number]').forEach(function(input) {
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') {
+                        e.preventDefault();
+                    }
+                });
+                input.addEventListener('input', function() {
+                    if (this.value && parseFloat(this.value) < 0) {
+                        this.value = '';
+                    }
+                });
+            });
+
             const efectivoRealInput = document.getElementById('efectivo_real');
             const saldoEsperado = parseFloat(document.getElementById('saldoFinalCaja').value);
             const diferenciaSpan = document.getElementById('diferenciaSpan');
@@ -398,52 +413,56 @@
             const tipoDiferencia = document.getElementById('tipoDiferencia');
             const formCerrarCaja = document.getElementById('formCerrarCaja');
 
-            efectivoRealInput.addEventListener('input', function() {
-                const efectivoReal = parseFloat(this.value);
-                
-                if (isNaN(efectivoReal)) {
-                    diferenciaSpan.textContent = '$0.00';
-                    diferenciaSpan.className = 'text-secondary';
-                    comentarioGroup.style.display = 'none';
-                    comentarioInput.required = false;
-                    return;
-                }
+            if (efectivoRealInput) {
+                efectivoRealInput.addEventListener('input', function() {
+                    const efectivoReal = parseFloat(this.value);
+                    
+                    if (isNaN(efectivoReal)) {
+                        diferenciaSpan.textContent = '$0.00';
+                        diferenciaSpan.className = 'text-secondary';
+                        comentarioGroup.style.display = 'none';
+                        comentarioInput.required = false;
+                        return;
+                    }
 
-                const diferencia = efectivoReal - saldoEsperado;
-                
-                // Formatear moneda
-                const diffFormatted = Math.abs(diferencia).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                
-                if (Math.abs(diferencia) < 0.01) {
-                    diferenciaSpan.textContent = 'Cuadrado ($0.00)';
-                    diferenciaSpan.className = 'text-success fw-bold';
-                    comentarioGroup.style.display = 'none';
-                    comentarioInput.required = false;
-                } else if (diferencia > 0) {
-                    diferenciaSpan.textContent = 'Sobrante (+$' + diffFormatted + ')';
-                    diferenciaSpan.className = 'text-warning fw-bold';
-                    comentarioGroup.style.display = 'block';
-                    tipoDiferencia.textContent = '(por sobrante)';
-                    comentarioInput.required = true;
-                } else {
-                    diferenciaSpan.textContent = 'Faltante (-$' + diffFormatted + ')';
-                    diferenciaSpan.className = 'text-danger fw-bold';
-                    comentarioGroup.style.display = 'block';
-                    tipoDiferencia.textContent = '(por faltante)';
-                    comentarioInput.required = true;
-                }
-            });
+                    const diferencia = efectivoReal - saldoEsperado;
+                    
+                    // Formatear moneda
+                    const diffFormatted = Math.abs(diferencia).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    
+                    if (Math.abs(diferencia) < 0.01) {
+                        diferenciaSpan.textContent = 'Cuadrado ($0.00)';
+                        diferenciaSpan.className = 'text-success fw-bold';
+                        comentarioGroup.style.display = 'none';
+                        comentarioInput.required = false;
+                    } else if (diferencia > 0) {
+                        diferenciaSpan.textContent = 'Sobrante (+$' + diffFormatted + ')';
+                        diferenciaSpan.className = 'text-warning fw-bold';
+                        comentarioGroup.style.display = 'block';
+                        tipoDiferencia.textContent = '(por sobrante)';
+                        comentarioInput.required = true;
+                    } else {
+                        diferenciaSpan.textContent = 'Faltante (-$' + diffFormatted + ')';
+                        diferenciaSpan.className = 'text-danger fw-bold';
+                        comentarioGroup.style.display = 'block';
+                        tipoDiferencia.textContent = '(por faltante)';
+                        comentarioInput.required = true;
+                    }
+                });
+            }
 
-            formCerrarCaja.addEventListener('submit', function(e) {
-                const efectivoReal = parseFloat(efectivoRealInput.value);
-                const diferencia = efectivoReal - saldoEsperado;
-                
-                if (Math.abs(diferencia) >= 0.01 && comentarioInput.value.trim() === '') {
-                    e.preventDefault();
-                    alert('Debe proporcionar una justificación obligatoria debido a la diferencia en caja.');
-                    comentarioInput.focus();
-                }
-            });
+            if (formCerrarCaja) {
+                formCerrarCaja.addEventListener('submit', function(e) {
+                    const efectivoReal = parseFloat(efectivoRealInput.value);
+                    const diferencia = efectivoReal - saldoEsperado;
+                    
+                    if (Math.abs(diferencia) >= 0.01 && comentarioInput.value.trim() === '') {
+                        e.preventDefault();
+                        alert('Debe proporcionar una justificación obligatoria debido a la diferencia en caja.');
+                        comentarioInput.focus();
+                    }
+                });
+            }
         });
     </script>
 @endsection
