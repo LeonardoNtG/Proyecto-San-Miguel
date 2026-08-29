@@ -226,23 +226,44 @@
                 </div>
             </div>
 
-            <!-- Datos de pago del Anticipo -->
+            <!-- Datos de pago del Anticipo con Selector Rápido de 1 Clic -->
             <div class="row g-3 bg-white p-3 mb-3 rounded border shadow-sm" id="seccion_pago_anticipo">
-                <div class="col-md-4 mb-3">
-                    <label for="metodo_pago" class="form-label font-weight-bold text-secondary">Método de Pago (Anticipo)</label>
-                    <select class="custom-select form-control" id="metodo_pago" name="metodo_pago" onchange="toggleMetodoFields()">
-                        <option value="Sin Anticipo" {{ old('metodo_pago') == 'Sin Anticipo' ? 'selected' : '' }}>Sin Anticipo ($0.00)</option>
-                        <option value="Efectivo" {{ old('metodo_pago') == 'Efectivo' ? 'selected' : '' }}>Efectivo</option>
-                        <option value="Transferencia Bancaria" {{ old('metodo_pago') == 'Transferencia Bancaria' ? 'selected' : '' }}>Transferencia Bancaria</option>
-                        <option value="Depósito Bancario" {{ old('metodo_pago') == 'Depósito Bancario' ? 'selected' : '' }}>Depósito Bancario</option>
-                        <option value="Cheque" {{ old('metodo_pago') == 'Cheque' ? 'selected' : '' }}>Cheque</option>
-                    </select>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label font-weight-bold text-secondary d-block">
+                        <i class="fas fa-wallet text-primary me-1"></i> Método de Pago (Anticipo)
+                    </label>
+                    <div class="btn-group w-100 d-flex flex-wrap shadow-sm" role="group" id="group_metodo_pago">
+                        <input type="radio" class="btn-check" name="metodo_pago" id="metodo_sin_anticipo" value="Sin Anticipo" autocomplete="off" {{ old('metodo_pago', 'Sin Anticipo') == 'Sin Anticipo' ? 'checked' : '' }} onchange="toggleMetodoFields()">
+                        <label class="btn btn-outline-dark py-2 fw-bold flex-fill" for="metodo_sin_anticipo">
+                            <i class="fas fa-ban me-1"></i> Sin Anticipo ($0)
+                        </label>
+
+                        <input type="radio" class="btn-check" name="metodo_pago" id="metodo_efectivo" value="Efectivo" autocomplete="off" {{ old('metodo_pago') == 'Efectivo' ? 'checked' : '' }} onchange="toggleMetodoFields()">
+                        <label class="btn btn-outline-success py-2 fw-bold flex-fill" for="metodo_efectivo">
+                            <i class="fas fa-money-bill-wave me-1"></i> Efectivo
+                        </label>
+
+                        <input type="radio" class="btn-check" name="metodo_pago" id="metodo_transferencia" value="Transferencia Bancaria" autocomplete="off" {{ old('metodo_pago') == 'Transferencia Bancaria' ? 'checked' : '' }} onchange="toggleMetodoFields()">
+                        <label class="btn btn-outline-primary py-2 fw-bold flex-fill" for="metodo_transferencia">
+                            <i class="fas fa-exchange-alt me-1"></i> Transferencia
+                        </label>
+
+                        <input type="radio" class="btn-check" name="metodo_pago" id="metodo_deposito" value="Depósito Bancario" autocomplete="off" {{ old('metodo_pago') == 'Depósito Bancario' ? 'checked' : '' }} onchange="toggleMetodoFields()">
+                        <label class="btn btn-outline-info py-2 fw-bold flex-fill" for="metodo_deposito">
+                            <i class="fas fa-university me-1"></i> Depósito
+                        </label>
+
+                        <input type="radio" class="btn-check" name="metodo_pago" id="metodo_cheque" value="Cheque" autocomplete="off" {{ old('metodo_pago') == 'Cheque' ? 'checked' : '' }} onchange="toggleMetodoFields()">
+                        <label class="btn btn-outline-secondary py-2 fw-bold flex-fill" for="metodo_cheque">
+                            <i class="fas fa-money-check me-1"></i> Cheque
+                        </label>
+                    </div>
                 </div>
-                <div class="col-md-4 mb-3" id="div_cuenta" style="display: none;">
+                <div class="col-md-3 mb-3" id="div_cuenta" style="display: none;">
                     <label for="cuenta_destino" class="form-label font-weight-bold text-secondary">Cuenta Destino</label>
                     <input type="text" class="form-control" id="cuenta_destino" name="cuenta_destino" placeholder="Ej: BANPRO - Empresa">
                 </div>
-                <div class="col-md-4 mb-3" id="div_referencia">
+                <div class="col-md-3 mb-3" id="div_referencia">
                     <label for="referencia" class="form-label font-weight-bold text-secondary" id="label_referencia">Referencia / Comentarios</label>
                     <input type="text" class="form-control" id="referencia" name="referencia" placeholder="Registro de Reserva">
                 </div>
@@ -352,13 +373,15 @@
 
 <script>
 function toggleMetodoFields() {
-    var metodo = $('#metodo_pago').val();
+    var metodo = $('input[name="metodo_pago"]:checked').val() || 'Sin Anticipo';
     if (metodo === 'Efectivo' || metodo === 'Sin Anticipo') {
         $('#div_cuenta').hide();
+        $('#div_referencia').removeClass('col-md-3').addClass('col-md-6');
         $('#label_referencia').text('Referencia / Comentarios');
         $('#referencia').attr('placeholder', 'Registro de Reserva');
     } else {
         $('#div_cuenta').show();
+        $('#div_referencia').removeClass('col-md-6').addClass('col-md-3');
         $('#label_referencia').html('N° Referencia / Transferencia <span class="text-danger">*</span>');
         $('#referencia').attr('placeholder', 'Ej: TR-8945201');
     }
@@ -370,12 +393,11 @@ $(document).ready(function() {
     // Auto-ajustar método de pago al escribir monto
     $('#monto_reserva').on('input', function() {
         var val = parseFloat($(this).val()) || 0;
-        if (val > 0 && $('#metodo_pago').val() === 'Sin Anticipo') {
-            $('#metodo_pago').val('Efectivo');
-            toggleMetodoFields();
-        } else if (val <= 0 && $('#metodo_pago').val() !== 'Sin Anticipo') {
-            $('#metodo_pago').val('Sin Anticipo');
-            toggleMetodoFields();
+        var current = $('input[name="metodo_pago"]:checked').val();
+        if (val > 0 && current === 'Sin Anticipo') {
+            $('#metodo_efectivo').prop('checked', true).trigger('change');
+        } else if (val <= 0 && current !== 'Sin Anticipo') {
+            $('#metodo_sin_anticipo').prop('checked', true).trigger('change');
         }
     });
 
@@ -513,7 +535,7 @@ $(document).ready(function() {
 
         var montoVal = parseFloat($('#monto_reserva').val()) || 0;
         var diasVal = parseInt($('#dias_validez').val()) || 5;
-        var metodo = $('#metodo_pago').val();
+        var metodo = $('input[name="metodo_pago"]:checked').val() || 'Sin Anticipo';
 
         if (montoVal <= 0) {
             $('#modal-res-monto').text('$0.00 (Sin Anticipo)');

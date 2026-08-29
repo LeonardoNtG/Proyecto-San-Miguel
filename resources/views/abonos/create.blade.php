@@ -146,18 +146,32 @@
                             @enderror
                         </div>
 
-                        <!-- Método de Pago -->
+                        <!-- Método de Pago con Selector Rápido de 1 Clic -->
                         <div class="mb-3">
-                            <label for="metodo_pago" class="form-label font-weight-bold">Método de Pago <span class="text-danger">*</span></label>
-                            <select class="form-select @error('metodo_pago') is-invalid @enderror" id="metodo_pago" name="metodo_pago" required onchange="toggleMetodoPagoFields()">
-                                <option value="Efectivo" {{ old('metodo_pago') == 'Efectivo' ? 'selected' : '' }}>Efectivo</option>
-                                <option value="Transferencia Bancaria" {{ old('metodo_pago') == 'Transferencia Bancaria' ? 'selected' : '' }}>Transferencia Bancaria</option>
-                                <option value="Depósito Bancario" {{ old('metodo_pago') == 'Depósito Bancario' ? 'selected' : '' }}>Depósito Bancario</option>
-                                <option value="Cheque" {{ old('metodo_pago') == 'Cheque' ? 'selected' : '' }}>Cheque</option>
-                            </select>
-                            @error('metodo_pago')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
+                            <label class="form-label font-weight-bold d-block">
+                                <i class="fas fa-wallet text-primary me-1"></i> Método de Pago <span class="text-danger">*</span>
+                            </label>
+                            <div class="btn-group w-100 d-flex flex-wrap shadow-sm" role="group" id="group_metodo_pago">
+                                <input type="radio" class="btn-check" name="metodo_pago" id="metodo_abono_efectivo" value="Efectivo" autocomplete="off" {{ old('metodo_pago', 'Efectivo') == 'Efectivo' ? 'checked' : '' }} onchange="toggleMetodoPagoFields()">
+                                <label class="btn btn-outline-success py-2 fw-bold flex-fill" for="metodo_abono_efectivo">
+                                    <i class="fas fa-money-bill-wave me-1"></i> Efectivo
+                                </label>
+
+                                <input type="radio" class="btn-check" name="metodo_pago" id="metodo_abono_transferencia" value="Transferencia Bancaria" autocomplete="off" {{ old('metodo_pago') == 'Transferencia Bancaria' ? 'checked' : '' }} onchange="toggleMetodoPagoFields()">
+                                <label class="btn btn-outline-primary py-2 fw-bold flex-fill" for="metodo_abono_transferencia">
+                                    <i class="fas fa-exchange-alt me-1"></i> Transferencia
+                                </label>
+
+                                <input type="radio" class="btn-check" name="metodo_pago" id="metodo_abono_deposito" value="Depósito Bancario" autocomplete="off" {{ old('metodo_pago') == 'Depósito Bancario' ? 'checked' : '' }} onchange="toggleMetodoPagoFields()">
+                                <label class="btn btn-outline-info py-2 fw-bold flex-fill" for="metodo_abono_deposito">
+                                    <i class="fas fa-university me-1"></i> Depósito
+                                </label>
+
+                                <input type="radio" class="btn-check" name="metodo_pago" id="metodo_abono_cheque" value="Cheque" autocomplete="off" {{ old('metodo_pago') == 'Cheque' ? 'checked' : '' }} onchange="toggleMetodoPagoFields()">
+                                <label class="btn btn-outline-secondary py-2 fw-bold flex-fill" for="metodo_abono_cheque">
+                                    <i class="fas fa-money-check me-1"></i> Cheque
+                                </label>
+                            </div>
                         </div>
 
                         <!-- Campos extra ocultos por defecto -->
@@ -332,23 +346,30 @@
     var saldoActualVenta = {{ (float)$saldoPendiente }};
 
     function toggleMetodoPagoFields() {
-        var metodo = document.getElementById('metodo_pago').value;
+        var checkedRadio = document.querySelector('input[name="metodo_pago"]:checked');
+        var metodo = checkedRadio ? checkedRadio.value : (document.getElementById('metodo_pago') ? document.getElementById('metodo_pago').value : 'Efectivo');
         var bancoSection = document.getElementById('banco_section');
         var cuentaInput = document.getElementById('cuenta_destino');
         var refInput = document.getElementById('referencia_bancaria');
         var labelRef = document.getElementById('label_referencia');
 
         if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario' || metodo === 'Cheque') {
-            bancoSection.style.display = 'block';
-            cuentaInput.required = true;
-            refInput.required = (metodo !== 'Cheque');
-            labelRef.textContent = (metodo === 'Cheque') ? 'N° de Cheque (Opcional)' : 'N° de Referencia / Comprobante';
+            if (bancoSection) bancoSection.style.display = 'block';
+            if (cuentaInput) cuentaInput.required = true;
+            if (refInput) {
+                refInput.required = (metodo !== 'Cheque');
+            }
+            if (labelRef) labelRef.textContent = (metodo === 'Cheque') ? 'N° de Cheque (Opcional)' : 'N° de Referencia / Comprobante';
         } else {
-            bancoSection.style.display = 'none';
-            cuentaInput.required = false;
-            cuentaInput.value = '';
-            refInput.required = false;
-            refInput.value = '';
+            if (bancoSection) bancoSection.style.display = 'none';
+            if (cuentaInput) {
+                cuentaInput.required = false;
+                cuentaInput.value = '';
+            }
+            if (refInput) {
+                refInput.required = false;
+                refInput.value = '';
+            }
         }
     }
 
@@ -369,7 +390,8 @@
 
             var montoVal = parseFloat(document.getElementById('monto_abonado').value) || 0;
             var tipoVal = document.getElementById('tipo_pago').value;
-            var metodoVal = document.getElementById('metodo_pago').value;
+            var checkedRadio = document.querySelector('input[name="metodo_pago"]:checked');
+            var metodoVal = checkedRadio ? checkedRadio.value : (document.getElementById('metodo_pago') ? document.getElementById('metodo_pago').value : 'Efectivo');
             var fechaVal = document.getElementById('fecha_abono').value;
             var cuentaVal = document.getElementById('cuenta_destino').value || '-';
             var refVal = document.getElementById('referencia_bancaria').value || '-';

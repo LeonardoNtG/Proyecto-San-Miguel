@@ -222,22 +222,39 @@
                 </div>
             </div>
 
-            <!-- Datos de pago de la Prima -->
-            <div class="row g-3 bg-white p-2 mb-3 rounded border">
-                <div class="col-md-3 mb-3">
-                    <label for="metodo_pago_prima" class="form-label font-weight-bold text-secondary">Método de Pago (Prima) <span class="text-danger">*</span></label>
-                    <select class="form-select" id="metodo_pago_prima" name="metodo_pago_prima" required onchange="togglePrimaFields()">
-                        <option value="Efectivo" {{ old('metodo_pago_prima') == 'Efectivo' ? 'selected' : '' }}>Efectivo</option>
-                        <option value="Transferencia Bancaria" {{ old('metodo_pago_prima') == 'Transferencia Bancaria' ? 'selected' : '' }}>Transferencia Bancaria</option>
-                        <option value="Depósito Bancario" {{ old('metodo_pago_prima') == 'Depósito Bancario' ? 'selected' : '' }}>Depósito Bancario</option>
-                        <option value="Cheque" {{ old('metodo_pago_prima') == 'Cheque' ? 'selected' : '' }}>Cheque</option>
-                    </select>
+            <!-- Datos de pago de la Prima con Selector Rápido de 1 Clic -->
+            <div class="row g-3 bg-white p-3 mb-3 rounded border shadow-sm">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label font-weight-bold text-secondary d-block">
+                        <i class="fas fa-wallet text-primary me-1"></i> Método de Pago (Prima) <span class="text-danger">*</span>
+                    </label>
+                    <div class="btn-group w-100 d-flex flex-wrap shadow-sm" role="group" id="group_metodo_pago_prima">
+                        <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_efectivo" value="Efectivo" autocomplete="off" {{ old('metodo_pago_prima', 'Efectivo') == 'Efectivo' ? 'checked' : '' }} onchange="togglePrimaFields()">
+                        <label class="btn btn-outline-success py-2 fw-bold flex-fill" for="metodo_prima_efectivo">
+                            <i class="fas fa-money-bill-wave me-1"></i> Efectivo
+                        </label>
+
+                        <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_transferencia" value="Transferencia Bancaria" autocomplete="off" {{ old('metodo_pago_prima') == 'Transferencia Bancaria' ? 'checked' : '' }} onchange="togglePrimaFields()">
+                        <label class="btn btn-outline-primary py-2 fw-bold flex-fill" for="metodo_prima_transferencia">
+                            <i class="fas fa-exchange-alt me-1"></i> Transferencia
+                        </label>
+
+                        <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_deposito" value="Depósito Bancario" autocomplete="off" {{ old('metodo_pago_prima') == 'Depósito Bancario' ? 'checked' : '' }} onchange="togglePrimaFields()">
+                        <label class="btn btn-outline-info py-2 fw-bold flex-fill" for="metodo_prima_deposito">
+                            <i class="fas fa-university me-1"></i> Depósito
+                        </label>
+
+                        <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_cheque" value="Cheque" autocomplete="off" {{ old('metodo_pago_prima') == 'Cheque' ? 'checked' : '' }} onchange="togglePrimaFields()">
+                        <label class="btn btn-outline-secondary py-2 fw-bold flex-fill" for="metodo_prima_cheque">
+                            <i class="fas fa-money-check me-1"></i> Cheque
+                        </label>
+                    </div>
                 </div>
-                <div class="col-md-4 mb-3" id="div_cuenta_prima" style="display: none;">
+                <div class="col-md-3 mb-3" id="div_cuenta_prima" style="display: none;">
                     <label for="cuenta_destino_prima" class="form-label font-weight-bold text-secondary">Cuenta Destino</label>
                     <input type="text" class="form-control" id="cuenta_destino_prima" name="cuenta_destino_prima" placeholder="Ej: BANPRO - Empresa">
                 </div>
-                <div class="col-md-5 mb-3" id="div_referencia_prima">
+                <div class="col-md-3 mb-3" id="div_referencia_prima">
                     <label for="referencia_prima" class="form-label font-weight-bold text-secondary" id="label_referencia_prima">Comentarios / Referencia</label>
                     <input type="text" class="form-control" id="referencia_prima" name="referencia_prima" placeholder="Registro Inicial de Venta">
                 </div>
@@ -611,25 +628,35 @@ $(document).ready(function() {
     
     <script>
     function togglePrimaFields() {
-        var metodo = document.getElementById('metodo_pago_prima').value;
+        var checkedRadio = document.querySelector('input[name="metodo_pago_prima"]:checked');
+        var metodo = checkedRadio ? checkedRadio.value : (document.getElementById('metodo_pago_prima') ? document.getElementById('metodo_pago_prima').value : 'Efectivo');
         var divCuenta = document.getElementById('div_cuenta_prima');
         var inputCuenta = document.getElementById('cuenta_destino_prima');
         var labelRef = document.getElementById('label_referencia_prima');
         var inputRef = document.getElementById('referencia_prima');
+        var divRef = document.getElementById('div_referencia_prima');
 
         if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario' || metodo === 'Cheque') {
-            divCuenta.style.display = 'block';
-            inputCuenta.required = true;
-            labelRef.innerText = 'N° de Referencia / Comprobante';
-            inputRef.placeholder = 'N° de transacción';
-            inputRef.required = (metodo !== 'Cheque');
+            if (divCuenta) divCuenta.style.display = 'block';
+            if (inputCuenta) inputCuenta.required = true;
+            if (divRef) divRef.className = 'col-md-3 mb-3';
+            if (labelRef) labelRef.innerText = 'N° de Referencia / Comprobante';
+            if (inputRef) {
+                inputRef.placeholder = 'N° de transacción';
+                inputRef.required = (metodo !== 'Cheque');
+            }
         } else {
-            divCuenta.style.display = 'none';
-            inputCuenta.required = false;
-            inputCuenta.value = '';
-            labelRef.innerText = 'Comentarios / Referencia';
-            inputRef.placeholder = 'Registro Inicial de Venta';
-            inputRef.required = false;
+            if (divCuenta) divCuenta.style.display = 'none';
+            if (inputCuenta) {
+                inputCuenta.required = false;
+                inputCuenta.value = '';
+            }
+            if (divRef) divRef.className = 'col-md-6 mb-3';
+            if (labelRef) labelRef.innerText = 'Comentarios / Referencia';
+            if (inputRef) {
+                inputRef.placeholder = 'Registro Inicial de Venta';
+                inputRef.required = false;
+            }
         }
     }
     
