@@ -64,16 +64,24 @@ class VentaController extends Controller
                     }
                 }
 
-                // Actualizar la venta
-                $venta->precio_final = $request->nuevo_precio_final;
-                $venta->cuota_mensual = $request->nueva_cuota_mensual;
-                $venta->plazo_meses = $request->nuevo_plazo_meses;
+                // Actualizar la venta (garantizando valores no negativos)
+                $venta->precio_final = max(0, (float)$request->nuevo_precio_final);
+                $venta->cuota_mensual = max(0, (float)$request->nueva_cuota_mensual);
+                $venta->plazo_meses = max(1, (int)$request->nuevo_plazo_meses);
+
+                // Recalcular la extensión total de los lotes que continúan activos
+                $lotesActivosRestantes = HistorialLote::where('id_venta', $venta->id_venta)
+                                                     ->where('estado', 'Activo')
+                                                     ->with('lote')
+                                                     ->get();
+                $nuevaExtension = $lotesActivosRestantes->sum(fn($h) => $h->lote ? (float)$h->lote->area_metros : 0);
+                $venta->extension_lote = max(0, $nuevaExtension);
                 $venta->save();
 
                 // Eliminar todas las cuotas (se regenerarán)
                 \App\Models\Cuota::where('id_venta', $venta->id_venta)->delete();
                 
-                // Generar nuevo plan de cuotas (sacado de ClienteController@store)
+                // Generar nuevo plan de cuotas
                 $fechaVencimiento = \Carbon\Carbon::parse($venta->fecha_venta);
                 $primerAbono = \App\Models\Abono::where('id_venta', $venta->id_venta)->orderBy('fecha_pago', 'asc')->first();
                 if ($primerAbono) {
@@ -88,7 +96,7 @@ class VentaController extends Controller
                     for ($i = 1; $i <= $plazoRestante; $i++) {
                         $fechaVencimiento->addMonth();
                         
-                        $montoCuota = ($i == $plazoRestante) ? $saldoRestante : $cuotaMensual;
+                        $montoCuota = max(0, ($i == $plazoRestante) ? $saldoRestante : $cuotaMensual);
                         
                         \App\Models\Cuota::create([
                             'id_venta' => $venta->id_venta,
@@ -101,15 +109,21 @@ class VentaController extends Controller
                             'estado' => 'Pendiente',
                         ]);
                         
-                        $saldoRestante -= $montoCuota;
+                        $saldoRestante = max(0, $saldoRestante - $montoCuota);
                     }
                 }
 
                 // Reaplicar Abonos íntegramente
                 \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
                 
-                \App\Models\Auditoria::log('Rescindió Parcialmente', 'Venta', $venta->id_venta, "Lotes liberados. Nuevo Precio: $request->nuevo_precio_final");
-                $mensaje = 'Rescisión Parcial exitosa. Lotes liberados, precio actualizado y saldos recalculados.';
+                $cantConservados = $lotesActivosRestantes->count();
+                $cuotaPorLote = $cantConservados > 0 ? ($venta->cuota_mensual / $cantConservados) : 0;
+                $detallesAudit = "Rescisión Parcial: {$lotesARescindir} lote(s) devuelto(s), {$cantConservados} conservado(s). " .
+                                 "Nuevo Precio: $" . number_format($venta->precio_final, 2) . " | " .
+                                 "Nueva Cuota: $" . number_format($venta->cuota_mensual, 2) . " ($" . number_format($cuotaPorLote, 2) . "/lote) | " .
+                                 "Motivo: " . $request->motivo_rescision;
+                \App\Models\Auditoria::log('Rescindió Parcialmente', 'Venta', $venta->id_venta, $detallesAudit);
+                $mensaje = 'Rescisión Parcial exitosa. Lotes liberados, cuota proporcional por lote recalculada y plan de pagos actualizado.';
 
             } else {
                 // Rescisión TOTAL (Lógica original)

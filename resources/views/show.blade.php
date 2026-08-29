@@ -86,7 +86,13 @@
                                 <p><strong>Proyecto:</strong> <span class="badge bg-primary text-white fs-6">{{ $venta->proyecto }}</span></p>
                                 <p><strong>Precio Final:</strong> ${{ number_format($venta->precio_final, 2) }}</p>
                                 <p><strong>Plazo (Meses):</strong> {{ $venta->plazo_meses }}</p>
-                                <p><strong>Cuota Mensual:</strong> ${{ number_format($venta->cuota_mensual, 2) }}</p>
+                                <p><strong>Cuota Mensual:</strong> ${{ number_format($venta->cuota_mensual, 2) }}
+                                    @if($venta->total_lotes_vendidos > 1)
+                                        <span class="badge bg-light text-dark border ms-1">
+                                            ${{ number_format(max(0, $venta->cuota_mensual / max(1, $venta->total_lotes_vendidos)), 2) }} / lote
+                                        </span>
+                                    @endif
+                                </p>
                                 <p><strong>Extensión Total:</strong> {{ $venta->extension_lote }} m²</p>
                             </div>
                             <div class="col-md-6">
@@ -401,13 +407,21 @@
                     @csrf
                     <div class="modal-body">
                         <div class="alert alert-warning">
-                            <strong>Atención:</strong> Seleccione los lotes que el cliente desea devolver. Si selecciona todos, el contrato completo se cancelará.
+                            <strong><i class="fas fa-exclamation-triangle me-1"></i> Selección de Lotes a Devolver:</strong>
+                            <p class="small mb-2 text-dark">Marque los lotes que el cliente desea rescindir / devolver a disponibilidad. Los no marcados permanecerán en el contrato.</p>
                             <div class="mt-2" id="lotes_checkbox_container">
                                 @foreach($venta->lotes as $lote)
-                                    <div class="form-check">
-                                        <input class="form-check-input lote-rescindir-checkbox" type="checkbox" name="lotes_a_rescindir[]" value="{{ $lote->id_lote }}" id="lote_res_{{ $lote->id_lote }}" checked>
-                                        <label class="form-check-label" for="lote_res_{{ $lote->id_lote }}">
-                                            Lote {{ $lote->numero_lote }} (Pasará a Disponible)
+                                    <div class="form-check mb-2 p-2 bg-white rounded border">
+                                        <input class="form-check-input lote-rescindir-checkbox ms-1 me-2" 
+                                               type="checkbox" 
+                                               name="lotes_a_rescindir[]" 
+                                               value="{{ $lote->id_lote }}" 
+                                               id="lote_res_{{ $lote->id_lote }}" 
+                                               data-area="{{ $lote->area_metros }}"
+                                               checked>
+                                        <label class="form-check-label fw-bold text-dark" for="lote_res_{{ $lote->id_lote }}">
+                                            Bloque {{ $lote->bloque ? $lote->bloque->nombre : '' }} - Lote {{ $lote->numero_lote }}
+                                            <span class="text-muted fw-normal">({{ number_format($lote->area_metros, 2) }} m²)</span>
                                         </label>
                                     </div>
                                 @endforeach
@@ -415,29 +429,35 @@
                         </div>
 
                         <!-- Opciones de Rescisión Parcial -->
-                        <div id="opciones_rescision_parcial" style="display: none;" class="border p-3 rounded mb-3 bg-light">
-                            <h6 class="text-primary mb-3"><i class="fas fa-info-circle"></i> Opciones de Rescisión Parcial</h6>
+                        <div id="opciones_rescision_parcial" style="display: none;" class="border p-3 rounded mb-3 bg-light shadow-sm">
+                            <h6 class="text-primary mb-2 fw-bold"><i class="fas fa-calculator me-1"></i> Rescisión Parcial: Recálculo Proporcional</h6>
+                            
+                            <div class="alert alert-info py-2 px-3 mb-3 small" id="resumen_proporcional_info">
+                                <!-- Actualizado automáticamente por JS -->
+                            </div>
                             
                             <div class="mb-3">
-                                <label for="nuevo_pv_num" class="form-label">Nuevo N° Promesa de Venta (Opcional):</label>
+                                <label for="nuevo_pv_num" class="form-label font-weight-bold">Nuevo N° Promesa de Venta (Opcional):</label>
                                 <input type="text" class="form-control" name="nuevo_pv_num" id="nuevo_pv_num" value="{{ $cliente->pv_num }}">
                             </div>
 
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label for="nuevo_precio_final" class="form-label">Nuevo Precio Total ($):</label>
-                                    <input type="number" step="0.01" class="form-control calc-plazo" name="nuevo_precio_final" id="nuevo_precio_final">
+                                    <label for="nuevo_precio_final" class="form-label font-weight-bold">Nuevo Precio Total ($):</label>
+                                    <input type="number" step="0.01" min="0" class="form-control calc-plazo font-weight-bold" name="nuevo_precio_final" id="nuevo_precio_final">
+                                    <small class="text-muted">Proporcional al número de lotes activos.</small>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label for="nueva_cuota_mensual" class="form-label">Nueva Cuota Mensual ($):</label>
-                                    <input type="number" step="0.01" class="form-control calc-plazo" name="nueva_cuota_mensual" id="nueva_cuota_mensual">
+                                    <label for="nueva_cuota_mensual" class="form-label font-weight-bold">Nueva Cuota Mensual ($):</label>
+                                    <input type="number" step="0.01" min="0" class="form-control calc-plazo font-weight-bold text-success" name="nueva_cuota_mensual" id="nueva_cuota_mensual">
+                                    <small class="text-muted">Cuota dividida equitativamente entre los lotes.</small>
                                 </div>
                             </div>
                             
                             <div class="mb-3">
-                                <label for="nuevo_plazo_meses" class="form-label">Nuevo Plazo (Meses):</label>
-                                <input type="number" class="form-control" name="nuevo_plazo_meses" id="nuevo_plazo_meses">
-                                <small class="text-muted">Se calcula automáticamente. Puedes modificarlo si es necesario.</small>
+                                <label for="nuevo_plazo_meses" class="form-label font-weight-bold">Nuevo Plazo (Meses):</label>
+                                <input type="number" min="1" class="form-control" name="nuevo_plazo_meses" id="nuevo_plazo_meses">
+                                <small class="text-muted">Se calcula automáticamente: Precio / Cuota.</small>
                             </div>
                         </div>
                         <div class="mb-3">
@@ -460,7 +480,7 @@
 
 @section('scripts')
    <script>
-        // Logica para Rescision Parcial
+        // Logica para Rescision Parcial con calculo proporcional multi-lote
         document.addEventListener('DOMContentLoaded', function() {
             const checkboxes = document.querySelectorAll('.lote-rescindir-checkbox');
             const containerParcial = document.getElementById('opciones_rescision_parcial');
@@ -469,18 +489,43 @@
             const inputCuota = document.getElementById('nueva_cuota_mensual');
             const inputPlazo = document.getElementById('nuevo_plazo_meses');
 
-            function checkRescissionType() {
-                let total = checkboxes.length;
-                let checked = document.querySelectorAll('.lote-rescindir-checkbox:checked').length;
+            const totalLotes = {{ $venta ? $venta->lotes->count() : 0 }};
+            const precioTotalOriginal = {{ $venta ? (float)$venta->precio_final : 0 }};
+            const cuotaOriginal = {{ $venta ? (float)$venta->cuota_mensual : 0 }};
+            const plazoOriginal = {{ $venta ? (int)$venta->plazo_meses : 0 }};
+            const cuotaPorLoteOriginal = totalLotes > 0 ? (cuotaOriginal / totalLotes) : 0;
+            const precioPorLoteOriginal = totalLotes > 0 ? (precioTotalOriginal / totalLotes) : 0;
 
-                // Si está seleccionando ALGUNOS pero NO TODOS, es parcial
-                if (checked > 0 && checked < total) {
+            function checkRescissionType() {
+                let checkedCount = document.querySelectorAll('.lote-rescindir-checkbox:checked').length;
+                let conservados = totalLotes - checkedCount;
+
+                // Si se devuelven algunos pero NO todos (conserva al menos 1 lote)
+                if (checkedCount > 0 && conservados > 0) {
                     containerParcial.style.display = 'block';
                     inputPrecio.required = true;
                     inputCuota.required = true;
                     inputPlazo.required = true;
+
+                    // Cálculo equitativo proporcional por lote (Siempre >= 0)
+                    let nuevoPrecio = Math.max(0, Math.round((precioPorLoteOriginal * conservados) * 100) / 100);
+                    let nuevaCuota = Math.max(0, Math.round((cuotaPorLoteOriginal * conservados) * 100) / 100);
+                    let nuevoPlazo = plazoOriginal;
+
+                    inputPrecio.value = nuevoPrecio.toFixed(2);
+                    inputCuota.value = nuevaCuota.toFixed(2);
+                    inputPlazo.value = nuevoPlazo;
+
+                    const cuotaIndividual = conservados > 0 ? Math.max(0, nuevaCuota / conservados) : 0;
+                    const resumenEl = document.getElementById('resumen_proporcional_info');
+                    if (resumenEl) {
+                        resumenEl.innerHTML = 
+                            `<strong><i class="fas fa-check-circle text-success me-1"></i> Conservando ${conservados} de ${totalLotes} lote(s):</strong><br>` +
+                            `• Cuota individual por lote: <strong>$${cuotaIndividual.toFixed(2)}/mes</strong><br>` +
+                            `• Nueva cuota mensual total: <strong class="text-success">$${nuevaCuota.toFixed(2)}/mes</strong><br>` +
+                            `• Nuevo valor total del contrato: <strong>$${nuevoPrecio.toFixed(2)}</strong>`;
+                    }
                 } else {
-                    // Rescision total (todos) o ninguno (error form)
                     containerParcial.style.display = 'none';
                     inputPrecio.required = false;
                     inputCuota.required = false;
@@ -492,14 +537,33 @@
                 chk.addEventListener('change', checkRescissionType);
             });
 
-            // Autocalcular plazo
+            // Autocalcular plazo garantizando valores >= 0
             function calcularPlazo() {
-                let precio = parseFloat(inputPrecio.value);
-                let cuota = parseFloat(inputCuota.value);
+                let precio = Math.max(0, parseFloat(inputPrecio.value) || 0);
+                let cuota = Math.max(0, parseFloat(inputCuota.value) || 0);
                 if (precio > 0 && cuota > 0) {
-                    inputPlazo.value = Math.ceil(precio / cuota);
+                    inputPlazo.value = Math.max(1, Math.ceil(precio / cuota));
                 }
             }
+
+            inputPrecio.addEventListener('input', calcularPlazo);
+            inputCuota.addEventListener('input', calcularPlazo);
+
+            // Bloquear estrictamente negativos en inputs de rescisión
+            [inputPrecio, inputCuota, inputPlazo].forEach(inp => {
+                if (inp) {
+                    inp.addEventListener('keydown', function(e) {
+                        if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') {
+                            e.preventDefault();
+                        }
+                    });
+                    inp.addEventListener('input', function() {
+                        if (parseFloat(this.value) < 0) {
+                            this.value = 0;
+                        }
+                    });
+                }
+            });
 
             // Toggle Acordeón Plan de Cuotas (Abre y Cierra)
             $('#headerPlanCuotas').on('click', function(e) {
