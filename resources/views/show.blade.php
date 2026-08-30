@@ -44,11 +44,57 @@
     <hr>
 
     @php
-        // Usamos la primera venta activa o la primera disponible
-        $venta = $cliente->ventas->firstWhere('estado_contrato', 'Vigente') 
-                 ?? $cliente->ventas->first();
+        $venta = $ventaActual ?? ($cliente->ventas->firstWhere('estado_contrato', 'Vigente') ?? $cliente->ventas->first());
         $tieneMultiplesContratos = $cliente->ventas->count() > 1;
     @endphp
+
+    @if($tieneMultiplesContratos)
+    {{-- BARRA SELECTORA DE CONTRATOS (cuando el cliente tiene varios lotes independientes) --}}
+    <div class="card shadow-sm mb-4 border-primary">
+        <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 fw-bold">
+                <i class="fas fa-layer-group me-1"></i> Este cliente posee {{ $cliente->ventas->count() }} Contratos Independientes — Seleccione para ver su estado y plan de pagos:
+            </h6>
+        </div>
+        <div class="card-body p-2 bg-light">
+            <div class="row g-2">
+                @foreach($cliente->ventas as $v)
+                    @php
+                        $lotesV = $v->lotes;
+                        $nombreLotes = $lotesV->map(fn($l) => 'Bloque '.($l->bloque->nombre ?? '').' - Lote '.$l->numero_lote)->implode(', ');
+                        $esActual = ($venta && $venta->id_venta == $v->id_venta);
+                        $enMora = $v->cuotas->where('estado', 'Mora')->count() > 0;
+                    @endphp
+                    <div class="col-md-4">
+                        <a href="{{ route('registro.show', [$cliente->id_cliente, 'venta_id' => $v->id_venta]) }}" class="text-decoration-none">
+                            <div class="p-2 rounded border {{ $esActual ? 'border-primary bg-primary text-white shadow' : 'border-secondary bg-white text-dark' }} transition-all">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong class="fs-6">
+                                        <i class="fas fa-map-marker-alt me-1"></i>{{ $nombreLotes ?: 'Contrato #'.$v->id_venta }}
+                                    </strong>
+                                    @if($enMora)
+                                        <span class="badge bg-danger">Mora</span>
+                                    @else
+                                        <span class="badge {{ $esActual ? 'bg-light text-primary' : 'bg-success text-white' }}">Vigente</span>
+                                    @endif
+                                </div>
+                                @if($v->beneficiario_final)
+                                    <div class="small {{ $esActual ? 'text-white-50' : 'text-muted' }} mt-1">
+                                        <i class="fas fa-user-tie me-1"></i> {{ $v->beneficiario_final }}
+                                    </div>
+                                @endif
+                                <div class="small mt-1 {{ $esActual ? 'text-white' : 'text-muted' }} d-flex justify-content-between">
+                                    <span>${{ number_format($v->cuota_mensual, 2) }}/mes</span>
+                                    <span>${{ number_format($v->precio_final, 2) }} total</span>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+    @endif
 
     <div class="row">
         
@@ -75,12 +121,16 @@
             <div class="card shadow mb-4">
                 <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                     <h5 class="m-0">
-                        Detalles de la Venta
-                        @if($tieneMultiplesContratos)
-                            <span class="badge bg-warning text-dark ms-2">{{ $cliente->ventas->count() }} Contratos Independientes</span>
+                        Detalles del Contrato
+                        @if($venta && $venta->lotes->count() > 0)
+                            <span class="badge bg-light text-dark ms-2">
+                                {{ $venta->lotes->map(fn($l) => 'Lote '.$l->numero_lote)->implode(', ') }}
+                            </span>
                         @endif
                     </h5>
-                </div>
+                    @if($tieneMultiplesContratos)
+                        <span class="badge bg-warning text-dark">{{ $cliente->ventas->count() }} Contratos en total</span>
+                    @endif
                 </div>
                 <div class="card-body">
                     @if($venta)

@@ -42,16 +42,31 @@
                     <tbody>
                         @forelse ($clientes as $cliente)
                             @php
-                                $venta = $cliente->ventas->first();
-                                $cuotasPagadas = $venta ? $venta->cuotas->where('estado', 'Pagada')->count() : 0;
-                                $cuotasPendientes = $venta ? $venta->cuotas->whereIn('estado', ['Pendiente', 'Mora'])->count() : 0;
+                                $ventasActivas = $cliente->ventas->where('estado_contrato', '!=', 'Rescindido');
+                                $primerVenta = $ventasActivas->first() ?? $cliente->ventas->first();
+                                
+                                $todosLotes = $ventasActivas->flatMap->lotes;
+                                $cuotasPagadas = $ventasActivas->sum(function($v) {
+                                    return $v->cuotas->where('estado', 'Pagada')->count();
+                                });
+                                $cuotasPendientes = $ventasActivas->sum(function($v) {
+                                    return $v->cuotas->whereIn('estado', ['Pendiente', 'Mora'])->count();
+                                });
+                                $totalAbonado = $ventasActivas->sum(function($v) {
+                                    return $v->abonos->sum('monto_abonado');
+                                });
+                                $saldoTotal = $ventasActivas->sum(function($v) {
+                                    $saldo = $v->cuotas->where('estado', '!=', 'Pagada')->sum('saldo_restante');
+                                    $mora = $v->cuotas->where('estado', '!=', 'Pagada')->sum('mora_pendiente');
+                                    return $saldo + $mora;
+                                });
                             @endphp
                             <tr>
                                 <td>{{ $cliente->expediente_num }}</td>
                                 <td>{{ $cliente->nombres_apellidos }}</td>
                                 <td>
-                                    @if($venta && $venta->lotes->count() > 0)
-                                        @foreach($venta->lotes as $lote)
+                                    @if($todosLotes->count() > 0)
+                                        @foreach($todosLotes as $lote)
                                             <span class="badge badge-info">Bloque {{ $lote->bloque->nombre ?? 'N/A' }} - Lote {{ $lote->numero_lote ?? 'N/A' }}</span><br>
                                         @endforeach
                                     @else
@@ -59,7 +74,7 @@
                                     @endif
                                 </td>
                                 <td>
-                                    {{ $venta ? \Carbon\Carbon::parse($venta->fecha_venta)->format('d/m/Y') : 'N/A' }}
+                                    {{ $primerVenta ? \Carbon\Carbon::parse($primerVenta->fecha_venta)->format('d/m/Y') : 'N/A' }}
                                 </td>
                                 <td>
                                     <span class="badge badge-success">{{ $cuotasPagadas }}</span>
@@ -68,14 +83,10 @@
                                     <span class="badge badge-warning text-dark">{{ $cuotasPendientes }}</span>
                                 </td>
                                 <td>
-                                    ${{ number_format($venta ? $venta->abonos->sum('monto_abonado') : 0, 2) }}
+                                    ${{ number_format($totalAbonado, 2) }}
                                 </td>
                                 <td>
-                                    @php
-                                        $saldo = $venta ? $venta->cuotas->where('estado', '!=', 'Pagada')->sum('saldo_restante') : 0;
-                                        $mora = $venta ? $venta->cuotas->where('estado', '!=', 'Pagada')->sum('mora_pendiente') : 0;
-                                    @endphp
-                                    <span class="text-danger fw-bold">${{ number_format($saldo + $mora, 2) }}</span>
+                                    <span class="text-danger fw-bold">${{ number_format($saldoTotal, 2) }}</span>
                                 </td>
                                 <td class="text-center">
                                     @if($cliente->token_seguimiento)

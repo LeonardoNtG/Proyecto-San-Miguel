@@ -6,7 +6,7 @@ use Illuminate\Http\Request;
 
 class PortalClienteController extends Controller
 {
-    public function show($token)
+    public function show(Request $request, $token)
     {
         $cliente = \App\Models\Cliente::where('token_seguimiento', $token)->firstOrFail();
         
@@ -16,11 +16,14 @@ class PortalClienteController extends Controller
             $query->orderBy('created_at', 'desc');
         }]);
 
-        $venta = $cliente->ventas->first();
-        if ($venta) {
-            $venta->total_abonado = $venta->abonos->sum('monto_abonado');
-        }
+        $ventas = $cliente->ventas;
+        $ventas->each(function ($v) {
+            $v->total_abonado = $v->abonos->sum('monto_abonado');
+        });
 
-        return view('portal.estado_cuenta', compact('cliente', 'venta'));
+        $ventaId = $request->get('venta_id');
+        $venta = $ventaId ? $ventas->firstWhere('id_venta', $ventaId) : ($ventas->firstWhere('estado_contrato', 'Vigente') ?? $ventas->first());
+
+        return view('portal.estado_cuenta', compact('cliente', 'venta', 'ventas'));
     }
 }

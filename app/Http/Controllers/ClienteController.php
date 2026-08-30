@@ -24,7 +24,11 @@ class ClienteController extends Controller
         $search = $request->get('search');
         $filtro = $request->get('filtro', 'activos'); // activos o rescindidos
 
-        $clientesQuery = Cliente::with('ventas')->orderBy('id_cliente', 'desc');
+        $clientesQuery = Cliente::with([
+            'ventas.lotes.bloque',
+            'ventas.lotificacion',
+            'ventas.abonos'
+        ])->orderBy('id_cliente', 'desc');
 
         if ($filtro === 'rescindidos') {
             // Clientes que SOLO tienen ventas rescindidas, o al menos mostrar los rescindidos
@@ -298,7 +302,7 @@ class ClienteController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show(Cliente $cliente)
+    public function show(Cliente $cliente, Request $request)
     {
         $cliente->load([
             'ventas' => function($vq) {
@@ -330,6 +334,15 @@ class ClienteController extends Controller
             $venta->total_abonado = $venta->abonos->sum('monto_abonado');
         });
 
+        $ventaIdSeleccionada = $request->get('venta_id');
+        $ventaActual = null;
+        if ($ventaIdSeleccionada) {
+            $ventaActual = $cliente->ventas->firstWhere('id_venta', $ventaIdSeleccionada);
+        }
+        if (!$ventaActual) {
+            $ventaActual = $cliente->ventas->firstWhere('estado_contrato', 'Vigente') ?? $cliente->ventas->first();
+        }
+
         $ventaIds = $cliente->ventas->pluck('id_venta')->toArray();
 
         $historialModificaciones = \App\Models\Auditoria::where(function($q) use ($cliente, $ventaIds) {
@@ -340,7 +353,7 @@ class ClienteController extends Controller
             });
         })->with('user')->orderBy('created_at', 'desc')->get();
 
-        return view('show', compact('cliente', 'historialModificaciones'));
+        return view('show', compact('cliente', 'historialModificaciones', 'ventaActual'));
     }
 
     /**

@@ -94,6 +94,39 @@
             <p>Bienvenido a tu portal en línea. Aquí puedes visualizar el estado actualizado de tu cuenta, revisar tus pagos y descargar tus comprobantes.</p>
         </div>
 
+        @if(isset($ventas) && $ventas->count() > 1)
+        <!-- Selector de Contratos Múltiples -->
+        <div class="card card-custom mb-4 border-0 shadow-sm">
+            <div class="card-body p-3 bg-white">
+                <h6 class="fw-bold text-primary mb-2"><i class="fas fa-layer-group me-1"></i> Tus Contratos / Lotes ({{ $ventas->count() }}):</h6>
+                <div class="row g-2">
+                    @foreach($ventas as $v)
+                        @php
+                            $lotesV = $v->lotes;
+                            $nombreLotes = $lotesV->map(fn($l) => 'Bloque '.($l->bloque->nombre ?? '').' - Lote '.$l->numero_lote)->implode(', ');
+                            $esActual = ($venta && $venta->id_venta == $v->id_venta);
+                        @endphp
+                        <div class="col-md-4">
+                            <a href="{{ route('portal.estado_cuenta', [$cliente->token_seguimiento, 'venta_id' => $v->id_venta]) }}" class="text-decoration-none">
+                                <div class="p-2 rounded border {{ $esActual ? 'border-primary bg-primary text-white shadow-sm' : 'border-secondary-subtle bg-light text-dark' }}">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong class="fs-6">{{ $nombreLotes ?: 'Contrato #'.$v->id_venta }}</strong>
+                                        <span class="badge {{ $esActual ? 'bg-light text-primary' : 'bg-success' }}">{{ $v->estado_contrato }}</span>
+                                    </div>
+                                    @if($v->beneficiario_final)
+                                        <div class="small {{ $esActual ? 'text-white-50' : 'text-muted' }} mt-1">
+                                            <i class="fas fa-user-tie me-1"></i> {{ $v->beneficiario_final }}
+                                        </div>
+                                    @endif
+                                </div>
+                            </a>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        @endif
+
         @if(!$venta)
             <div class="alert alert-warning">
                 No tienes ventas activas registradas en el sistema.

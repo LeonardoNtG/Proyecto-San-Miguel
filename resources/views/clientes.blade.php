@@ -59,18 +59,28 @@
                                 <td>{{ $cliente->expediente_num }}</td>
                                 <td>{{ $cliente->pv_num }}</td>
                                 <td>{{ $cliente->nombres_apellidos }}</td>
-                                
-                                {{-- ASUMIMOS UNA VENTA ACTIVA POR CLIENTE --}}
-                                @php
-                                    // Tomamos la primera venta 
-                                    $ventaActiva = $cliente->ventas->first(); 
+                                                              @php
+                                    $ventasActivas = $cliente->ventas->where('estado_contrato', '!=', 'Rescindido');
+                                    $ventaPrincipal = $ventasActivas->first() ?? $cliente->ventas->first();
+                                    $totalAbonadoCliente = $cliente->ventas->sum('total_abonado');
+                                    
+                                    // Obtener todos los lotes de todas las ventas del cliente (filtrando por activas si las hay)
+                                    $ventasParaLotes = $ventasActivas->count() > 0 ? $ventasActivas : $cliente->ventas;
+                                    $todosLotes = $ventasParaLotes->flatMap(function($v) {
+                                        return $v->lotes;
+                                    });
+
+                                    // Proyectos involucrados
+                                    $proyectosNombres = $ventasParaLotes->map(function($v) {
+                                        return $v->lotificacion->nombre ?? null;
+                                    })->filter()->unique()->implode(', ');
                                 @endphp
 
-                                <td>{{ $ventaActiva ? ($ventaActiva->lotificacion->nombre ?? 'N/A') : 'N/A' }}</td>
+                                <td>{{ $proyectosNombres ?: ($ventaPrincipal->lotificacion->nombre ?? 'N/A') }}</td>
 
                                 <td>
-                                    @if($ventaActiva && $ventaActiva->lotes->count() > 0)
-                                        @foreach($ventaActiva->lotes as $lote)
+                                    @if($todosLotes->count() > 0)
+                                        @foreach($todosLotes as $lote)
                                             <span class="badge bg-info text-white mb-1">Bloque {{ $lote->bloque->nombre ?? 'N/A' }} - Lote {{ $lote->numero_lote ?? 'N/A' }}</span><br>
                                         @endforeach
                                     @else
@@ -78,18 +88,22 @@
                                     @endif
                                 </td>
 
-                                @if($ventaActiva)
+                                @if($ventaPrincipal)
                                     <td>
                                         <span class="badge 
-                                            @if($ventaActiva->estado_contrato == 'Vigente') bg-success text-white
-                                             @elseif($ventaActiva->estado_contrato == 'Finalizado') bg-info text-white
+                                            @if($ventasActivas->count() > 0) bg-success text-white
+                                             @elseif($cliente->ventas->where('estado_contrato', 'Finalizado')->count() > 0) bg-info text-white
                                              @else bg-danger text-white
                                             @endif">
-                                            {{ $ventaActiva->estado_contrato }}
+                                            @if($ventasActivas->count() > 1)
+                                                {{ $ventasActivas->count() }} Contratos Vigentes
+                                            @else
+                                                {{ $ventaPrincipal->estado_contrato }}
+                                            @endif
                                         </span>
                                     </td>
-                                    <td>${{ number_format($ventaActiva->total_abonado, 2) }}</td>
-                                    <td>{{ $ventaActiva->created_at->translatedFormat('d/M/Y') }}</td> 
+                                    <td>${{ number_format($totalAbonadoCliente, 2) }}</td>
+                                    <td>{{ $ventaPrincipal->created_at->translatedFormat('d/M/Y') }}</td> 
                                 @else
                                     <td colspan="2"><span class="badge bg-secondary text-white">Sin Venta Activa</span></td>
                                     <td>-</td>
@@ -97,10 +111,10 @@
 
                                 <td>
                                 {{-- Botón Abonar: Llevará al formulario de abonos --}}
-                                    @php 
-                            $venta = $cliente->ventas->first(); 
-                            $esRescindido = ($venta && $venta->estado_contrato === 'Rescindido');
-                       @endphp
+                                @php 
+                                    $esRescindido = ($ventasActivas->count() === 0 && $cliente->ventas->count() > 0 && $cliente->ventas->every(fn($v) => $v->estado_contrato === 'Rescindido'));
+                                @endphp
+dphp
 
                             @if($esRescindido)
                              {{-- Alerta visual cuando el contrato está muerto --}}
