@@ -36,9 +36,9 @@
                         $enMora = \App\Models\Cuota::where('id_venta', $v->id_venta)->where('estado', 'Mora')->exists();
                     @endphp
                     <div class="col-md-4">
-                        <a href="{{ route('abonos.create', [$cliente->id_cliente, 'venta_id' => $v->id_venta]) }}"
+                        <a href="{{ route('abono.create', ['cliente' => $cliente->id_cliente, 'venta_id' => $v->id_venta]) }}"
                            class="text-decoration-none">
-                            <div class="p-3 rounded border {{ $v->id_venta == $venta->id_venta ? 'border-primary bg-primary text-white' : ($enMora ? 'border-danger bg-light' : 'border-secondary bg-light') }} h-100">
+                            <div class="p-3 rounded border {{ $v->id_venta == $venta->id_venta ? 'border-primary bg-primary text-white shadow' : ($enMora ? 'border-danger bg-light text-dark' : 'border-secondary bg-light text-dark') }} h-100">
                                 <div class="fw-bold fs-6 mb-1">
                                     <i class="fas fa-map-marker-alt me-1"></i>{{ $nombreLotes ?: 'Sin lote asignado' }}
                                 </div>
@@ -173,6 +173,7 @@
                     {{-- Formulario para registrar el abono  --}}
                     <form id="form-abono" action="{{ route('abono.store', $cliente->id_cliente) }}" method="POST" enctype="multipart/form-data">
                         @csrf
+                        <input type="hidden" name="id_venta" value="{{ $venta->id_venta }}">
                         <div class="mb-3">
                             <label for="monto" class="form-label font-weight-bold">Monto del Abono ($) <span class="text-danger">*</span></label>
                             <div class="input-group">

@@ -94,8 +94,15 @@ class AbonoController extends Controller
      */
    public function store(Request $request, Cliente $cliente)
 {
-    // Buscamos la primera venta del cliente (asumimos 1 venta por cliente para el abono)
-    $venta = $cliente->ventas->first();
+    // Buscamos la venta especificada o la primera activa del cliente
+    $ventaId = $request->input('id_venta');
+    $venta = null;
+    if ($ventaId) {
+        $venta = $cliente->ventas->firstWhere('id_venta', $ventaId);
+    }
+    if (!$venta) {
+        $venta = $cliente->ventas->firstWhere('estado_contrato', '!=', 'Rescindido') ?? $cliente->ventas->first();
+    }
     if (!$venta) {
         return back()->with('error', 'No se encontró una venta activa para este cliente.');
     }
@@ -197,7 +204,7 @@ class AbonoController extends Controller
 
         DB::commit();
         \App\Models\Auditoria::log('Registró Abono', 'Abono', $abono->id_abono, "Monto: $" . number_format($request->monto_abonado, 2) . " - " . $request->metodo_pago);
-        return redirect()->back()->with('success', 'Abono registrado exitosamente.');
+        return redirect()->route('abono.create', ['cliente' => $cliente->id_cliente, 'venta_id' => $venta->id_venta])->with('success', 'Abono registrado exitosamente.');
 
     } catch (\Exception $e) {
         DB::rollBack();
