@@ -110,34 +110,31 @@
                                 @endif
 
                                 <td>
-                                {{-- Botón Abonar: Llevará al formulario de abonos --}}
-                                @php 
-                                    $esRescindido = ($ventasActivas->count() === 0 && $cliente->ventas->count() > 0 && $cliente->ventas->every(fn($v) => $v->estado_contrato === 'Rescindido'));
-                                @endphp
-dphp
+                                    {{-- Botón Abonar: Llevará al formulario de abonos --}}
+                                    @php 
+                                        $esRescindido = ($ventasActivas->count() === 0 && $cliente->ventas->count() > 0 && $cliente->ventas->every(fn($v) => $v->estado_contrato === 'Rescindido'));
+                                    @endphp
 
-                            @if($esRescindido)
-                             {{-- Alerta visual cuando el contrato está muerto --}}
-                                <div class="alert alert-danger d-flex align-items-center mt-3 shadow-sm" role="alert">
-                                 <div>
-                                     <div class="small">Cuenta Cerrada / Contrato Rescindido</div>
-                                </div>
-                            </div>
-                         @else
-                                    <a href="{{ route('abono.create', ['cliente' => $cliente->id_cliente]) }}" class="btn btn-sm btn-success" title="Registrar Abono">
-                                        <i class="fas fa-hand-holding-usd"></i> Abonar
-                                    </a>
-                                    <a href="{{ route('registro.show', $cliente->id_cliente) }}" class="btn btn-sm btn-info" title="Ver Detalles">
-                                        <i class="fas fa-info-circle"></i> Detalles
-                                    </a>
-                                    @if($cliente->token_seguimiento)
-                                    <button type="button" class="btn btn-sm btn-secondary" onclick="navigator.clipboard.writeText('{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}'); alert('¡Enlace del portal copiado!');" title="Copiar Enlace Estado de Cuenta">
-                                        <i class="fas fa-link"></i> Portal
-                                    </button>
+                                    @if($esRescindido)
+                                        {{-- Alerta visual cuando el contrato está rescindido --}}
+                                        <div class="alert alert-danger d-flex align-items-center mb-0 p-2 shadow-sm" role="alert">
+                                            <div class="small fw-bold">Cuenta Cerrada / Rescindido</div>
+                                        </div>
+                                    @else
+                                        <a href="{{ route('abono.create', ['cliente' => $cliente->id_cliente]) }}" class="btn btn-sm btn-success" title="Registrar Abono">
+                                            <i class="fas fa-hand-holding-usd"></i> Abonar
+                                        </a>
+                                        <a href="{{ route('registro.show', $cliente->id_cliente) }}" class="btn btn-sm btn-info" title="Ver Detalles">
+                                            <i class="fas fa-info-circle"></i> Detalles
+                                        </a>
+                                        @if($cliente->token_seguimiento)
+                                        <button type="button" class="btn btn-sm btn-secondary" onclick="navigator.clipboard.writeText('{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}'); alert('¡Enlace del portal copiado!');" title="Copiar Enlace Estado de Cuenta">
+                                            <i class="fas fa-link"></i> Portal
+                                        </button>
+                                        @endif
                                     @endif
                                 </td>
                             </tr>
-                            @endif
                         @empty
                             <tr>
                                 <td colspan="7" class="text-center">No se encontraron clientes registrados o que coincidan con la búsqueda.</td>
