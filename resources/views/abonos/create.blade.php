@@ -23,27 +23,49 @@
     {{-- SELECTOR DE CONTRATO (solo si tiene múltiples ventas independientes) --}}
     @if($ventas->count() > 1)
     <div class="card shadow mb-4 border-warning">
-        <div class="card-header bg-warning text-dark py-2">
-            <h6 class="m-0 fw-bold"><i class="fas fa-exchange-alt me-1"></i> Este cliente tiene {{ $ventas->count() }} Contratos Independientes — Seleccione el que desea abonar:</h6>
+        <div class="card-header bg-warning text-dark py-2 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 fw-bold"><i class="fas fa-layer-group me-1"></i> Este cliente posee {{ $ventas->count() }} Contratos Independientes:</h6>
+            <span class="small text-dark fw-bold">Seleccione si desea abonar a todos a la vez o a uno individual:</span>
         </div>
-        <div class="card-body p-2">
+        <div class="card-body p-2 bg-light">
             <div class="row g-2">
+                {{-- OPCIÓN 1: TODOS LOS LOTES CONSOLIDADO --}}
+                <div class="col-md-3">
+                    <a href="{{ route('abono.create', ['cliente' => $cliente->id_cliente, 'venta_id' => 'todos']) }}"
+                       class="text-decoration-none">
+                        <div class="p-3 rounded border {{ $esModoTodos ? 'border-primary bg-primary text-white shadow' : 'border-primary bg-white text-dark' }} h-100">
+                            <div class="fw-bold fs-6 mb-1 text-truncate">
+                                <i class="fas fa-check-double me-1"></i> Todos los Lotes ({{ $ventas->count() }})
+                            </div>
+                            <div class="small {{ $esModoTodos ? 'text-white-50' : 'text-muted' }}">
+                                Pago Consolidado
+                            </div>
+                            <div class="mt-1 d-flex justify-content-between align-items-center">
+                                <span class="small fw-bold">${{ number_format($ventas->sum('cuota_mensual'), 2) }}/mes</span>
+                                <span class="badge {{ $esModoTodos ? 'bg-light text-primary' : 'bg-primary text-white' }}">Todos</span>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+
+                {{-- OPCIONES INDIVIDUALES --}}
                 @foreach($ventas as $v)
                     @php
                         $lotesV = $v->lotes;
                         $nombreLotes = $lotesV->map(fn($l) => 'Lote ' . $l->numero_lote)->implode(', ');
                         $cuotasPendientesV = \App\Models\Cuota::where('id_venta', $v->id_venta)->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])->count();
                         $enMora = \App\Models\Cuota::where('id_venta', $v->id_venta)->where('estado', 'Mora')->exists();
+                        $esEste = (!$esModoTodos && $venta && $venta->id_venta == $v->id_venta);
                     @endphp
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <a href="{{ route('abono.create', ['cliente' => $cliente->id_cliente, 'venta_id' => $v->id_venta]) }}"
                            class="text-decoration-none">
-                            <div class="p-3 rounded border {{ $v->id_venta == $venta->id_venta ? 'border-primary bg-primary text-white shadow' : ($enMora ? 'border-danger bg-light text-dark' : 'border-secondary bg-light text-dark') }} h-100">
-                                <div class="fw-bold fs-6 mb-1">
+                            <div class="p-3 rounded border {{ $esEste ? 'border-primary bg-primary text-white shadow' : ($enMora ? 'border-danger bg-white text-dark' : 'border-secondary bg-white text-dark') }} h-100">
+                                <div class="fw-bold fs-6 mb-1 text-truncate">
                                     <i class="fas fa-map-marker-alt me-1"></i>{{ $nombreLotes ?: 'Sin lote asignado' }}
                                 </div>
                                 @if($v->beneficiario_final)
-                                    <div class="small {{ $v->id_venta == $venta->id_venta ? 'text-white-50' : 'text-muted' }}">
+                                    <div class="small {{ $esEste ? 'text-white-50' : 'text-muted' }} text-truncate">
                                         <i class="fas fa-user-tie me-1"></i> {{ $v->beneficiario_final }}
                                     </div>
                                 @endif
@@ -72,11 +94,15 @@
     <div class="card shadow mb-4">
         <div class="card-header bg-primary text-white">
             <h5 class="m-0">
-                Resumen — Contrato Lote(s): {{ $venta->lotes->map(fn($l) => 'Lote '.$l->numero_lote)->implode(', ') ?: $cliente->pv_num }}
-                @if($venta->beneficiario_final)
-                    <span class="badge bg-warning text-dark ms-2 small fw-normal">
-                        <i class="fas fa-user-tie me-1"></i>{{ $venta->beneficiario_final }}
-                    </span>
+                @if($esModoTodos)
+                    <i class="fas fa-layer-group me-1"></i> Resumen Consolidado — Todos los Lotes ({{ $ventas->count() }} Lotes)
+                @else
+                    Resumen — Contrato Lote(s): {{ $venta->lotes->map(fn($l) => 'Lote '.$l->numero_lote)->implode(', ') ?: $cliente->pv_num }}
+                    @if($venta->beneficiario_final)
+                        <span class="badge bg-warning text-dark ms-2 small fw-normal">
+                            <i class="fas fa-user-tie me-1"></i>{{ $venta->beneficiario_final }}
+                        </span>
+                    @endif
                 @endif
             </h5>
         </div>
@@ -84,7 +110,7 @@
             <div class="row text-center">
                 <div class="col-md-3">
                     <p class="mb-0 text-muted">Precio Total</p>
-                    <h4 class="text-info">${{ number_format($venta->precio_final, 2) }}</h4>
+                    <h4 class="text-info">${{ number_format($esModoTodos ? $ventas->sum('precio_final') : $venta->precio_final, 2) }}</h4>
                 </div>
                 <div class="col-md-3">
                     <p class="mb-0 text-muted">Abonado Total</p>
@@ -95,8 +121,8 @@
                     <h4 class="text-danger">${{ number_format($saldoPendiente, 2) }}</h4>
                 </div>
                 <div class="col-md-3">
-                    <p class="mb-0 text-muted">Cuotas Pendientes (Mensualidad)</p>
-                    <h4 class="text-warning">{{ $cuotasPendientes }} de {{ $venta->plazo_meses }}</h4>
+                    <p class="mb-0 text-muted">Cuotas Pendientes</p>
+                    <h4 class="text-warning">{{ $cuotasPendientes }} {{ $esModoTodos ? 'en total' : 'de ' . $venta->plazo_meses }}</h4>
                 </div>
             </div>
             <hr class="my-3">
@@ -104,7 +130,7 @@
                 *Lotes:* @foreach ($detallesLotes as $detalle)
                     <span class="badge bg-white me-2 text-dark border">Bloque {{ $detalle['bloque'] }} - Lote {{ $detalle['lote'] }} ({{ number_format($detalle['area'], 2) }} m²)</span>
                 @endforeach
-                | Día de Pago Sugerido: El -{{ $fechaPagoTeorica }}- de cada mes.
+                | Cuota Sugerida: <strong>${{ number_format($cuotaSugeridaTotal, 2) }}/mes</strong>
             </p>
         </div>
     </div>
@@ -114,8 +140,11 @@
         {{-- SECCIÓN IZQUIERDA: HISTORIAL DE ABONOS --}}
         <div class="col-md-7">
             <div class="card shadow mb-4">
-                <div class="card-header bg-info text-white">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
                     <h5 class="m-0">Historial de Pagos Recientes</h5>
+                    @if($esModoTodos)
+                        <span class="badge bg-light text-dark">Todos los Contratos</span>
+                    @endif
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -123,6 +152,9 @@
                             <thead>
                                 <tr>
                                     <th>Fecha Pago</th>
+                                    @if($ventas->count() > 1)
+                                        <th>Lote</th>
+                                    @endif
                                     <th>Monto</th>
                                     <th>Tipo</th>
                                     <th>Referencia</th>
@@ -130,9 +162,20 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($venta->abonos as $abono)
+                                @forelse ($todosAbonos as $abono)
                                     <tr>
                                         <td>{{ \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y')}}</td>
+                                        @if($ventas->count() > 1)
+                                            <td>
+                                                @if($abono->venta && $abono->venta->lotes)
+                                                    <span class="badge bg-secondary text-white">
+                                                        {{ $abono->venta->lotes->map(fn($l) => 'Lote '.$l->numero_lote)->implode(', ') }}
+                                                    </span>
+                                                @else
+                                                    <span class="text-muted small">-</span>
+                                                @endif
+                                            </td>
+                                        @endif
                                         <td><strong class="text-success">${{ number_format($abono->monto_abonado, 2) }}</strong></td>
                                         <td>{{ $abono->tipo_pago }}</td>
                                         <td>{{ $abono->referencia }}</td>
@@ -153,7 +196,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="5" class="text-center text-muted">Aún no hay abonos registrados más allá de la prima inicial.</td>
+                                        <td colspan="{{ $ventas->count() > 1 ? '6' : '5' }}" class="text-center text-muted">Aún no hay abonos registrados más allá de la prima inicial.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -167,18 +210,62 @@
         <div class="col-md-5">
             <div class="card shadow mb-4">
                 <div class="card-header bg-success text-white">
-                    <h5 class="m-0">Registrar Nuevo Abono</h5>
+                    <h5 class="m-0">
+                        <i class="fas fa-hand-holding-usd me-1"></i> Registrar Nuevo Abono
+                    </h5>
                 </div>
                 <div class="card-body">
                     {{-- Formulario para registrar el abono  --}}
                     <form id="form-abono" action="{{ route('abono.store', $cliente->id_cliente) }}" method="POST" enctype="multipart/form-data">
                         @csrf
-                        <input type="hidden" name="id_venta" value="{{ $venta->id_venta }}">
+
+                        @if($ventas->count() > 1)
+                            {{-- SELECCIONADOR DE LOTES A ABONAR --}}
+                            <div class="mb-3 p-3 bg-light rounded border border-primary-subtle">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <label class="form-label font-weight-bold text-primary mb-0">
+                                        <i class="fas fa-check-double me-1"></i> Lotes a abonar:
+                                    </label>
+                                    <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2" id="btn-toggle-todos-lotes" onclick="toggleTodosLotesCheckboxes()">
+                                        Marcar Todos
+                                    </button>
+                                </div>
+                                <div class="d-flex flex-column gap-1">
+                                    @foreach($ventas as $v)
+                                        @php
+                                            $nombreL = $v->lotes->map(fn($l) => 'Bloque '.($l->bloque->nombre ?? '').' - Lote '.$l->numero_lote)->implode(', ');
+                                            $checked = $esModoTodos || ($venta && $venta->id_venta == $v->id_venta);
+                                        @endphp
+                                        <div class="form-check p-2 rounded bg-white border mb-1 d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <input class="form-check-input check-lote-abono ms-1 me-2" type="checkbox" name="ventas_ids[]" id="chk_venta_{{ $v->id_venta }}" value="{{ $v->id_venta }}" data-cuota="{{ $v->cuota_mensual }}" data-nombre="{{ $nombreL }}" {{ $checked ? 'checked' : '' }} onchange="actualizarSugerenciaMonto()">
+                                                <label class="form-check-label fw-bold cursor-pointer" for="chk_venta_{{ $v->id_venta }}">
+                                                    {{ $nombreL }}
+                                                    @if($v->beneficiario_final)
+                                                        <small class="text-muted d-block ms-1">Beneficiario: {{ $v->beneficiario_final }}</small>
+                                                    @endif
+                                                </label>
+                                            </div>
+                                            <span class="badge bg-secondary">${{ number_format($v->cuota_mensual, 2) }}/mes</span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                                <div id="distribucion_preview" class="small text-muted mt-2 border-top pt-2"></div>
+                            </div>
+                        @else
+                            <input type="hidden" name="id_venta" value="{{ $venta->id_venta }}">
+                        @endif
+
                         <div class="mb-3">
-                            <label for="monto" class="form-label font-weight-bold">Monto del Abono ($) <span class="text-danger">*</span></label>
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <label for="monto" class="form-label font-weight-bold mb-0">Monto del Abono ($) <span class="text-danger">*</span></label>
+                                <button type="button" class="btn btn-sm btn-link p-0 text-success fw-bold text-decoration-none" id="btn-sugerir-monto" onclick="aplicarMontoSugerido()">
+                                    Sugerir Cuota: <span id="span-monto-sugerido">${{ number_format($cuotaSugeridaTotal, 2) }}</span>
+                                </button>
+                            </div>
                             <div class="input-group">
                                 <span class="input-group-text bg-success text-white fw-bold">$</span>
-                                <input type="number" step="0.01" min="0.01" class="form-control form-control-lg fw-bold text-success border-success" id="monto" name="monto_abonado" placeholder="0.00" required>
+                                <input type="number" step="0.01" min="0.01" class="form-control form-control-lg fw-bold text-success border-success" id="monto" name="monto_abonado" placeholder="0.00" value="{{ $cuotaSugeridaTotal > 0 ? number_format($cuotaSugeridaTotal, 2, '.', '') : '' }}" required oninput="actualizarSugerenciaMonto()">
                             </div>
                         </div>
                         
@@ -397,20 +484,19 @@
     function toggleMetodoPagoFields() {
         var checkedRadio = document.querySelector('input[name="metodo_pago"]:checked');
         var metodo = checkedRadio ? checkedRadio.value : (document.getElementById('metodo_pago') ? document.getElementById('metodo_pago').value : 'Efectivo');
-        var bancoSection = document.getElementById('banco_section');
+        var transferSection = document.getElementById('campos_transferencia');
+        var efectivoSection = document.getElementById('campos_efectivo');
         var cuentaInput = document.getElementById('cuenta_destino');
-        var refInput = document.getElementById('referencia_bancaria');
-        var labelRef = document.getElementById('label_referencia');
+        var refInput = document.getElementById('referencia');
 
         if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario') {
-            if (bancoSection) bancoSection.style.display = 'block';
+            if (transferSection) transferSection.style.display = 'block';
+            if (efectivoSection) efectivoSection.style.display = 'none';
             if (cuentaInput) cuentaInput.required = true;
-            if (refInput) {
-                refInput.required = true;
-            }
-            if (labelRef) labelRef.textContent = 'N° de Referencia / Comprobante';
+            if (refInput) refInput.required = true;
         } else {
-            if (bancoSection) bancoSection.style.display = 'none';
+            if (transferSection) transferSection.style.display = 'none';
+            if (efectivoSection) efectivoSection.style.display = 'block';
             if (cuentaInput) {
                 cuentaInput.required = false;
                 cuentaInput.value = '';
@@ -422,8 +508,80 @@
         }
     }
 
+    function toggleTodosLotesCheckboxes() {
+        var chks = document.querySelectorAll('.check-lote-abono');
+        var allChecked = Array.from(chks).every(c => c.checked);
+        chks.forEach(c => c.checked = !allChecked);
+        var btn = document.getElementById('btn-toggle-todos-lotes');
+        if (btn) btn.textContent = allChecked ? 'Marcar Todos' : 'Desmarcar Todos';
+        actualizarSugerenciaMonto();
+    }
+
+    function actualizarSugerenciaMonto() {
+        var chks = document.querySelectorAll('.check-lote-abono:checked');
+        var sumaCuotas = 0;
+        chks.forEach(function(c) {
+            sumaCuotas += parseFloat(c.getAttribute('data-cuota')) || 0;
+        });
+
+        var spanSugerido = document.getElementById('span-monto-sugerido');
+        if (spanSugerido) {
+            spanSugerido.textContent = '$' + sumaCuotas.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        var inputMonto = document.getElementById('monto');
+        var montoActual = parseFloat(inputMonto ? inputMonto.value : 0) || 0;
+        var preview = document.getElementById('distribucion_preview');
+        
+        if (preview && chks.length > 0 && montoActual > 0) {
+            var distribucionHtml = '<strong>Distribución:</strong> ';
+            var totalSeleccionados = chks.length;
+            var acum = 0;
+            var items = [];
+            
+            chks.forEach(function(c, idx) {
+                var cuotaLote = parseFloat(c.getAttribute('data-cuota')) || 0;
+                var asignado = 0;
+                if (idx === totalSeleccionados - 1) {
+                    asignado = Math.max(0, montoActual - acum);
+                } else {
+                    if (sumaCuotas > 0) {
+                        asignado = Math.round((montoActual * (cuotaLote / sumaCuotas)) * 100) / 100;
+                    } else {
+                        asignado = Math.round((montoActual / totalSeleccionados) * 100) / 100;
+                    }
+                    acum += asignado;
+                }
+                items.push(c.getAttribute('data-nombre') + ': <span class="text-success fw-bold">$' + asignado.toFixed(2) + '</span>');
+            });
+            distribucionHtml += items.join(' | ');
+            preview.innerHTML = distribucionHtml;
+            preview.style.display = 'block';
+        } else if (preview) {
+            preview.style.display = 'none';
+        }
+    }
+
+    function aplicarMontoSugerido() {
+        var chks = document.querySelectorAll('.check-lote-abono:checked');
+        var sumaCuotas = 0;
+        if (chks.length > 0) {
+            chks.forEach(function(c) {
+                sumaCuotas += parseFloat(c.getAttribute('data-cuota')) || 0;
+            });
+        } else {
+            sumaCuotas = {{ (float)$cuotaSugeridaTotal }};
+        }
+        var inputMonto = document.getElementById('monto');
+        if (inputMonto) {
+            inputMonto.value = sumaCuotas.toFixed(2);
+            actualizarSugerenciaMonto();
+        }
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
         toggleMetodoPagoFields();
+        actualizarSugerenciaMonto();
 
         var formAbono = document.getElementById('form-abono');
         var modalEl = document.getElementById('modalConfirmarAbono');
@@ -432,29 +590,41 @@
         document.getElementById('btn-preparar-abono').addEventListener('click', function(e) {
             e.preventDefault();
 
+            // Validar que al menos un lote esté seleccionado si hay checkboxes
+            var chks = document.querySelectorAll('.check-lote-abono');
+            if (chks.length > 0) {
+                var checkedAny = Array.from(chks).some(c => c.checked);
+                if (!checkedAny) {
+                    alert('Por favor marque al menos un lote para registrar el abono.');
+                    return;
+                }
+            }
+
             if (!formAbono.checkValidity()) {
                 formAbono.reportValidity();
                 return;
             }
 
-            var montoVal = parseFloat(document.getElementById('monto_abonado').value) || 0;
+            var montoVal = parseFloat(document.getElementById('monto').value) || 0;
             var tipoVal = document.getElementById('tipo_pago').value;
             var checkedRadio = document.querySelector('input[name="metodo_pago"]:checked');
-            var metodoVal = checkedRadio ? checkedRadio.value : (document.getElementById('metodo_pago') ? document.getElementById('metodo_pago').value : 'Efectivo');
-            var fechaVal = document.getElementById('fecha_abono').value;
-            var cuentaVal = document.getElementById('cuenta_destino').value || '-';
-            var refVal = document.getElementById('referencia_bancaria').value || '-';
+            var metodoVal = checkedRadio ? checkedRadio.value : 'Efectivo';
+            var fechaVal = document.getElementById('fecha').value;
+            var cuentaVal = document.getElementById('cuenta_destino') ? (document.getElementById('cuenta_destino').value || '-') : '-';
+            var refVal = document.getElementById('referencia') ? (document.getElementById('referencia').value || '-') : '-';
 
             if (montoVal <= 0) {
                 alert('Por favor ingrese un monto de abono válido mayor a 0.');
-                document.getElementById('monto_abonado').focus();
+                document.getElementById('monto').focus();
                 return;
             }
 
             document.getElementById('resumen-monto').textContent = '$' + montoVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             document.getElementById('resumen-tipo').textContent = (tipoVal === 'Mensualidad') ? 'Cuota / Mensualidad' : 'Abono Extraordinario';
             document.getElementById('resumen-metodo').textContent = metodoVal;
-            document.getElementById('resumen-fecha').textContent = fechaVal;
+            if (document.getElementById('resumen-fecha')) {
+                document.getElementById('resumen-fecha').textContent = fechaVal;
+            }
 
             var saldoPosterior = Math.max(0, saldoActualVenta - montoVal);
             document.getElementById('resumen-saldo-posterior').textContent = '$' + saldoPosterior.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -498,6 +668,7 @@
         });
     });
 </script>
+
 @endsection
 
 @push('scripts')
