@@ -8,13 +8,28 @@ class PortalClienteController extends Controller
 {
     public function show(Request $request, $token)
     {
-        $cliente = \App\Models\Cliente::where('token_seguimiento', $token)->firstOrFail();
+        $cliente = \App\Models\Cliente::withoutGlobalScope('lotificacion')
+            ->where('token_seguimiento', $token)
+            ->firstOrFail();
         
-        $cliente->load(['ventas.lotes.bloque', 'ventas.cuotas' => function ($query) {
-            $query->orderBy('numero_cuota', 'asc');
-        }, 'ventas.abonos' => function ($query) {
-            $query->orderBy('created_at', 'desc');
-        }]);
+        $cliente->load([
+            'ventas' => function ($vq) {
+                $vq->withoutGlobalScope('lotificacion')->with([
+                    'lotificacion',
+                    'lotes' => function($lq) {
+                        $lq->withoutGlobalScope('lotificacion')->with([
+                            'bloque' => fn($bq) => $bq->withoutGlobalScope('lotificacion')
+                        ]);
+                    },
+                    'cuotas' => function ($query) {
+                        $query->orderBy('numero_cuota', 'asc');
+                    },
+                    'abonos' => function ($query) {
+                        $query->orderBy('created_at', 'desc');
+                    }
+                ]);
+            }
+        ]);
 
         $ventas = $cliente->ventas;
         $ventas->each(function ($v) {

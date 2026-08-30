@@ -668,17 +668,36 @@ class ReporteController extends Controller
         $existenciaEnCaja = $saldoInicial + $totalEfectivo - $totalSalidasEfectivo;
         
         $lotificacionNombre = null;
+        $logoBase64 = null;
+        $lot = null;
+
         if (!empty($cierre->lotificacion_id)) {
             $lot = \App\Models\Lotificacion::find($cierre->lotificacion_id);
-            $lotificacionNombre = $lot ? $lot->nombre : null;
         }
-        if (!$lotificacionNombre) {
+        if (!$lot) {
             try {
-                $lotificacion = app(\App\Services\LotificacionService::class)->getActiveLotificacion();
-                $lotificacionNombre = $lotificacion ? $lotificacion->nombre : 'Proyecto';
-            } catch (\Exception $e) {
-                $lotificacionNombre = 'Proyecto';
+                $lot = app(\App\Services\LotificacionService::class)->getActiveLotificacion();
+            } catch (\Exception $e) {}
+        }
+        if (!$lot && session('lotificacion_id')) {
+            $lot = \App\Models\Lotificacion::find(session('lotificacion_id'));
+        }
+
+        if ($lot) {
+            $lotificacionNombre = $lot->nombre;
+            if (!empty($lot->logo)) {
+                $path = public_path('storage/' . $lot->logo);
+                if (!file_exists($path)) {
+                    $path = storage_path('app/public/' . $lot->logo);
+                }
+                if (file_exists($path)) {
+                    $type = pathinfo($path, PATHINFO_EXTENSION);
+                    $dataImg = file_get_contents($path);
+                    $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($dataImg);
+                }
             }
+        } else {
+            $lotificacionNombre = 'Proyecto';
         }
 
         $data = [
@@ -686,6 +705,7 @@ class ReporteController extends Controller
             'horaGeneracion' => now()->format('h:i a'),
             'cajero' => $cierre->user ? $cierre->user->name : 'Cajero',
             'lotificacionNombre' => $lotificacionNombre,
+            'logoBase64' => $logoBase64,
             'saldoInicial' => $saldoInicial,
             'totalEfectivo' => $totalEfectivo,
             'totalSalidas' => $totalSalidasEfectivo,

@@ -84,7 +84,7 @@
     <tr><td colspan="{{ $esGlobal ? '12' : '11' }}">&nbsp;</td></tr>
 
     <!-- Detalle de Transacciones -->
-    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '12' : '11' }}">3. C&Eacute;DULA DE DETALLE DE RECAUDACI&Oacute;N Y COBRANZAS</td></tr>
+    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '12' : '11' }}">3. PLANILLA DE DETALLE DE RECAUDACI&Oacute;N Y COBRANZAS</td></tr>
     <tr>
         <th>N&deg; Recibo</th>
         <th>Fecha</th>
@@ -93,7 +93,7 @@
             <th>Proyecto</th>
         @endif
         <th>Cliente</th>
-        <th>C&eacute;dula</th>
+        <th>Identificaci&oacute;n</th>
         <th>Expediente</th>
         <th>Inmueble / Lote(s)</th>
         <th>Concepto</th>

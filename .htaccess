@@ -1,0 +1,17 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Bloquear acceso a archivos sensibles del servidor
+    RewriteRule ^\.env$ - [F,L,NC]
+    RewriteRule ^\.git - [F,L,NC]
+    RewriteRule ^composer\.(json|lock)$ - [F,L,NC]
+    RewriteRule ^package(-lock)?\.json$ - [F,L,NC]
+
+    # Redirigir todas las peticiones a la carpeta public/
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

@@ -82,13 +82,18 @@ class Venta extends Model
 
 
 
+    public function getLoteAttribute()
+    {
+        return $this->lotes->first();
+    }
+
     // Nombre del proyecto/lotificación asociado
     public function getProyectoAttribute()
     {
         return $this->lotificacion?->nombre 
             ?? $this->lotes?->first()?->bloque?->lotificacion?->nombre 
             ?? $this->lotes?->first()?->bloque?->proyecto 
-            ?? 'N/A';
+            ?? '—';
     }
 
     // Cantidad de lotes asociados a esta venta (usado en las vistas)

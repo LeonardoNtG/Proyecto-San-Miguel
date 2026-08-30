@@ -394,12 +394,22 @@
 {{-- LIBRO MAYOR DE AUDITORÍA / DETALLE DE TRANSACCIONES --}}
 {{-- ================================================= --}}
 <div class="card shadow-sm border-0 mb-5">
-    <div class="card-header py-3 bg-white d-flex flex-wrap justify-content-between align-items-center border-bottom">
+    <div class="card-header py-3 bg-white d-flex flex-wrap justify-content-between align-items-center border-bottom gap-2">
         <h5 class="m-0 font-weight-bold text-gray-800">
-            <i class="fas fa-list-alt text-primary me-2"></i> Cédula de Detalle de Recaudación ({{ $etiquetaPeriodo }})
+            <i class="fas fa-list-alt text-primary me-2"></i> Planilla de Detalle de Recaudación ({{ $etiquetaPeriodo }})
         </h5>
-        <div class="d-flex align-items-center gap-3 mt-2 mt-md-0">
-            <div class="input-group input-group-sm" style="width: 280px;">
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <div class="d-flex align-items-center gap-1">
+                <label class="small text-muted mb-0">Mostrar:</label>
+                <select id="rf-por-pagina" class="form-select form-select-sm" style="width: 80px;">
+                    <option value="15">15</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="todos">Todos</option>
+                </select>
+            </div>
+            <div class="input-group input-group-sm" style="width: 250px;">
                 <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
                 <input type="text" id="rf-buscador" class="form-control" placeholder="Buscar cliente, recibo, ref, lote...">
             </div>
@@ -417,7 +427,7 @@
                     @if($esGlobal)
                         <th>Proyecto</th>
                     @endif
-                    <th>Cliente / Cédula</th>
+                    <th>Cliente / Identificación</th>
                     <th>Expediente</th>
                     <th>Inmueble</th>
                     <th>Concepto</th>
@@ -498,26 +508,23 @@
             @endif
         </table>
     </div>
+    <div id="rf-paginacion" class="card-footer bg-white border-top p-2"></div>
 </div>
 
 @endsection
 
 @section('scripts')
+<script src="{{ asset('js/reportes-paginacion.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    // Buscador en vivo en la tabla de auditoría
-    const buscador = document.getElementById('rf-buscador');
-    const filas = document.querySelectorAll('#rf-tabla-abonos tbody tr[data-rf-fila]');
-
-    if (buscador) {
-        buscador.addEventListener('input', function () {
-            const termino = this.value.toLowerCase().trim();
-            filas.forEach(function (fila) {
-                const texto = fila.textContent.toLowerCase();
-                fila.style.display = texto.includes(termino) ? '' : 'none';
-            });
-        });
-    }
+    // Paginación interactiva y búsqueda
+    inicializarPaginacionReporte({
+        tablaSelector: '#rf-tabla-abonos',
+        paginacionSelector: '#rf-paginacion',
+        buscadorSelector: '#rf-buscador',
+        porPaginaSelector: '#rf-por-pagina',
+        porPaginaDefault: 25
+    });
 
     // Toggle de visibilidad de fechas según selector de período
     const periodoSelect = document.getElementById('rf-periodo');

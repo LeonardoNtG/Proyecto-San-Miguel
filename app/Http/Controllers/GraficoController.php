@@ -97,6 +97,21 @@ class GraficoController extends Controller
             ->groupBy('estado_contrato')
             ->pluck('total', 'estado_contrato');
 
+        $totalContratos = $ventasBase->clone()->count();
+        $totalVigentes = (int) ($distribucionEstados['Vigente'] ?? 0);
+        $totalFinalizados = (int) ($distribucionEstados['Finalizado'] ?? 0);
+        $totalRescindidos = (int) ($distribucionEstados['Rescindido'] ?? 0);
+
+        if ($esGlobal) {
+            $totalClientes = Cliente::withoutGlobalScope('lotificacion')->count();
+        } elseif ($targetLotificacionId) {
+            $totalClientes = Cliente::withoutGlobalScope('lotificacion')
+                ->whereHas('ventas', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId))
+                ->count();
+        } else {
+            $totalClientes = Cliente::count();
+        }
+
         return [
             'agrupacion' => $agrupacion,
             'anio' => $anio,
@@ -117,6 +132,11 @@ class GraficoController extends Controller
             'totalIngresos' => $totalIngresos,
             'totalGastos' => $totalGastos,
             'balanceNeto' => $balanceNeto,
+            'totalClientes' => $totalClientes,
+            'totalContratos' => $totalContratos,
+            'totalVigentes' => $totalVigentes,
+            'totalFinalizados' => $totalFinalizados,
+            'totalRescindidos' => $totalRescindidos,
             'distribucionEstados' => $distribucionEstados,
             'aniosDisponibles' => $this->aniosDisponibles(),
             'nombresMeses' => [

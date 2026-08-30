@@ -7,17 +7,16 @@
     <style>
         /* CSS Reset for Printing */
         @page {
-            size: letter portrait; /* Changed to portrait as requested */
-            margin: 0;
+            size: letter portrait;
+            margin: 5mm 6mm;
         }
         body, html {
             margin: 0;
-            padding: 0;
+            padding: 5mm 6mm;
             width: 100%;
-            height: 100%;
             font-family: Arial, sans-serif;
             box-sizing: border-box;
-            background-color: white;
+            background-color: #f8fafc;
         }
         * {
             box-sizing: inherit;
@@ -25,33 +24,81 @@
         
         .page-container {
             width: 100%;
-            max-width: 8.5in; /* Simulate US Letter Portrait width */
-            margin: 0 auto; /* Center on screen */
-            min-height: 3.8in; /* Base height, allows growing if content overflows */
+            max-width: 8.2in;
+            margin: 0 auto;
+            min-height: 3.8in;
             display: flex;
             justify-content: space-between;
-            align-items: stretch; /* Make both cards the same height */
-            padding: 15px 10px;
+            align-items: stretch;
+            gap: 8px;
+            padding: 0;
+            background-color: white;
         }
 
         .receipt-card {
             border: 2px solid #1A237E; /* Deep Blue border */
             position: relative;
-            padding: 15px 10px;
+            padding: 15px 12px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            background-color: white;
         }
 
-        /* Left receipt is larger */
-        .receipt-card-left {
-            width: 58%;
-        }
-
-        /* Right receipt is smaller */
-        .receipt-card-right {
-            width: 39%;
-        }
+        @if($imprimirDoble)
+            /* FORMATO DOBLE VÍA (CLIENTE + EMPRESA) */
+            .receipt-card-left {
+                width: 57%;
+            }
+            .receipt-card-right {
+                width: 41%;
+            }
+        @else
+            /* FORMATO RECIBO ÚNICO (100% DEL ESPACIO) */
+            .page-container {
+                display: block;
+            }
+            .receipt-card-left {
+                width: 100% !important;
+                min-height: 4.2in;
+                padding: 22px 24px;
+            }
+            .receipt-card-right {
+                display: none !important;
+            }
+            .title {
+                font-size: 28px !important;
+            }
+            .company-info {
+                font-size: 13px !important;
+            }
+            .row {
+                font-size: 13px !important;
+                margin-bottom: 10px !important;
+            }
+            .row .value {
+                font-size: 14px !important;
+            }
+            .details-row {
+                font-size: 11px !important;
+                margin-bottom: 7px !important;
+            }
+            .date-row {
+                font-size: 13px !important;
+                margin-top: 10px !important;
+                margin-bottom: 10px !important;
+            }
+            .date-input {
+                font-size: 14px !important;
+            }
+            .signature-box {
+                width: 170px !important;
+                font-size: 13px !important;
+            }
+            .signatures {
+                margin-top: 65px !important;
+            }
+        @endif
 
         /* Header Section */
         .header {
@@ -96,7 +143,6 @@
             line-height: 1.2;
         }
 
-        /* Make company info smaller in the right receipt */
         .receipt-card-right .company-info {
             font-size: 9px;
         }
@@ -158,20 +204,21 @@
             line-height: 18px;
             color: black;
             box-shadow: 2px 2px 0px #444;
-        }
-        
-        .receipt-card-right .amount-input {
-            width: 50px;
-            height: 16px;
-            line-height: 14px;
-            font-size: 10px;
+            font-weight: bold;
+            font-size: 11px;
         }
 
-        /* Row Layout */
+        .receipt-card-right .amount-input {
+            width: 50px;
+            font-size: 9px;
+            box-shadow: 1px 1px 0px #444;
+        }
+
+        /* Body Rows */
         .row {
             display: flex;
-            align-items: baseline;
-            margin-bottom: 6px;
+            align-items: flex-end;
+            margin-bottom: 8px;
             font-size: 11px;
             color: #1A237E;
             font-weight: bold;
@@ -256,8 +303,12 @@
         .signatures {
             display: flex;
             justify-content: space-around;
-            margin-top: 15px; 
-            align-items: flex-end;
+            margin-top: 80px; 
+            align-items: flex-start;
+        }
+
+        .receipt-card-right .signatures {
+            margin-top: 32px;
         }
 
         .signature-box {
@@ -266,48 +317,51 @@
             color: black;
             font-style: italic;
             font-weight: bold;
-            width: 110px;
+            width: 120px;
         }
         
         .receipt-card-right .signature-box {
             font-size: 9px;
-            width: 70px;
+            width: 85px;
         }
         
         .signature-line {
             border-top: 2px solid #000;
             margin-bottom: 5px;
+            width: 100%;
         }
 
-        /* QR Code Container */
-        .qr-container {
-            position: absolute;
-            bottom: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .qr-container img {
-            width: 50px;
-            height: 50px;
-        }
-
-        .qr-label {
-            font-size: 7px;
-            color: #1A237E;
-            font-weight: bold;
-            margin-top: 2px;
+        /* Print Media Styles */
+        @media print {
+            body, html {
+                background: none;
+                padding: 0;
+                margin: 0;
+            }
+            .page-container {
+                padding: 0;
+                margin: 0 auto;
+                width: 100%;
+                max-width: 100%;
+            }
+            .receipt-card {
+                border: 2px solid #1A237E !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .amount-input {
+                background-color: #e0e0e0 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
         }
     </style>
 </head>
-<body onload="window.print()">
+<body onload="window.print();">
 
 <div class="page-container">
-
-    <!-- LEFT RECEIPT (LARGER) -->
+    
+    <!-- RECIBO DEL CLIENTE (CON QR) -->
     <div class="receipt-card receipt-card-left">
         
         <div class="header">
@@ -391,10 +445,10 @@
 
             <!-- QR CODE -->
             <div style="display:flex; flex-direction:column; align-items:center;">
-                @if(isset($cliente) && $cliente->token_seguimiento)
+                @if(!empty($cliente->token_seguimiento))
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=50x50&data={{ urlencode(route('portal.estado_cuenta', $cliente->token_seguimiento)) }}" alt="QR Code">
                 @else
-                    <div style="width: 70px; height: 70px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #999; text-align: center;">Sin Token</div>
+                    <div style="width: 50px; height: 50px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #999; text-align: center;">Sin Token</div>
                 @endif
                 <span style="font-size: 8px; color: #1A237E; font-weight: bold; margin-top: 3px;">Estado de Cuenta</span>
             </div>
@@ -407,7 +461,8 @@
         </div>
     </div>
 
-    <!-- RIGHT RECEIPT (SMALLER) -->
+    @if($imprimirDoble)
+    <!-- RECIBO DE LA EMPRESA (TALÓN DE CONTROL) -->
     <div class="receipt-card receipt-card-right">
         
         <div class="header">
@@ -495,6 +550,7 @@
             </div>
         </div>
     </div>
+    @endif
 
 </div>
 

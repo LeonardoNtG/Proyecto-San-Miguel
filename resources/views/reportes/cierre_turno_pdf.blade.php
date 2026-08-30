@@ -133,15 +133,18 @@
 
     <table class="header-table">
         <tr>
-            <td class="logo-container">
-                <!-- We will use a generic text if no logo -->
-                <div style="font-size:16px; font-weight:bold; text-align:center;">
-                    <i style="color:#2ca02c;">LOTIFICACIÓN</i><br>
-                    {{ $lotificacionNombre ?? 'SISTEMA' }}
-                </div>
+            <td class="logo-container" style="text-align: left; vertical-align: middle; width: 30%;">
+                @if(!empty($logoBase64))
+                    <img src="{{ $logoBase64 }}" style="max-width: 150px; max-height: 75px; object-fit: contain;">
+                @else
+                    <div style="font-size:15px; font-weight:bold; color: #1c3666;">
+                        <i style="color:#2ca02c;">LOTIFICACIÓN</i><br>
+                        {{ $lotificacionNombre ?? 'SISTEMA' }}
+                    </div>
+                @endif
             </td>
-            <td class="title-container">
-                <h1>LOTIFICACION {{ $lotificacionNombre ?? 'SISTEMA' }}</h1>
+            <td class="title-container" style="width: 70%;">
+                <h1>{{ $lotificacionNombre ?? 'LOTIFICACIÓN' }}</h1>
                 <h2>Reporte de cierre de caja - {{ $fechaFormateada }}</h2>
                 <div class="timestamp">Generado a las {{ $horaGeneracion }}</div>
             </td>

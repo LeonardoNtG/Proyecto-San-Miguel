@@ -180,13 +180,14 @@
                 
                 <!-- Plan de Pagos -->
                 <div class="card card-custom">
-                    <div class="card-custom-header">
-                        <i class="fas fa-calendar-alt"></i> Próximas Cuotas y Mora
+                    <div class="card-custom-header d-flex justify-content-between align-items-center">
+                        <div><i class="fas fa-calendar-alt me-1"></i> Plan Completo de Cuotas y Pagos</div>
+                        <span class="badge bg-primary">{{ $venta->cuotas->count() }} Cuotas</span>
                     </div>
                     <div class="card-body p-0">
-                        <div class="table-responsive">
+                        <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
                             <table class="table table-hover mb-0">
-                                <thead>
+                                <thead class="table-light sticky-top">
                                     <tr>
                                         <th>#</th>
                                         <th>Vencimiento</th>
@@ -197,14 +198,14 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @forelse($venta->cuotas->take(12) as $cuota)
+                                    @forelse($venta->cuotas as $cuota)
                                     <tr>
-                                        <td>{{ $cuota->numero_cuota }}</td>
+                                        <td class="fw-bold">{{ $cuota->numero_cuota }}</td>
                                         <td>{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
                                         <td>${{ number_format($cuota->monto_total, 2) }}</td>
                                         <td>
                                             @if($cuota->saldo_restante > 0)
-                                                <span class="fw-bold">${{ number_format($cuota->saldo_restante, 2) }}</span>
+                                                <span class="fw-bold text-dark">${{ number_format($cuota->saldo_restante, 2) }}</span>
                                             @else
                                                 <span class="text-muted">$0.00</span>
                                             @endif
@@ -228,60 +229,7 @@
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="5" class="text-center py-4">No hay cuotas generadas para esta venta.</td>
-                                    </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
-                        @if($venta->cuotas->count() > 12)
-                        <div class="text-center p-3 border-top bg-light">
-                            <small class="text-muted">Se muestran las primeras 12 cuotas. Contacte administración para el plan completo.</small>
-                        </div>
-                        @endif
-                    </div>
-                </div>
-
-                <!-- Historial de Pagos -->
-                <div class="card card-custom">
-                    <div class="card-custom-header">
-                        <i class="fas fa-receipt"></i> Historial de Pagos (Recibos)
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Fecha</th>
-                                        <th>Monto</th>
-                                        <th>Concepto</th>
-                                        <th>Método</th>
-                                        <th>Referencia</th>
-                                        <th>Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse($venta->abonos as $abono)
-                                    <tr>
-                                        <td>{{ \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') }}</td>
-                                        <td class="text-success fw-bold">+${{ number_format($abono->monto_abonado, 2) }}</td>
-                                        <td>{{ $abono->tipo_pago }}</td>
-                                        <td>{{ $abono->metodo_pago ?? 'Efectivo' }}</td>
-                                        <td>
-                                            {{ $abono->referencia ?? '-' }}
-                                            @if($abono->cuenta_destino)
-                                                <br><small class="text-muted"><i class="fas fa-university"></i> {{ $abono->cuenta_destino }}</small>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                                                <i class="fas fa-download"></i> Recibo
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    @empty
-                                    <tr>
-                                        <td colspan="5" class="text-center py-4">No se han registrado pagos aún.</td>
+                                        <td colspan="6" class="text-center py-4 text-muted">No hay cuotas generadas para esta venta.</td>
                                     </tr>
                                     @endforelse
                                 </tbody>

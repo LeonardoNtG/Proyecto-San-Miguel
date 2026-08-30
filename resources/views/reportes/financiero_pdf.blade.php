@@ -300,7 +300,7 @@
 @endif
 
 <!-- Detalle Completo de Transacciones -->
-<div class="section-title">{{ $esGlobal ? '4' : '3' }}. Cédula de Detalle de Recaudación y Cobranzas</div>
+<div class="section-title">{{ $esGlobal ? '4' : '3' }}. Planilla de Detalle de Recaudación y Cobranzas</div>
 <table class="detail-table">
     <thead>
         <tr>
@@ -310,7 +310,7 @@
                 <th>Proyecto</th>
             @endif
             <th>Cliente</th>
-            <th>Cédula</th>
+            <th>Identificación</th>
             <th>Expediente</th>
             <th>Lote(s)</th>
             <th>Concepto</th>

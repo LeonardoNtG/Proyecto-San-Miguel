@@ -110,10 +110,18 @@
                     <span>Reportes y Finanzas</span>
                 </a>
                 <div id="collapseReportes" class="collapse" aria-labelledby="headingReportes" data-parent="#accordionSidebar">
-                    <div class="bg-white py-2 collapse-inner rounded">
-                        <h6 class="collapse-header">Financiero:</h6>
-                        <a class="collapse-item" href="{{ route('reportes.financiero') }}">Reporte Financiero</a>
-                        <a class="collapse-item" href="{{ route('dashboard.grafico') }}">Gráficos y Estadísticas</a>
+                    <div class="bg-white py-2 collapse-inner rounded shadow-sm">
+                        <h6 class="collapse-header text-primary fw-bold">Finanzas y Flujo:</h6>
+                        <a class="collapse-item" href="{{ route('reportes.financiero') }}"><i class="fas fa-file-invoice-dollar me-1"></i> Reporte Financiero</a>
+                        <a class="collapse-item" href="{{ route('dashboard.grafico') }}"><i class="fas fa-chart-pie me-1"></i> Gráficos y Estadísticas</a>
+                        <a class="collapse-item" href="{{ route('reportes.proyeccion_flujo') }}"><i class="fas fa-chart-line me-1"></i> Proyección de Flujo</a>
+                        
+                        <h6 class="collapse-header text-primary fw-bold mt-2">Cartera y Cobranza:</h6>
+                        <a class="collapse-item" href="{{ route('reportes.cartera_clientes') }}"><i class="fas fa-users me-1"></i> Cartera y Abonos</a>
+                        <a class="collapse-item" href="{{ route('reportes.morosidad') }}"><i class="fas fa-exclamation-triangle text-danger me-1"></i> Morosidad y Atrasos</a>
+
+                        <h6 class="collapse-header text-primary fw-bold mt-2">Inventario:</h6>
+                        <a class="collapse-item" href="{{ route('reportes.inventario_lotes') }}"><i class="fas fa-boxes me-1"></i> Inventario de Lotes</a>
                     </div>
                 </div>
             </li>
@@ -147,7 +155,9 @@
                 </a>
                 <div id="collapseConfig" class="collapse" aria-labelledby="headingConfig" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
-                        <h6 class="collapse-header">Seguridad y Accesos:</h6>
+                        <h6 class="collapse-header">Reglas y Parámetros:</h6>
+                        <a class="collapse-item" href="{{ route('configuracion.parametros.index') }}">Parámetros del Sistema</a>
+                        <h6 class="collapse-header mt-2">Seguridad y Accesos:</h6>
                         <a class="collapse-item" href="{{ route('usuarios.index') }}">Gestión de Usuarios</a>
                         <a class="collapse-item" href="{{ route('auditoria.index') }}">Auditoría (Logs)</a>
                     </div>

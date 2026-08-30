@@ -18,6 +18,11 @@ class CheckCajaAbierta
      */
     public function handle(Request $request, Closure $next)
     {
+        // Si la configuración del proyecto desactiva la exigencia de caja abierta, permitir operar libremente
+        if (!setting('exigir_caja_abierta', true)) {
+            return $next($request);
+        }
+
         $fechaCaja = Carbon::today()->format('Y-m-d');
         
         $apertura = AperturaCaja::where('fecha', $fechaCaja)
