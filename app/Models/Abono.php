@@ -26,6 +26,7 @@ class Abono extends Model
         'metodo_pago',
         'referencia',
         'cuenta_destino',
+        'comentario',
         'ruta_recibo',
         'user_id'
     ];

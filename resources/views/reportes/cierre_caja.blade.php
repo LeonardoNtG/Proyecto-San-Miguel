@@ -260,7 +260,14 @@
                                 @if($abono->cuenta_destino)
                                     <div class="small text-muted"><i class="fas fa-university text-secondary me-1"></i>{{ $abono->cuenta_destino }}</div>
                                 @endif
-                                @if(!$abono->referencia && !$abono->cuenta_destino)
+                                @if($abono->comentario)
+                                    <div class="mt-1">
+                                        <small class="badge bg-light text-dark border">
+                                            <i class="fas fa-comment-dots text-primary me-1"></i>{{ $abono->comentario }}
+                                        </small>
+                                    </div>
+                                @endif
+                                @if(!$abono->referencia && !$abono->cuenta_destino && !$abono->comentario)
                                     <span class="text-muted small">-</span>
                                 @endif
                             </td>

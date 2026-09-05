@@ -318,22 +318,30 @@
                         </div>
                     </div>
 
-                    {{-- CAMPOS EFECTIVO (COMENTARIOS OPCIONALES) --}}
-                    <div id="campos_efectivo" class="mb-4">
-                        <label for="referencia_efectivo" class="form-label text-muted small fw-bold text-uppercase">
-                            <i class="fas fa-comment-alt me-1 text-secondary"></i> Comentarios / Observaciones (Opcional)
-                        </label>
-                        <input type="text" class="form-control" id="referencia_efectivo" name="referencia_efectivo_coment" placeholder="Ej: Pago entregado en efectivo / billetes recibidos / etc.">
-                    </div>
-
                     {{-- CAMPOS BANCARIOS CONDICIONALES --}}
                     <div id="campos_transferencia" style="display: none; background: #f8fafc; padding: 15px; border-radius: 10px; border: 1px solid #e2e8f0;" class="mb-4">
                         <div class="row g-2">
-                            <div class="col-md-6">
-                                <label for="cuenta_destino" class="form-label text-dark fw-bold small">Banco / Cuenta Destino</label>
-                                <input type="text" class="form-control" id="cuenta_destino" name="cuenta_destino" placeholder="Ej: BAC / BANPRO / LAFISE">
+                            <div class="col-md-7">
+                                <label for="cuenta_destino" class="form-label text-dark fw-bold small">
+                                    <i class="fas fa-university text-primary me-1"></i> Banco / Cuenta Destino
+                                </label>
+                                <div class="input-group">
+                                    <select class="form-select" id="cuenta_destino" name="cuenta_destino">
+                                        <option value="">-- Seleccione Cuenta Destino --</option>
+                                        @if(isset($cuentasBancarias) && $cuentasBancarias->isNotEmpty())
+                                            @foreach($cuentasBancarias as $cta)
+                                                <option value="{{ $cta->texto_completo }}">
+                                                    {{ $cta->texto_completo }}
+                                                </option>
+                                            @endforeach
+                                        @endif
+                                    </select>
+                                    <button type="button" class="btn btn-primary" id="btn_abrir_modal_cuenta" data-bs-toggle="modal" data-bs-target="#modalNuevaCuenta" title="Agregar Nueva Cuenta Bancaria">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
                             </div>
-                            <div class="col-md-6">
+                            <div class="col-md-5">
                                 <label for="referencia" class="form-label text-dark fw-bold small">N° Referencia / Minuta</label>
                                 <input type="text" class="form-control font-monospace" id="referencia" name="referencia" placeholder="Ej: 12345678">
                             </div>
@@ -345,6 +353,14 @@
                                 <small class="text-muted"><i class="fas fa-info-circle text-info me-1"></i>Puede adjuntar una foto de la minuta bancaria o PDF de la transferencia. Quedará guardado en el expediente del cliente para descarga y auditoría.</small>
                             </div>
                         </div>
+                    </div>
+
+                    {{-- CAJA DE COMENTARIOS / OBSERVACIONES (OPCIONAL PARA CUALQUIER MÉTODO DE PAGO) --}}
+                    <div class="mb-4">
+                        <label for="comentario" class="form-label text-muted small fw-bold text-uppercase">
+                            <i class="fas fa-comment-dots me-1 text-primary"></i> Comentarios / Observaciones <span class="text-muted fw-normal">(Opcional)</span>
+                        </label>
+                        <textarea class="form-control" id="comentario" name="comentario" rows="2" placeholder="Notas adicionales sobre este pago (ej: billetes de $20 entregados, realizado por familiar, etc.)"></textarea>
                     </div>
 
                     {{-- FECHA Y CONCEPTO --}}
@@ -424,6 +440,11 @@
                             <strong class="text-dark ms-1" id="resumen-cuenta">-</strong> | <span class="font-monospace" id="resumen-referencia">-</span>
                         </div>
 
+                        <div id="resumen-comentario-fila" class="mt-2 pt-2 border-top small" style="display: none;">
+                            <span class="text-muted"><i class="fas fa-comment-dots text-primary me-1"></i>Comentario / Nota:</span>
+                            <span class="text-dark fw-bold ms-1" id="resumen-comentario">-</span>
+                        </div>
+
                         {{-- IMPACTO FINANCIERO SIMPLE Y DIRECTO --}}
                         <div class="mt-3 pt-3 border-top" id="resumen-saldos-box">
                             <div class="d-flex justify-content-between align-items-center mb-1">
@@ -481,7 +502,7 @@
                                     <th>Lote</th>
                                     <th>Monto</th>
                                     <th>Tipo</th>
-                                    <th>Referencia</th>
+                                    <th>Detalles / Observaciones</th>
                                     <th class="text-center">Recibo</th>
                                 </tr>
                             </thead>
@@ -500,7 +521,21 @@
                                         </td>
                                         <td><strong class="text-success">${{ number_format($abono->monto_abonado, 2) }}</strong></td>
                                         <td><small>{{ $abono->tipo_pago }}</small></td>
-                                        <td><small class="text-muted">{{ $abono->referencia }}</small></td>
+                                        <td>
+                                            @if($abono->cuenta_destino)
+                                                <div class="small text-dark"><i class="fas fa-university text-secondary me-1"></i>{{ $abono->cuenta_destino }}</div>
+                                            @endif
+                                            @if($abono->referencia)
+                                                <small class="text-muted font-monospace"><i class="fas fa-receipt me-1"></i>Ref: {{ $abono->referencia }}</small>
+                                            @endif
+                                            @if($abono->comentario)
+                                                <div class="mt-1">
+                                                    <span class="badge bg-light text-dark border">
+                                                        <i class="fas fa-comment-dots text-primary me-1"></i>{{ $abono->comentario }}
+                                                    </span>
+                                                </div>
+                                            @endif
+                                        </td>
                                         <td class="text-center">
                                             <a href="{{ route('imprimirRecibo', ['abono_id' => $abono->id_abono]) }}" target="_blank" class="btn btn-xs btn-outline-primary py-0 px-2" title="Imprimir Recibo">
                                                 <i class="fas fa-print"></i>
@@ -524,6 +559,53 @@
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- MODAL PARA AGREGAR NUEVA CUENTA BANCARIA DINÁMICAMENTE --}}
+    <div class="modal fade" id="modalNuevaCuenta" tabindex="-1" aria-labelledby="modalNuevaCuentaLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow border-0">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold" id="modalNuevaCuentaLabel"><i class="fas fa-university me-2"></i> Agregar Nueva Cuenta Bancaria</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <form id="formNuevaCuentaBancaria">
+                    @csrf
+                    <div class="modal-body p-4">
+                        <p class="text-muted small mb-3">Complete los datos de la cuenta bancaria para registrarla y seleccionarla automáticamente.</p>
+                        
+                        <div class="mb-3">
+                            <label for="modal_banco" class="form-label small fw-bold text-dark">Banco / Entidad Financiera</label>
+                            <input type="text" class="form-control" id="modal_banco" name="banco" placeholder="Ej: Banpro, BAC, LAFISE, Ficohsa, BDF" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-4">
+                                <label for="modal_moneda" class="form-label small fw-bold text-dark">Moneda</label>
+                                <select class="form-select" id="modal_moneda" name="moneda" required>
+                                    <option value="$">$ (Dólares)</option>
+                                    <option value="C$">C$ (Córdobas)</option>
+                                </select>
+                            </div>
+                            <div class="col-8">
+                                <label for="modal_numero_cuenta" class="form-label small fw-bold text-dark">Número de Cuenta</label>
+                                <input type="text" class="form-control font-monospace" id="modal_numero_cuenta" name="numero_cuenta" placeholder="Ej: 10021210290831" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="modal_titular" class="form-label small fw-bold text-dark">Nombre del Titular</label>
+                            <input type="text" class="form-control" id="modal_titular" name="titular" placeholder="Ej: Nombre de la persona o empresa titular" required>
+                        </div>
+                        <div id="modal_cuenta_error" class="alert alert-danger py-2 small" style="display: none;"></div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary fw-bold" id="btnGuardarNuevaCuenta">
+                            <i class="fas fa-save me-1"></i> Guardar Cuenta
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
@@ -857,11 +939,96 @@
         } else {
             filaBanco.style.display = 'none';
         }
+
+        var comVal = document.getElementById('comentario') ? document.getElementById('comentario').value.trim() : '';
+        var filaComentario = document.getElementById('resumen-comentario-fila');
+        if (filaComentario) {
+            if (comVal) {
+                document.getElementById('resumen-comentario').textContent = comVal;
+                filaComentario.style.display = 'block';
+            } else {
+                filaComentario.style.display = 'none';
+            }
+        }
     }
 
     document.addEventListener("DOMContentLoaded", function () {
         toggleMetodoPagoFields();
         actualizarSugerenciaMonto();
+
+        // AJAX para registrar nueva cuenta bancaria desde el modal
+        var formNuevaCuenta = document.getElementById('formNuevaCuentaBancaria');
+        if (formNuevaCuenta) {
+            formNuevaCuenta.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var btnGuardar = document.getElementById('btnGuardarNuevaCuenta');
+                var errorBox = document.getElementById('modal_cuenta_error');
+                
+                if (btnGuardar) {
+                    btnGuardar.disabled = true;
+                    btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+                }
+                if (errorBox) errorBox.style.display = 'none';
+
+                var formData = new FormData(formNuevaCuenta);
+
+                fetch("{{ route('api.cuentas_bancarias.store') }}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                })
+                .then(function(res) {
+                    return res.json().then(function(data) {
+                        return { status: res.status, data: data };
+                    });
+                })
+                .then(function(result) {
+                    if (result.status === 200 && result.data.success) {
+                        var cta = result.data.cuenta;
+                        var selectCuenta = document.getElementById('cuenta_destino');
+                        if (selectCuenta) {
+                            var newOption = document.createElement('option');
+                            newOption.value = cta.texto_completo;
+                            newOption.text = cta.texto_completo;
+                            newOption.selected = true;
+                            selectCuenta.appendChild(newOption);
+                        }
+
+                        // Cerrar modal
+                        var modalEl = document.getElementById('modalNuevaCuenta');
+                        var modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                        modalInstance.hide();
+
+                        // Limpiar formulario modal
+                        formNuevaCuenta.reset();
+                    } else {
+                        var msg = result.data.message || 'Ocurrió un error al guardar la cuenta bancaria.';
+                        if (result.data.errors) {
+                            msg = Object.values(result.data.errors).flat().join('<br>');
+                        }
+                        if (errorBox) {
+                            errorBox.innerHTML = msg;
+                            errorBox.style.display = 'block';
+                        }
+                    }
+                })
+                .catch(function(err) {
+                    if (errorBox) {
+                        errorBox.innerHTML = 'Error de conexión: ' + err.message;
+                        errorBox.style.display = 'block';
+                    }
+                })
+                .finally(function() {
+                    if (btnGuardar) {
+                        btnGuardar.disabled = false;
+                        btnGuardar.innerHTML = '<i class="fas fa-save me-1"></i> Guardar Cuenta';
+                    }
+                });
+            });
+        }
 
         var formAbono = document.getElementById('form-abono');
         formAbono.addEventListener('submit', function(e) {

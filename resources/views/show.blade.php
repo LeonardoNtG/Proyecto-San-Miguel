@@ -290,6 +290,13 @@
                                         @if($abono->cuenta_destino)
                                             <br><small class="text-muted"><i class="fas fa-university me-1"></i>{{ $abono->cuenta_destino }}</small>
                                         @endif
+                                        @if($abono->comentario)
+                                            <div class="mt-1">
+                                                <small class="badge bg-light text-dark border">
+                                                    <i class="fas fa-comment-dots text-primary me-1"></i>{{ $abono->comentario }}
+                                                </small>
+                                            </div>
+                                        @endif
                                     </td>
                                     <td class="text-center">
                                         @if($abono->ruta_recibo)

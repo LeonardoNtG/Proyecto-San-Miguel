@@ -17,6 +17,7 @@ use App\Http\Controllers\ReservaController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\RescisionController;
+use App\Http\Controllers\CuentaBancariaController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -96,6 +97,8 @@ Route::middleware(['auth'])->group(function () {
     // APIs para Selects Dinámicos
     Route::get('/api/bloques/{bloque}/lotes', [LoteController::class, 'getLotesByBloque'])->name('api.lotes.by.bloque');
     Route::get('/api/lotificaciones/{lotificacion}/bloques', [BloqueController::class, 'getBloquesByLotificacion'])->name('api.bloques.by.lotificacion');
+    Route::get('/api/cuentas-bancarias', [CuentaBancariaController::class, 'index'])->name('api.cuentas_bancarias.index');
+    Route::post('/api/cuentas-bancarias', [CuentaBancariaController::class, 'store'])->name('api.cuentas_bancarias.store');
 
     // ---------------------------------------------------------------------
     // OPERACIONES TRANSACCIONALES QUE INGRESAN/EGRESAN DINERO (PROTEGIDAS POR CAJA)

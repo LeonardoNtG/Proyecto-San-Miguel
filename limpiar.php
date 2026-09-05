@@ -69,6 +69,14 @@ try {
                 $columnFixes[] = "✔ Agregada columna de compatibilidad 'motivo_liberacion' a la tabla 'historial_lotes'.";
             }
         }
+        if (\Illuminate\Support\Facades\Schema::hasTable('abonos')) {
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'comentario')) {
+                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->text('comentario')->nullable()->after('cuenta_destino');
+                });
+                $columnFixes[] = "✔ Agregada columna 'comentario' a la tabla 'abonos'.";
+            }
+        }
 
         // 5. Limpiar caché desde Artisan
         try {
@@ -80,7 +88,7 @@ try {
         }
 
         // 6. Verificar tablas críticas
-        $tablesToVerify = ['users', 'lotificaciones', 'lotificacion_user', 'clientes', 'ventas', 'cuotas', 'abonos', 'historial_lotes', 'apertura_cajas', 'cierre_cajas', 'salidas', 'configuraciones', 'rescisiones'];
+        $tablesToVerify = ['users', 'lotificaciones', 'lotificacion_user', 'clientes', 'ventas', 'cuotas', 'abonos', 'historial_lotes', 'apertura_cajas', 'cierre_cajas', 'salidas', 'configuraciones', 'rescisiones', 'cuentas_bancarias'];
         foreach ($tablesToVerify as $t) {
             try {
                 $exists = \Illuminate\Support\Facades\Schema::hasTable($t);

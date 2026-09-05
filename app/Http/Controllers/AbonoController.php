@@ -81,6 +81,8 @@ class AbonoController extends Controller
                 });
             });
 
+            $cuentasBancarias = \App\Models\CuentaBancaria::where('estado', 'Activa')->orderBy('banco')->orderBy('moneda')->get();
+
             $data = [
                 'cliente'          => $cliente,
                 'venta'            => $venta,
@@ -94,6 +96,7 @@ class AbonoController extends Controller
                 'fechaPagoTeorica' => $fechaPagoTeorica,
                 'detallesLotes'    => $detallesLotes,
                 'cuotaSugeridaTotal' => $ventas->sum('cuota_mensual'),
+                'cuentasBancarias' => $cuentasBancarias,
             ];
 
             return view('abonos.create', $data);
@@ -134,6 +137,8 @@ class AbonoController extends Controller
             ];
         });
 
+        $cuentasBancarias = \App\Models\CuentaBancaria::where('estado', 'Activa')->orderBy('banco')->orderBy('moneda')->get();
+
         $data = [
             'cliente'          => $cliente,
             'venta'            => $venta,
@@ -147,6 +152,7 @@ class AbonoController extends Controller
             'fechaPagoTeorica' => $fechaPagoTeorica,
             'detallesLotes'    => $detallesLotes,
             'cuotaSugeridaTotal' => $venta->cuota_mensual,
+            'cuentasBancarias' => $cuentasBancarias,
         ];
 
         return view('abonos.create', $data);
@@ -167,6 +173,7 @@ class AbonoController extends Controller
             'metodo_pago'   => 'required|string',
             'referencia'    => 'nullable|string',
             'cuenta_destino'=> 'nullable|string',
+            'comentario'    => 'nullable|string|max:1000',
             'ruta_recibo'   => 'nullable|file|mimes:jpeg,png,jpg,pdf,webp|max:10240',
         ]);
 
@@ -230,6 +237,7 @@ class AbonoController extends Controller
                     'metodo_pago'   => $request->metodo_pago,
                     'referencia'    => $referenciaFinal,
                     'cuenta_destino'=> $request->cuenta_destino,
+                    'comentario'    => $request->comentario,
                     'ruta_recibo'   => $ruta_imagen,
                     'user_id'       => auth()->id()
                 ]);
@@ -295,6 +303,7 @@ class AbonoController extends Controller
                     'metodo_pago'   => $request->metodo_pago,
                     'referencia'    => $ref,
                     'cuenta_destino'=> $request->cuenta_destino,
+                    'comentario'    => $request->comentario,
                     'ruta_recibo'   => $ruta_imagen,
                     'user_id'       => auth()->id()
                 ]);
