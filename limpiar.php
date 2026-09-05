@@ -158,7 +158,30 @@ if (file_exists($logFile)) {
         <div>
             <a href="./inicio" class="btn">🚀 Probar Inicio (/inicio)</a>
             <a href="./registro" class="btn" style="background: #059669;">👥 Probar Clientes (/registro)</a>
-            <a href="./limpiar.php" class="btn" style="background: #475569;">🔄 Reejecutar Diagnóstico</a>
+            <a href="./abonos/11/imprimir" class="btn" style="background: #7c3aed;">🖨️ Ver Recibo 11</a>
+        </div>
+
+        <?php
+            $abonoCtrlFile = $baseDir . '/app/Http/Controllers/AbonoController.php';
+            $abonoCtrlDate = file_exists($abonoCtrlFile) ? date("Y-m-d H:i:s", filemtime($abonoCtrlFile)) : "NO EXISTE";
+            $pruebaLetras = "N/A";
+            try {
+                if (class_exists(\App\Http\Controllers\AbonoController::class)) {
+                    $ac = new \App\Http\Controllers\AbonoController();
+                    $ref = new \ReflectionMethod($ac, 'convertirMontoALetras');
+                    $ref->setAccessible(true);
+                    $pruebaLetras = $ref->invoke($ac, 150.00);
+                }
+            } catch (\Throwable $e) {
+                $pruebaLetras = "Error probando: " . $e->getMessage();
+            }
+        ?>
+        <div style="margin-top: 15px; padding: 12px; background: #0f172a; border-radius: 8px; border: 1px solid #3b82f6;">
+            <p style="margin: 0 0 5px 0; color: #38bdf8;"><strong>🔍 Verificación de AbonoController en Servidor:</strong></p>
+            <p style="margin: 0; font-size: 0.9rem;">Ruta base: <code><?= htmlspecialchars($baseDir) ?></code></p>
+            <p style="margin: 0; font-size: 0.9rem;">Última modificación de AbonoController.php: <strong><?= $abonoCtrlDate ?></strong></p>
+            <p style="margin: 0; font-size: 0.9rem;">Resultado de convertir 150.00: <strong style="color: #4ade80;">"<?= htmlspecialchars($pruebaLetras) ?>"</strong></p>
+        </div>    <a href="./limpiar.php" class="btn" style="background: #475569;">🔄 Reejecutar Diagnóstico</a>
         </div>
     </div>
 

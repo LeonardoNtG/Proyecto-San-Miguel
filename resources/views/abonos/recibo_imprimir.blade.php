@@ -410,7 +410,7 @@
 
         <div class="row">
             <div class="label">La suma de:</div>
-            <div class="value">{{ $monto_en_letras }} {{ $sufijoMoneda }}</div>
+            <div class="value">{{ preg_replace('/\b(DÓLARES|DOLARES)\s+(DÓLARES|DOLARES)\b/ui', 'DÓLARES', trim($monto_en_letras . ' ' . $sufijoMoneda)) }}</div>
         </div>
 
         <div class="row">
@@ -517,7 +517,7 @@
 
         <div class="row">
             <div class="label">La suma de:</div>
-            <div class="value">{{ $monto_en_letras }} {{ $sufijoMoneda }}</div>
+            <div class="value">{{ preg_replace('/\b(DÓLARES|DOLARES)\s+(DÓLARES|DOLARES)\b/ui', 'DÓLARES', trim($monto_en_letras . ' ' . $sufijoMoneda)) }}</div>
         </div>
 
         <div class="row">
