@@ -589,6 +589,9 @@ class AbonoController extends Controller
 }
 
 
+        /**
+         * Convierte el monto numérico a texto en palabras (sin sufijo de moneda redundante)
+         */
         private function convertirMontoALetras($monto)
         {
             $monto = number_format((float) $monto, 2, '.', '');
