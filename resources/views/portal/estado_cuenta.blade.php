@@ -205,6 +205,7 @@
                                         <th>#</th>
                                         <th>Vencimiento</th>
                                         <th>Monto Cuota</th>
+                                        <th>Monto Abonado</th>
                                         <th>Saldo Total</th>
                                         <th>Mora</th>
                                         <th>Estado</th>
@@ -220,12 +221,20 @@
                                     @endphp
                                     @forelse($venta->cuotas as $cuota)
                                     @php
+                                        $montoAbonadoCuota = max(0, (float)$cuota->monto_total - (float)$cuota->saldo_restante);
                                         $saldoDecreciente = max(0, $saldoDecreciente - (float)$cuota->monto_total);
                                     @endphp
                                     <tr>
                                         <td class="fw-bold">{{ $cuota->numero_cuota }}</td>
                                         <td>{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
                                         <td>${{ number_format($cuota->monto_total, 2) }}</td>
+                                        <td>
+                                            @if($montoAbonadoCuota > 0)
+                                                <span class="text-success fw-bold">${{ number_format($montoAbonadoCuota, 2) }}</span>
+                                            @else
+                                                <span class="text-muted">$0.00</span>
+                                            @endif
+                                        </td>
                                         <td>
                                             <span class="fw-bold text-dark">${{ number_format($saldoDecreciente, 2) }}</span>
                                         </td>
@@ -241,6 +250,8 @@
                                                 <span class="badge bg-success">Pagada</span>
                                             @elseif($cuota->estado == 'Mora')
                                                 <span class="badge bg-danger">En Mora</span>
+                                            @elseif($cuota->estado == 'Parcial')
+                                                <span class="badge bg-info text-dark">Parcial</span>
                                             @else
                                                 <span class="badge bg-warning text-dark">Pendiente</span>
                                             @endif
@@ -248,7 +259,7 @@
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="6" class="text-center py-4 text-muted">No hay cuotas generadas para esta venta.</td>
+                                        <td colspan="7" class="text-center py-4 text-muted">No hay cuotas generadas para esta venta.</td>
                                     </tr>
                                     @endforelse
                                 </tbody>
