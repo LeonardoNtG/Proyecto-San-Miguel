@@ -25,6 +25,17 @@
         </div>
     @endif
 
+    @php
+        $venta = $ventaActual ?? ($cliente->ventas->firstWhere('estado_contrato', 'Vigente') ?? $cliente->ventas->first());
+        $tieneMultiplesContratos = $cliente->ventas->count() > 1;
+        $tieneOtrosContratos = false;
+        $otrosContratosActivos = collect();
+        if ($venta) {
+            $otrosContratosActivos = $cliente->ventas->where('id_venta', '!=', $venta->id_venta)->where('estado_contrato', 'Vigente');
+            $tieneOtrosContratos = $otrosContratosActivos->count() > 0;
+        }
+    @endphp
+
     <div class="row mb-4">
         <div class="col-12 d-flex justify-content-between align-items-center">
             <h2 class="text-primary">Exp. N°: {{ $cliente->expediente_num }}</h2>
@@ -43,7 +54,7 @@
                 </button>
                 @endif
                 
-                @if(isset($cliente->ventas) && $cliente->ventas->first() && $cliente->ventas->first()->estado_contrato !== 'Rescindido')
+                @if($venta && $venta->estado_contrato !== 'Rescindido')
                 <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#rescindirModal">
                     <i class="fas fa-ban"></i> Rescindir Venta
                 </button>
@@ -58,11 +69,6 @@
         </div>
     </div>
     <hr>
-
-    @php
-        $venta = $ventaActual ?? ($cliente->ventas->firstWhere('estado_contrato', 'Vigente') ?? $cliente->ventas->first());
-        $tieneMultiplesContratos = $cliente->ventas->count() > 1;
-    @endphp
 
     @if($tieneMultiplesContratos)
     {{-- BARRA SELECTORA DE CONTRATOS (cuando el cliente tiene varios lotes independientes) --}}
@@ -88,7 +94,9 @@
                                     <strong class="fs-6">
                                         <i class="fas fa-map-marker-alt me-1"></i>{{ $nombreLotes ?: 'Contrato #'.$v->id_venta }}
                                     </strong>
-                                    @if($enMora)
+                                    @if($v->estado_contrato === 'Rescindido')
+                                        <span class="badge {{ $esActual ? 'bg-light text-dark' : 'bg-secondary text-white' }}">Rescindido</span>
+                                    @elseif($enMora)
                                         <span class="badge bg-danger">Mora</span>
                                     @else
                                         <span class="badge {{ $esActual ? 'bg-light text-primary' : 'bg-success text-white' }}">Vigente</span>
@@ -127,7 +135,7 @@
                     <p><strong>Teléfono:</strong> {{ $cliente->telefono ?? 'N/A' }}</p>
                     <p><strong>Estado Civil:</strong> {{ $cliente->estado_civil ?? 'N/A' }}</p>
                     <p><strong>Dirección:</strong> {{ $cliente->direccion ?? 'N/A' }}</p>
-                    <p><strong>Registro:</strong> {{ $cliente->created_at->format('d/M/Y') }}</p>
+                    <p><strong>Registro:</strong> {{ $cliente->created_at ? $cliente->created_at->format('d/M/Y') : ($cliente->ventas->first()?->fecha_venta ? \Carbon\Carbon::parse($cliente->ventas->first()->fecha_venta)->format('d/M/Y') : 'N/A') }}</p>
                 </div>
             </div>
         </div>
@@ -135,7 +143,7 @@
         {{-- SECCIÓN 2: DETALLES DE LA VENTA ACTIVA --}}
         <div class="col-md-8">
             <div class="card shadow mb-4">
-                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h5 class="m-0">
                         Detalles del Contrato
                         @if($venta && $venta->lotes->count() > 0)
@@ -144,9 +152,16 @@
                             </span>
                         @endif
                     </h5>
-                    @if($tieneMultiplesContratos)
-                        <span class="badge bg-warning text-dark">{{ $cliente->ventas->count() }} Contratos en total</span>
-                    @endif
+                    <div class="d-flex align-items-center gap-2">
+                        @if($venta)
+                            <a href="{{ route('reportes.promesa_venta.imprimir', $venta->id_venta) }}" target="_blank" class="btn btn-sm btn-light text-success fw-bold shadow-sm" title="Imprimir Ficha Técnica para Notario / Abogado">
+                                <i class="fas fa-file-contract me-1"></i> Ficha Promesa de Venta
+                            </a>
+                        @endif
+                        @if($tieneMultiplesContratos)
+                            <span class="badge bg-warning text-dark">{{ $cliente->ventas->count() }} Contratos en total</span>
+                        @endif
+                    </div>
                 </div>
                 <div class="card-body">
                     @if($venta)
@@ -369,6 +384,88 @@
         </div>
     </div>
     
+    {{-- SECCIÓN 5: HISTORIAL DE RESCISIONES Y DESISTIMIENTOS --}}
+    @if(isset($cliente->rescisiones) && $cliente->rescisiones->count() > 0)
+    <div class="card shadow mb-4 border-danger">
+        <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center cursor-pointer" id="headerHistorialRescisiones" style="cursor: pointer;">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-undo-alt fa-lg text-warning me-2"></i>
+                <h5 class="m-0 fw-bold">Historial de Rescisiones y Desistimientos de Lotes</h5>
+            </div>
+            <div class="d-flex align-items-center flex-wrap">
+                <span class="badge bg-white text-danger fw-bold me-2 shadow-sm">
+                    {{ $cliente->rescisiones->count() }} Lotes Liberados
+                </span>
+                <span class="btn btn-sm btn-outline-light ms-2 px-2 py-1">
+                    <i class="fas fa-chevron-up" id="chevronRescisiones"></i>
+                </span>
+            </div>
+        </div>
+        <div id="bodyHistorialRescisiones" style="display: block;">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered table-sm align-middle">
+                        <thead class="bg-light">
+                            <tr>
+                                <th style="width: 13%;">Fecha y Hora</th>
+                                <th style="width: 10%;">Tipo</th>
+                                <th style="width: 20%;">Lotes Desistidos (Disponible)</th>
+                                <th style="width: 15%;">Lotes Conservados</th>
+                                <th style="width: 18%;">Destino de lo Abonado</th>
+                                <th>Comentario / Motivo</th>
+                                <th style="width: 10%;">Responsable</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($cliente->rescisiones as $r)
+                            <tr>
+                                <td class="small">
+                                    <i class="far fa-clock text-secondary me-1"></i>
+                                    {{ \Carbon\Carbon::parse($r->created_at)->format('d/m/Y h:i A') }}
+                                </td>
+                                <td>
+                                    <span class="badge {{ $r->tipo == 'Parcial' ? 'bg-warning text-dark' : 'bg-danger' }}">
+                                        {{ $r->tipo }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger fw-bold py-1 px-2">
+                                        <i class="fas fa-undo me-1"></i> {{ $r->lotes_afectados }}
+                                    </span>
+                                    <br><small class="text-success"><i class="fas fa-check-circle me-1"></i> Pasa a Disponible</small>
+                                </td>
+                                <td class="small">
+                                    {{ $r->lotes_conservados ?: '—' }}
+                                </td>
+                                <td>
+                                    @if($r->destino_abonos == 'acreditar_otro_lote')
+                                        <span class="badge bg-success">Acreditado a lote conservado</span>
+                                        <div class="small fw-bold text-success mt-1">${{ number_format($r->monto_transferido, 2) }}</div>
+                                    @elseif($r->destino_abonos == 'devolucion_efectivo')
+                                        <span class="badge bg-danger">Devolución en efectivo</span>
+                                        <div class="small fw-bold text-danger mt-1">${{ number_format($r->monto_devuelto, 2) }}</div>
+                                    @else
+                                        <span class="badge bg-secondary">Sin devolución</span>
+                                    @endif
+                                </td>
+                                <td class="small">
+                                    <div class="p-2 bg-light rounded border">
+                                        {{ $r->comentario }}
+                                    </div>
+                                </td>
+                                <td class="small text-muted">
+                                    {{ $r->user ? $r->user->name : 'Sistema' }}
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- Modal de Confirmación de Borrado --}}
     <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -393,21 +490,26 @@
         </div>
     </div>
 
-    {{-- Modal de Rescisión de Contrato --}}
+    {{-- Modal de Rescisión / Desistimiento de Lotes --}}
     @if($venta && $venta->estado_contrato !== 'Rescindido')
     <div class="modal fade" id="rescindirModal" tabindex="-1" aria-labelledby="rescindirModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title" id="rescindirModalLabel">Rescindir Contrato</h5>
+                    <h5 class="modal-title fw-bold" id="rescindirModalLabel">
+                        <i class="fas fa-undo-alt me-2"></i> Rescindir / Desistir de Lotes
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form action="{{ route('ventas.rescindir', $venta->id_venta) }}" method="POST">
+                <form action="{{ route('ventas.rescindir', $venta->id_venta) }}" method="POST" id="form-rescindir-venta">
                     @csrf
                     <div class="modal-body">
                         <div class="alert alert-warning">
-                            <strong><i class="fas fa-exclamation-triangle me-1"></i> Selección de Lotes a Devolver:</strong>
-                            <p class="small mb-2 text-dark">Marque los lotes que el cliente desea rescindir / devolver a disponibilidad. Los no marcados permanecerán en el contrato.</p>
+                            <strong><i class="fas fa-exclamation-triangle me-1"></i> Selección de Lotes a Desistir / Devolver:</strong>
+                            <p class="small mb-2 text-dark">
+                                Marque los lotes de los cuales el cliente desea desistir. 
+                                <strong>El lote pasará automáticamente a estado "Disponible" (libre)</strong> en el inventario para poder venderse a una nueva persona.
+                            </p>
                             <div class="mt-2" id="lotes_checkbox_container">
                                 @foreach($venta->lotes as $lote)
                                     <div class="form-check mb-2 p-2 bg-white rounded border">
@@ -424,6 +526,60 @@
                                         </label>
                                     </div>
                                 @endforeach
+                            </div>
+                        </div>
+
+                        {{-- Destino del dinero abonado --}}
+                        @php
+                            $otrosContratosActivos = $cliente->ventas->where('id_venta', '!=', $venta->id_venta)->where('estado_contrato', 'Vigente');
+                            $tieneOtrosContratos = $otrosContratosActivos->count() > 0;
+                            $totalLotesEnVenta = $venta->lotes->count();
+                            // ¿Puede acreditar a otro lote inicialmente? Solo si este contrato tiene más de 1 lote (rescisión parcial) O si el cliente tiene otro contrato activo vigente!
+                            $puedeAcreditarInicial = ($totalLotesEnVenta > 1) || $tieneOtrosContratos;
+                        @endphp
+                        <div class="card bg-light border p-3 mb-3">
+                            <h6 class="fw-bold text-dark mb-2">
+                                <i class="fas fa-coins text-warning me-1"></i> Destino del Dinero Abonado por el Lote:
+                            </h6>
+                            <p class="small text-muted mb-2">El total abonado a este contrato asciende a: <strong>${{ number_format($venta->abonos()->where('monto_abonado', '>', 0)->sum('monto_abonado'), 2) }}</strong></p>
+                            
+                            {{-- Opción: Acreditar a lote conservado (solo si conserva algún lote o tiene otro contrato) --}}
+                            <div class="form-check mb-2 p-2 bg-white rounded border" id="contenedor_opcion_acreditar" style="{{ $puedeAcreditarInicial ? '' : 'display: none !important;' }}">
+                                <input class="form-check-input destino-abonos-radio ms-1 me-2" type="radio" name="destino_abonos" id="dest_acreditar" value="acreditar_otro_lote" {{ $puedeAcreditarInicial ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold text-success" for="dest_acreditar">
+                                    <i class="fas fa-arrow-circle-right me-1"></i> Acreditar al lote / contrato que conserva
+                                </label>
+                                <div class="small text-muted ps-4">El dinero pagado por el lote desistido reduce la deuda pendiente del lote que el cliente mantiene.</div>
+                            </div>
+
+                            @if($tieneOtrosContratos)
+                            <div id="selector_contrato_destino" class="ps-4 mb-2 p-2 bg-white rounded border border-primary" style="display:none;">
+                                <label class="small fw-bold text-primary"><i class="fas fa-link me-1"></i> En caso de rescisión total, transferir crédito a:</label>
+                                <select name="id_venta_destino" class="form-select form-select-sm mt-1">
+                                    @foreach($otrosContratosActivos as $otraVenta)
+                                        @php
+                                            $lotesOtra = $otraVenta->lotes->map(fn($l) => ($l->bloque ? 'Blq '.$l->bloque->nombre.' - ' : '').'Lote '.$l->numero_lote)->implode(', ');
+                                        @endphp
+                                        <option value="{{ $otraVenta->id_venta }}">Contrato #{{ $otraVenta->id_venta }} ({{ $lotesOtra ?: 'Sin lotes' }}) — Saldo actual: ${{ number_format(max(0, $otraVenta->precio_final - $otraVenta->abonos()->sum('monto_abonado')), 2) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            @endif
+
+                            <div class="form-check mb-2 p-2 bg-white rounded border" id="contenedor_opcion_efectivo">
+                                <input class="form-check-input destino-abonos-radio ms-1 me-2" type="radio" name="destino_abonos" id="dest_efectivo" value="devolucion_efectivo" {{ !$puedeAcreditarInicial ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold text-danger" for="dest_efectivo">
+                                    <i class="fas fa-hand-holding-usd me-1"></i> Liquidar y devolver en efectivo al cliente
+                                </label>
+                                <div class="small text-muted ps-4">El dinero no se transfiere a ningún lote. Se registra una liquidación y salida de caja en el sistema.</div>
+                            </div>
+
+                            <div class="form-check p-2 bg-white rounded border">
+                                <input class="form-check-input destino-abonos-radio ms-1 me-2" type="radio" name="destino_abonos" id="dest_sin_devolucion" value="sin_devolucion">
+                                <label class="form-check-label fw-bold text-secondary" for="dest_sin_devolucion">
+                                    <i class="fas fa-ban me-1"></i> Sin devolución (Penalización / Cláusula de contrato)
+                                </label>
+                                <div class="small text-muted ps-4">El lote se libera a disponible sin crédito ni devolución económica.</div>
                             </div>
                         </div>
 
@@ -459,14 +615,21 @@
                                 <small class="text-muted">Se calcula automáticamente: Precio / Cuota.</small>
                             </div>
                         </div>
+
+                        {{-- Comentario Obligatorio --}}
                         <div class="mb-3">
-                            <label for="motivo_rescision" class="form-label">Motivo de la rescisión:</label>
-                            <textarea class="form-control" name="motivo_rescision" id="motivo_rescision" rows="3" required placeholder="Falta de pago, mutuo acuerdo, etc."></textarea>
+                            <label for="motivo_rescision" class="form-label fw-bold text-dark">
+                                <i class="fas fa-comment-dots text-primary me-1"></i> Comentario / Justificación de la Rescisión: <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" name="motivo_rescision" id="motivo_rescision" rows="3" required minlength="5" placeholder="Explique claramente el motivo del desistimiento, los acuerdos alcanzados con el cliente y destino de los fondos..."></textarea>
+                            <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Este comentario quedará registrado permanentemente en el historial de rescisiones y auditoría.</small>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-warning">Confirmar Rescisión</button>
+                        <button type="submit" class="btn btn-warning fw-bold px-4">
+                            <i class="fas fa-check me-1"></i> Confirmar Rescisión y Liberar Lote
+                        </button>
                     </div>
                 </form>
             </div>
@@ -479,8 +642,9 @@
 
 @section('scripts')
    <script>
-        // Logica para Rescision Parcial con calculo proporcional multi-lote
         document.addEventListener('DOMContentLoaded', function() {
+            @if($venta && $venta->estado_contrato !== 'Rescindido')
+            // Logica para Rescisión de Lotes
             const checkboxes = document.querySelectorAll('.lote-rescindir-checkbox');
             const containerParcial = document.getElementById('opciones_rescision_parcial');
             
@@ -501,19 +665,19 @@
 
                 // Si se devuelven algunos pero NO todos (conserva al menos 1 lote)
                 if (checkedCount > 0 && conservados > 0) {
-                    containerParcial.style.display = 'block';
-                    inputPrecio.required = true;
-                    inputCuota.required = true;
-                    inputPlazo.required = true;
+                    if (containerParcial) containerParcial.style.display = 'block';
+                    if (inputPrecio) inputPrecio.required = true;
+                    if (inputCuota) inputCuota.required = true;
+                    if (inputPlazo) inputPlazo.required = true;
 
                     // Cálculo equitativo proporcional por lote (Siempre >= 0)
                     let nuevoPrecio = Math.max(0, Math.round((precioPorLoteOriginal * conservados) * 100) / 100);
                     let nuevaCuota = Math.max(0, Math.round((cuotaPorLoteOriginal * conservados) * 100) / 100);
                     let nuevoPlazo = plazoOriginal;
 
-                    inputPrecio.value = nuevoPrecio.toFixed(2);
-                    inputCuota.value = nuevaCuota.toFixed(2);
-                    inputPlazo.value = nuevoPlazo;
+                    if (inputPrecio) inputPrecio.value = nuevoPrecio.toFixed(2);
+                    if (inputCuota) inputCuota.value = nuevaCuota.toFixed(2);
+                    if (inputPlazo) inputPlazo.value = nuevoPlazo;
 
                     const cuotaIndividual = conservados > 0 ? Math.max(0, nuevaCuota / conservados) : 0;
                     const resumenEl = document.getElementById('resumen_proporcional_info');
@@ -525,10 +689,28 @@
                             `• Nuevo valor total del contrato: <strong>$${nuevoPrecio.toFixed(2)}</strong>`;
                     }
                 } else {
-                    containerParcial.style.display = 'none';
-                    inputPrecio.required = false;
-                    inputCuota.required = false;
-                    inputPlazo.required = false;
+                    if (containerParcial) containerParcial.style.display = 'none';
+                    if (inputPrecio) inputPrecio.required = false;
+                    if (inputCuota) inputCuota.required = false;
+                    if (inputPlazo) inputPlazo.required = false;
+                }
+
+                // Actualizar visibilidad de opción 'Acreditar al lote que conserva'
+                const tieneOtrosContratos = {{ (!empty($tieneOtrosContratos) && $tieneOtrosContratos) ? 'true' : 'false' }};
+                const puedeAcreditar = (conservados > 0) || tieneOtrosContratos;
+                const contenedorAcreditar = document.getElementById('contenedor_opcion_acreditar');
+                const radioAcreditar = document.getElementById('dest_acreditar');
+                const radioEfectivo = document.getElementById('dest_efectivo');
+
+                if (contenedorAcreditar) {
+                    if (puedeAcreditar) {
+                        contenedorAcreditar.style.display = 'block';
+                    } else {
+                        contenedorAcreditar.style.setProperty('display', 'none', 'important');
+                        if (radioAcreditar && radioAcreditar.checked) {
+                            if (radioEfectivo) radioEfectivo.checked = true;
+                        }
+                    }
                 }
             }
 
@@ -538,6 +720,7 @@
 
             // Autocalcular plazo garantizando valores >= 0
             function calcularPlazo() {
+                if (!inputPrecio || !inputCuota || !inputPlazo) return;
                 let precio = Math.max(0, parseFloat(inputPrecio.value) || 0);
                 let cuota = Math.max(0, parseFloat(inputCuota.value) || 0);
                 if (precio > 0 && cuota > 0) {
@@ -545,8 +728,8 @@
                 }
             }
 
-            inputPrecio.addEventListener('input', calcularPlazo);
-            inputCuota.addEventListener('input', calcularPlazo);
+            if (inputPrecio) inputPrecio.addEventListener('input', calcularPlazo);
+            if (inputCuota) inputCuota.addEventListener('input', calcularPlazo);
 
             // Bloquear estrictamente negativos en inputs de rescisión
             [inputPrecio, inputCuota, inputPlazo].forEach(inp => {
@@ -563,6 +746,24 @@
                     });
                 }
             });
+
+            // Mostrar/Ocultar selector de contrato destino según destino de abonos seleccionado
+            const radiosDestino = document.querySelectorAll('.destino-abonos-radio');
+            const selectorContrato = document.getElementById('selector_contrato_destino');
+            if (selectorContrato) {
+                radiosDestino.forEach(radio => {
+                    radio.addEventListener('change', function() {
+                        let checkedCount = document.querySelectorAll('.lote-rescindir-checkbox:checked').length;
+                        let esTotal = (checkedCount === totalLotes);
+                        if (this.value === 'acreditar_otro_lote' && esTotal) {
+                            selectorContrato.style.display = 'block';
+                        } else {
+                            selectorContrato.style.display = 'none';
+                        }
+                    });
+                });
+            }
+            @endif
 
             // Toggle Acordeón Historial de Abonos (Abre y Cierra)
             $('#headerHistorialAbonos').on('click', function(e) {
@@ -588,6 +789,21 @@
                         $('#chevronModificaciones').removeClass('fa-chevron-up').addClass('fa-chevron-down');
                     }
                 });
+            });
+
+            // Toggle Acordeón Historial de Rescisiones y Desistimientos (Abre y Cierra)
+            $('#headerHistorialRescisiones').on('click', function(e) {
+                if ($(e.target).closest('button, a, input').length) return;
+                
+                $('#bodyHistorialRescisiones').slideToggle(200, function() {
+                    if ($(this).is(':visible')) {
+                        $('#chevronRescisiones').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+                    } else {
+                        $('#chevronRescisiones').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+                    }
+                });
+            });
+
             // Auto-abrir recibos para imprimir si vienen de un registro reciente y está activo en parámetros
             @if(session('imprimir_abonos') && setting('auto_abrir_recibo', true))
                 setTimeout(function() {

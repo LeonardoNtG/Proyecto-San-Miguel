@@ -11,6 +11,12 @@
 
     <title>Lotificacion San Miguel @yield('titulo') </title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
+
     <!-- Custom fonts for this template-->
     <link href="{{ asset('css/font.css')}}" rel="stylesheet" type="text/css">
     <link
@@ -85,6 +91,9 @@
                         <a class="collapse-item" href="{{ route('registro.index') }}">Clientes y Ventas</a>
                         <a class="collapse-item" href="{{ route('estados_cuenta') }}">Estados de Cuenta</a>
                         <a class="collapse-item" href="{{ route('reservas.index') }}">Reservas de Lotes</a>
+                        <a class="collapse-item {{ request()->routeIs('rescisiones.*') ? 'active' : '' }}" href="{{ route('rescisiones.index') }}">
+                            <i class="fas fa-undo-alt me-1 text-danger"></i> Historial Rescisiones
+                        </a>
                         
                         <h6 class="collapse-header mt-2">Caja y Reportes:</h6>
                         <a class="collapse-item" href="{{ route('reportes.index') }}">Apertura y Egresos</a>
@@ -116,8 +125,9 @@
                         <a class="collapse-item" href="{{ route('dashboard.grafico') }}"><i class="fas fa-chart-pie me-1"></i> Gráficos y Estadísticas</a>
                         <a class="collapse-item" href="{{ route('reportes.proyeccion_flujo') }}"><i class="fas fa-chart-line me-1"></i> Proyección de Flujo</a>
                         
-                        <h6 class="collapse-header text-primary fw-bold mt-2">Cartera y Cobranza:</h6>
+                        <h6 class="collapse-header text-primary fw-bold mt-2">Cartera y Legal:</h6>
                         <a class="collapse-item" href="{{ route('reportes.cartera_clientes') }}"><i class="fas fa-users me-1"></i> Cartera y Abonos</a>
+                        <a class="collapse-item" href="{{ route('reportes.datos_legales') }}"><i class="fas fa-file-contract text-primary me-1"></i> Fichas Legales / PV</a>
                         <a class="collapse-item" href="{{ route('reportes.morosidad') }}"><i class="fas fa-exclamation-triangle text-danger me-1"></i> Morosidad y Atrasos</a>
 
                         <h6 class="collapse-header text-primary fw-bold mt-2">Inventario:</h6>
@@ -157,6 +167,10 @@
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">Reglas y Parámetros:</h6>
                         <a class="collapse-item" href="{{ route('configuracion.parametros.index') }}">Parámetros del Sistema</a>
+                        <h6 class="collapse-header mt-2">Migración de Datos:</h6>
+                        <a class="collapse-item" href="{{ route('importacion.index') }}">
+                            <i class="fas fa-file-import text-success me-1"></i> Importación Masiva Excel
+                        </a>
                         <h6 class="collapse-header mt-2">Seguridad y Accesos:</h6>
                         <a class="collapse-item" href="{{ route('usuarios.index') }}">Gestión de Usuarios</a>
                         <a class="collapse-item" href="{{ route('auditoria.index') }}">Auditoría (Logs)</a>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recibo N° {{ $pago->id_abono }}</title>
+    <title>Recibo N° {{ $numeroReciboMostrar }}</title>
     <style>
         /* CSS Reset for Printing */
         @page {
@@ -46,12 +46,12 @@
         }
 
         @if($imprimirDoble)
-            /* FORMATO DOBLE VÍA (CLIENTE + EMPRESA) */
+            /* FORMATO DOBLE VÍA (CONFIGURABLE POR PROYECTO) */
             .receipt-card-left {
-                width: 57%;
+                width: {{ $anchoCliente ?? 'calc(50% - 4px)' }};
             }
             .receipt-card-right {
-                width: 41%;
+                width: {{ $anchoEmpresa ?? 'calc(50% - 4px)' }};
             }
         @else
             /* FORMATO RECIBO ÚNICO (100% DEL ESPACIO) */
@@ -138,21 +138,21 @@
             text-align: center;
             flex-grow: 1;
             color: #1A237E; /* Deep blue */
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
             line-height: 1.2;
         }
 
         .receipt-card-right .company-info {
-            font-size: 9px;
+            font-size: 10px;
         }
 
         .receipt-number-container {
-            width: 50px;
+            min-width: 50px;
             text-align: right;
             color: #D32F2F; /* Red */
             font-weight: bold;
-            font-size: 16px;
+            font-size: 15px;
         }
 
         /* Title block */
@@ -160,102 +160,102 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             padding-right: 5px;
         }
 
         .title {
             color: #1A237E;
-            font-size: 24px;
+            font-size: 20px;
             font-weight: 900;
             letter-spacing: 1px;
         }
 
         .receipt-card-right .title {
-            font-size: 18px;
+            font-size: 20px;
         }
 
         .amount-boxes-container {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 4px;
         }
 
         .amount-box {
             display: flex;
             align-items: center;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
             color: #1A237E;
         }
         
         .receipt-card-right .amount-box {
-            font-size: 9px;
+            font-size: 10px;
         }
 
         .amount-input {
             border: 2px solid #444;
             background-color: #e0e0e0;
-            width: 70px;
-            height: 20px;
+            width: 60px;
+            height: 19px;
             display: inline-block;
-            margin-left: 5px;
+            margin-left: 4px;
             text-align: center;
-            line-height: 18px;
+            line-height: 17px;
             color: black;
-            box-shadow: 2px 2px 0px #444;
+            box-shadow: 1.5px 1.5px 0px #444;
             font-weight: bold;
-            font-size: 11px;
+            font-size: 10.5px;
         }
 
         .receipt-card-right .amount-input {
-            width: 50px;
-            font-size: 9px;
-            box-shadow: 1px 1px 0px #444;
+            width: 60px;
+            font-size: 10.5px;
+            box-shadow: 1.5px 1.5px 0px #444;
         }
 
         /* Body Rows */
         .row {
             display: flex;
             align-items: flex-end;
-            margin-bottom: 8px;
-            font-size: 11px;
+            margin-bottom: 7px;
+            font-size: 10.5px;
             color: #1A237E;
             font-weight: bold;
         }
 
         .receipt-card-right .row {
-            font-size: 9px;
+            font-size: 10.5px;
         }
 
         .row .label {
             white-space: nowrap;
-            margin-right: 8px;
+            margin-right: 6px;
         }
 
         .row .value {
             flex-grow: 1;
             border-bottom: 1px solid #333;
             color: black;
-            padding-left: 5px;
-            font-size: 12px;
+            padding-left: 4px;
+            font-size: 11px;
         }
         
         .receipt-card-right .row .value {
-            font-size: 10px;
+            font-size: 11px;
         }
 
         /* Small details row */
         .details-row {
-            font-size: 9px;
+            font-size: 8.5px;
             color: black;
             font-weight: bold;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
             margin-left: 2px;
         }
 
         .receipt-card-right .details-row {
-            font-size: 8px;
+            font-size: 8.5px;
         }
         
         /* Date Row */
@@ -264,13 +264,13 @@
             align-items: baseline;
             margin-top: 5px;
             margin-bottom: 5px;
-            font-size: 11px;
+            font-size: 10.5px;
             color: #1A237E;
             font-weight: bold;
         }
 
         .receipt-card-right .date-row {
-            font-size: 9px;
+            font-size: 10.5px;
         }
 
         .date-input {
@@ -278,57 +278,65 @@
             color: black;
             display: inline-block;
             text-align: center;
-            min-width: 30px;
-            margin: 0 5px;
-            font-size: 12px;
+            min-width: 25px;
+            margin: 0 4px;
+            font-size: 11px;
         }
 
         .date-input.month {
-            min-width: 80px;
+            min-width: 65px;
         }
         
         .date-input.year {
-            min-width: 40px;
+            min-width: 35px;
         }
 
         .receipt-card-right .date-input {
-            font-size: 10px;
-            min-width: 20px;
+            font-size: 11px;
+            min-width: 25px;
         }
         .receipt-card-right .date-input.month {
-            min-width: 50px;
+            min-width: 65px;
         }
 
         /* Signatures */
         .signatures {
             display: flex;
             justify-content: space-around;
-            margin-top: 80px; 
+            margin-top: 65px; 
             align-items: flex-start;
         }
 
         .receipt-card-right .signatures {
-            margin-top: 32px;
+            margin-top: 65px;
         }
 
         .signature-box {
             text-align: center;
-            font-size: 11px;
+            font-size: 10px;
             color: black;
             font-style: italic;
             font-weight: bold;
-            width: 120px;
+            width: 105px;
         }
         
         .receipt-card-right .signature-box {
-            font-size: 9px;
-            width: 85px;
+            font-size: 10px;
+            width: 105px;
         }
         
         .signature-line {
             border-top: 2px solid #000;
             margin-bottom: 5px;
             width: 100%;
+        }
+
+        .legal-notice {
+            font-size: 7.5px;
+            color: #555;
+            text-align: center;
+            margin-top: 8px;
+            font-style: italic;
         }
 
         /* Print Media Styles */
@@ -361,7 +369,7 @@
 
 <div class="page-container">
     
-    <!-- RECIBO DEL CLIENTE (CON QR) -->
+    <!-- RECIBO DEL CLIENTE (PRINCIPAL) -->
     <div class="receipt-card receipt-card-left">
         
         <div class="header">
@@ -379,7 +387,7 @@
                 <div>{{ strtoupper($lotificacion->ciudad ?? 'CIUDAD') }}</div>
             </div>
             <div class="receipt-number-container">
-                {{ $pago->id_abono }}
+                {{ $numeroReciboMostrar }}
             </div>
         </div>
 
@@ -402,7 +410,7 @@
 
         <div class="row">
             <div class="label">La suma de:</div>
-            <div class="value">{{ $monto_en_letras }} NETOS</div>
+            <div class="value">{{ $monto_en_letras }} {{ $sufijoMoneda }}</div>
         </div>
 
         <div class="row">
@@ -421,11 +429,11 @@
         @endif
 
         <div class="details-row">
-            Total: ${{ number_format($valor_total, 2) }} | Abonado: ${{ number_format($total_abonado, 2) }} | Pendiente: ${{ number_format($saldo_pendiente, 2) }}
+            Total: ${{ number_format($valor_total, 2) }} | Abonado: ${{ number_format($total_abonado, 2) }} | Saldo Actual: ${{ number_format($saldo_pendiente, 2) }}
         </div>
 
         <div class="details-row">
-            Cuota: ${{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes | Plazo: {{ $venta->plazo_meses ?? 0 }} meses | Faltan: {{ $abonos_faltantes }}
+            Cuota: ${{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes | Plazo: {{ $venta->plazo_meses ?? 0 }} Meses | Cuotas Pendientes: {{ $abonos_faltantes }}
         </div>
 
         <div class="date-row">
@@ -443,6 +451,7 @@
                 Recibí Conforme
             </div>
 
+            @if($mostrarQr)
             <!-- QR CODE -->
             <div style="display:flex; flex-direction:column; align-items:center;">
                 @if(!empty($cliente->token_seguimiento))
@@ -452,6 +461,7 @@
                 @endif
                 <span style="font-size: 8px; color: #1A237E; font-weight: bold; margin-top: 3px;">Estado de Cuenta</span>
             </div>
+            @endif
 
             <div class="signature-box">
                 <div class="signature-line"></div>
@@ -459,6 +469,10 @@
                 <span style="font-size: 7px; font-weight: normal; color: #555;">Cajero: {{ $pago->user->name ?? 'Sistema' }}</span>
             </div>
         </div>
+
+        @if(!empty($leyendaPie))
+            <div class="legal-notice">{{ $leyendaPie }}</div>
+        @endif
     </div>
 
     @if($imprimirDoble)
@@ -480,7 +494,7 @@
                 <div>{{ strtoupper($lotificacion->ciudad ?? 'CIUDAD') }}</div>
             </div>
             <div class="receipt-number-container">
-                {{ $pago->id_abono }}
+                {{ $numeroReciboMostrar }}
             </div>
         </div>
 
@@ -503,7 +517,7 @@
 
         <div class="row">
             <div class="label">La suma de:</div>
-            <div class="value">{{ $monto_en_letras }} NETOS</div>
+            <div class="value">{{ $monto_en_letras }} {{ $sufijoMoneda }}</div>
         </div>
 
         <div class="row">
@@ -522,11 +536,11 @@
         @endif
 
         <div class="details-row">
-            Total: ${{ number_format($valor_total, 2) }} | Pendiente: ${{ number_format($saldo_pendiente, 2) }}
+            Total: ${{ number_format($valor_total, 2) }} | Saldo Actual: ${{ number_format($saldo_pendiente, 2) }}
         </div>
 
         <div class="details-row">
-            Cuota: ${{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes<br>Plazo: {{ $venta->plazo_meses ?? 0 }} meses | Faltan: {{ $abonos_faltantes }}
+            Cuota: ${{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes | Plazo: {{ $venta->plazo_meses ?? 0 }} Meses | Cuotas Pendientes: {{ $abonos_faltantes }}
         </div>
 
         <div class="date-row">
@@ -549,6 +563,10 @@
                 <span style="font-size: 7px; font-weight: normal; color: #555;">Cajero: {{ $pago->user->name ?? 'Sistema' }}</span>
             </div>
         </div>
+
+        @if(!empty($leyendaPie))
+            <div class="legal-notice">{{ $leyendaPie }}</div>
+        @endif
     </div>
     @endif
 

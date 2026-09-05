@@ -62,7 +62,7 @@
                                                               @php
                                     $ventasActivas = $cliente->ventas->where('estado_contrato', '!=', 'Rescindido');
                                     $ventaPrincipal = $ventasActivas->first() ?? $cliente->ventas->first();
-                                    $totalAbonadoCliente = $cliente->ventas->sum('total_abonado');
+                                    $totalAbonadoCliente = (float) $cliente->ventas->sum('total_abonado');
                                     
                                     // Obtener todos los lotes de todas las ventas del cliente (filtrando por activas si las hay)
                                     $ventasParaLotes = $ventasActivas->count() > 0 ? $ventasActivas : $cliente->ventas;
@@ -76,7 +76,7 @@
                                     })->filter()->unique()->implode(', ');
                                 @endphp
 
-                                <td>{{ $proyectosNombres ?: ($ventaPrincipal->lotificacion->nombre ?? 'N/A') }}</td>
+                                <td>{{ $proyectosNombres ?: ($ventaPrincipal?->lotificacion?->nombre ?? 'N/A') }}</td>
 
                                 <td>
                                     @if($todosLotes->count() > 0)
@@ -103,9 +103,9 @@
                                         </span>
                                     </td>
                                     <td>${{ number_format($totalAbonadoCliente, 2) }}</td>
-                                    <td>{{ $ventaPrincipal->created_at->translatedFormat('d/M/Y') }}</td> 
+                                    <td>{{ $ventaPrincipal->created_at ? $ventaPrincipal->created_at->translatedFormat('d/M/Y') : ($ventaPrincipal->fecha_venta ? \Carbon\Carbon::parse($ventaPrincipal->fecha_venta)->translatedFormat('d/M/Y') : 'N/A') }}</td> 
                                 @else
-                                    <td colspan="2"><span class="badge bg-secondary text-white">Sin Venta Activa</span></td>
+                                    <td colspan="3"><span class="badge bg-secondary text-white">Sin Venta Activa</span></td>
                                     <td>-</td>
                                 @endif
 
@@ -137,7 +137,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center">No se encontraron clientes registrados o que coincidan con la búsqueda.</td>
+                                <td colspan="9" class="text-center">No se encontraron clientes registrados o que coincidan con la búsqueda.</td>
                             </tr>
                         @endforelse
                     </tbody>

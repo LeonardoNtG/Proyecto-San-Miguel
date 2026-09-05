@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AbonoController;
+use App\Http\Controllers\ImportacionController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BloqueController;
 use App\Http\Controllers\ClienteController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\ReportesController;
 use App\Http\Controllers\ReservaController;
 use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\VentaController;
+use App\Http\Controllers\RescisionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -31,8 +33,10 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post')->middleware('throttle:5,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
-// Portal del Cliente (Público)
-Route::get('/mi-estado/{token}', [PortalClienteController::class, 'show'])->name('portal.estado_cuenta');
+// Portal del Cliente (Público con protección de fuerza bruta / saturación)
+Route::get('/mi-estado/{token}', [PortalClienteController::class, 'show'])
+    ->name('portal.estado_cuenta')
+    ->middleware('throttle:30,1');
 
 // =========================================================================
 // RUTAS AUTENTICADAS
@@ -67,6 +71,9 @@ Route::middleware(['auth'])->group(function () {
     Route::get('reservas', [ReservaController::class, 'index'])->name('reservas.index');
     Route::get('reservas/{reserva}', [ReservaController::class, 'show'])->name('reservas.show');
 
+    // Historial de Rescisiones y Desistimientos de Lotes
+    Route::get('rescisiones', [RescisionController::class, 'index'])->name('rescisiones.index');
+
     // Dashboard de Gráficos y Estadísticas
     Route::get('/dashboard-grafico', [GraficoController::class, 'dashboard'])->name('dashboard.grafico');
 
@@ -83,6 +90,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('cierre-caja', [ReportesController::class, 'cierreCaja'])->name('cierre_caja');
         Route::get('cierre-caja/pdf', [ReportesController::class, 'imprimirCierreCajaPdf'])->name('cierre_caja.pdf');
         Route::get('cierre-turno/{id}/pdf', [ReporteController::class, 'imprimirCierreTurnoPdf'])->name('cierre_turno.pdf');
+        Route::delete('salidas/{id}', [ReporteController::class, 'destroy'])->name('destroy');
     });
 
     // APIs para Selects Dinámicos
@@ -116,11 +124,11 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // ---------------------------------------------------------------------
-    // RUTAS EXCLUSIVAS DE ADMINISTRADOR
+    // GESTIÓN DE PROYECTOS E INVENTARIO (ADMINISTRADOR / GESTOR LOTIFICACIONES)
     // ---------------------------------------------------------------------
-    Route::middleware(['role:Administrador'])->group(function () {
-        // Bloques y Lotes
+    Route::middleware(['permission:gestionar-lotificaciones|role:Administrador'])->group(function () {
         Route::resource('bloques', BloqueController::class);
+        Route::match(['put', 'patch', 'post'], 'bloques/{bloque}', [BloqueController::class, 'update']);
         Route::prefix('bloques/{bloque}/lotes')->name('lotes.')->group(function () {
             Route::get('/', [LoteController::class, 'index'])->name('index');
             Route::get('crear', [LoteController::class, 'create'])->name('create');
@@ -132,8 +140,13 @@ Route::middleware(['auth'])->group(function () {
             Route::put('{lote}', [LoteController::class, 'update'])->name('update');
             Route::delete('{lote}', [LoteController::class, 'destroy'])->name('destroy');
         });
+        Route::resource('lotificaciones', LotificacionController::class);
+    });
 
-        // Reportes Financieros Ejecutivos y Analítica
+    // ---------------------------------------------------------------------
+    // REPORTES FINANCIEROS, EJECUTIVOS Y ANALÍTICA (ADMINISTRADOR Y GERENCIA)
+    // ---------------------------------------------------------------------
+    Route::middleware(['role:Administrador|Gerente'])->group(function () {
         Route::prefix('reportes')->name('reportes.')->group(function () {
             Route::get('financiero', [ReporteController::class, 'financiero'])->name('financiero');
             Route::get('financiero/pdf', [ReporteController::class, 'financieroPdf'])->name('financiero.pdf');
@@ -157,11 +170,26 @@ Route::middleware(['auth'])->group(function () {
             // Proyección de Flujo y Recaudación
             Route::get('proyeccion-flujo', [App\Http\Controllers\ReportesAvanzadosController::class, 'proyeccionFlujo'])->name('proyeccion_flujo');
             Route::get('proyeccion-flujo/excel', [App\Http\Controllers\ReportesAvanzadosController::class, 'proyeccionFlujoExcel'])->name('proyeccion_flujo.excel');
+
+            // Datos Legales de Clientes para Promesas de Venta
+            Route::get('datos-legales-clientes', [App\Http\Controllers\ReportesAvanzadosController::class, 'datosLegalesClientes'])->name('datos_legales');
+            Route::get('datos-legales-clientes/pdf', [App\Http\Controllers\ReportesAvanzadosController::class, 'datosLegalesClientesPdf'])->name('datos_legales.pdf');
+            Route::get('datos-legales-clientes/excel', [App\Http\Controllers\ReportesAvanzadosController::class, 'datosLegalesClientesExcel'])->name('datos_legales.excel');
+            Route::get('promesa-venta/{venta_id}/imprimir', [App\Http\Controllers\ReportesAvanzadosController::class, 'imprimirFichaLegal'])->name('promesa_venta.imprimir');
         });
+    });
+
+    // ---------------------------------------------------------------------
+    // GESTIÓN Y CONFIGURACIÓN EXCLUSIVA DE ADMINISTRADOR
+    // ---------------------------------------------------------------------
+    Route::middleware(['role:Administrador'])->group(function () {
+        // Importación Masiva de Clientes
+        Route::get('importacion', [ImportacionController::class, 'index'])->name('importacion.index');
+        Route::get('importacion/plantilla', [ImportacionController::class, 'descargarPlantilla'])->name('importacion.plantilla');
+        Route::post('importacion/procesar', [ImportacionController::class, 'procesar'])->name('importacion.procesar');
 
         // Gestión del Sistema
         Route::resource('usuarios', UsuarioController::class);
-        Route::resource('lotificaciones', LotificacionController::class);
         Route::get('configuracion/parametros', [ConfiguracionController::class, 'index'])->name('configuracion.parametros.index');
         Route::post('configuracion/parametros', [ConfiguracionController::class, 'update'])->name('configuracion.parametros.update');
         Route::get('auditoria', [\App\Http\Controllers\AuditoriaController::class, 'index'])->name('auditoria.index');

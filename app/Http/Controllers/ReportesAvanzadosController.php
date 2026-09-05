@@ -603,4 +603,214 @@ class ReportesAvanzadosController extends Controller
             'generadoEl' => now()->locale('es')->translatedFormat('d/m/Y h:i A'),
         ]);
     }
+
+    /**
+     * =========================================================================
+     * REPORTE 5: DATOS LEGALES DE CLIENTES PARA PROMESAS DE VENTA
+     * =========================================================================
+     */
+
+    public function datosLegalesClientes(Request $request)
+    {
+        $data = $this->getDatosLegalesData($request);
+        return view('reportes.datos_legales_clientes', $data);
+    }
+
+    public function datosLegalesClientesPdf(Request $request)
+    {
+        $data = $this->getDatosLegalesData($request);
+        $data['logoBase64'] = $this->getLogoBase64($data['targetLotId']);
+
+        $pdf = Pdf::loadView('reportes.datos_legales_clientes_pdf', $data)
+            ->setPaper('letter', 'landscape')
+            ->setOption('isHtml5ParserEnabled', true)
+            ->setOption('isRemoteEnabled', true);
+
+        return $pdf->stream('Datos_Legales_Promesas_Venta_' . date('Ymd_His') . '.pdf');
+    }
+
+    public function datosLegalesClientesExcel(Request $request)
+    {
+        $data = $this->getDatosLegalesData($request);
+        $html = view('reportes.datos_legales_clientes_excel', $data)->render();
+        $nombreArchivo = 'Datos_Legales_Clientes_Promesas_' . date('Ymd_His') . '.xls';
+
+        return response($html, 200, [
+            'Content-Type' => 'application/vnd.ms-excel; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="' . $nombreArchivo . '"',
+        ]);
+    }
+
+    /**
+     * Imprime la Ficha Legal Individual / Resumen Notarial de un cliente para Promesa de Venta.
+     */
+    public function imprimirFichaLegal($venta_id)
+    {
+        $venta = Venta::withoutGlobalScope('lotificacion')
+            ->with([
+                'cliente' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                'lotificacion',
+                'lotes' => fn($q) => $q->withoutGlobalScope('lotificacion')->with(['bloque' => fn($bq) => $bq->withoutGlobalScope('lotificacion')]),
+                'abonos' => fn($q) => $q->withoutGlobalScope('lotificacion')->orderBy('id_abono', 'asc'),
+                'cuotas' => fn($q) => $q->orderBy('numero_cuota', 'asc')
+            ])
+            ->findOrFail($venta_id);
+
+        $cliente = $venta->cliente;
+        $lotificacion = $venta->lotificacion;
+
+        // Primer abono / Prima
+        $primerAbono = $venta->abonos->where('tipo_pago', 'Prima/Primer Abono')->first() ?? $venta->abonos->first();
+        $primaMonto = $primerAbono ? (float) $primerAbono->monto_abonado : 0.00;
+        $totalAbonado = (float) $venta->abonos->sum('monto_abonado');
+        $saldoPendiente = max(0, (float) $venta->precio_final - $totalAbonado);
+        $saldoFinanciar = max(0, (float) $venta->precio_final - $primaMonto);
+
+        // Lotes
+        $areaTotalM2 = (float) $venta->lotes->sum('area_metros');
+        if ($areaTotalM2 <= 0 && $venta->extension_lote > 0) {
+            $areaTotalM2 = (float) $venta->extension_lote;
+        }
+        $areaTotalV2 = round($areaTotalM2 * 1.4198, 2);
+
+        return view('reportes.ficha_legal_imprimir', compact(
+            'venta',
+            'cliente',
+            'lotificacion',
+            'primerAbono',
+            'primaMonto',
+            'totalAbonado',
+            'saldoPendiente',
+            'saldoFinanciar',
+            'areaTotalM2',
+            'areaTotalV2'
+        ));
+    }
+
+    /**
+     * Procesa la consulta unificada de Datos Legales para Promesas de Venta.
+     */
+    private function getDatosLegalesData(Request $request): array
+    {
+        $filtroProj = $this->resolverFiltroProyecto($request);
+        $fechaInicio = $request->get('fecha_inicio');
+        $fechaFin = $request->get('fecha_fin');
+        $estadoContrato = $request->get('estado_contrato', 'Todos');
+        $buscar = trim((string) $request->get('buscar'));
+
+        $query = Venta::withoutGlobalScope('lotificacion')
+            ->with([
+                'cliente' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                'lotificacion',
+                'lotes' => fn($q) => $q->withoutGlobalScope('lotificacion')->with(['bloque' => fn($bq) => $bq->withoutGlobalScope('lotificacion')]),
+                'abonos' => fn($q) => $q->withoutGlobalScope('lotificacion')->orderBy('id_abono', 'asc')
+            ]);
+
+        // Filtro Proyecto
+        if (!$filtroProj['esGlobal'] && $filtroProj['targetLotId']) {
+            $query->where('lotificacion_id', $filtroProj['targetLotId']);
+        }
+
+        // Filtro Fechas
+        if ($fechaInicio) {
+            $query->whereDate('fecha_venta', '>=', $fechaInicio);
+        }
+        if ($fechaFin) {
+            $query->whereDate('fecha_venta', '<=', $fechaFin);
+        }
+
+        // Filtro Estado
+        if ($estadoContrato && $estadoContrato !== 'Todos') {
+            $query->where('estado_contrato', $estadoContrato);
+        }
+
+        // Búsqueda
+        if ($buscar !== '') {
+            $query->where(function ($q) use ($buscar) {
+                $q->whereHas('cliente', function ($cq) use ($buscar) {
+                    $cq->withoutGlobalScope('lotificacion')
+                        ->where('nombres_apellidos', 'LIKE', "%{$buscar}%")
+                        ->orWhere('identificacion', 'LIKE', "%{$buscar}%")
+                        ->orWhere('telefono', 'LIKE', "%{$buscar}%")
+                        ->orWhere('pv_num', 'LIKE', "%{$buscar}%")
+                        ->orWhere('expediente_num', 'LIKE', "%{$buscar}%");
+                })->orWhereHas('lotes', function ($lq) use ($buscar) {
+                    $lq->withoutGlobalScope('lotificacion')
+                        ->where('numero_lote', 'LIKE', "%{$buscar}%");
+                });
+            });
+        }
+
+        $ventas = $query->orderBy('fecha_venta', 'desc')->get();
+
+        $ventasData = [];
+        $totalPrecioVentas = 0;
+        $totalPrimas = 0;
+        $totalSaldoFinanciar = 0;
+        $totalAreaM2 = 0;
+
+        foreach ($ventas as $v) {
+            $cliente = $v->cliente;
+            $primerAbono = $v->abonos->where('tipo_pago', 'Prima/Primer Abono')->first() ?? $v->abonos->first();
+            $primaPagada = $primerAbono ? (float) $primerAbono->monto_abonado : 0.00;
+            $saldoFinanciar = max(0, (float) $v->precio_final - $primaPagada);
+
+            $lotesTexto = $v->lotes->map(function ($l) {
+                $blq = $l->bloque ? ('Blq ' . $l->bloque->nombre . ' - ') : '';
+                return $blq . 'Lote ' . $l->numero_lote;
+            })->implode(', ') ?: 'Lote Sin Asignar';
+
+            $areaM2 = (float) $v->lotes->sum('area_metros');
+            if ($areaM2 <= 0 && $v->extension_lote > 0) {
+                $areaM2 = (float) $v->extension_lote;
+            }
+            $areaV2 = round($areaM2 * 1.4198, 2);
+
+            $totalPrecioVentas += (float) $v->precio_final;
+            $totalPrimas += $primaPagada;
+            $totalSaldoFinanciar += $saldoFinanciar;
+            $totalAreaM2 += $areaM2;
+
+            $ventasData[] = [
+                'id_venta'          => $v->id_venta,
+                'id_cliente'        => $cliente ? $cliente->id_cliente : null,
+                'expediente_num'    => $cliente ? ($cliente->expediente_num ?: 'EXP-'.str_pad($cliente->id_cliente, 4, '0', STR_PAD_LEFT)) : '-',
+                'pv_num'            => $cliente ? ($cliente->pv_num ?: 'PV-'.str_pad($v->id_venta, 4, '0', STR_PAD_LEFT)) : '-',
+                'cliente_nombre'    => $cliente ? $cliente->nombres_apellidos : 'Cliente Desconocido',
+                'identificacion'    => $cliente ? ($cliente->identificacion ?: 'No Registrada') : 'No Registrada',
+                'estado_civil'      => $cliente ? ($cliente->estado_civil ?: 'No Especificado') : 'No Especificado',
+                'oficio'            => $cliente ? ($cliente->oficio ?: 'No Especificado') : 'No Especificado',
+                'telefono'          => $cliente ? ($cliente->telefono ?: 'N/A') : 'N/A',
+                'direccion'         => $cliente ? ($cliente->direccion ?: 'No Registrada') : 'No Registrada',
+                'proyecto_nombre'   => $v->lotificacion ? $v->lotificacion->nombre : 'Sin Proyecto',
+                'lotes_texto'       => $lotesTexto,
+                'area_metros'       => $areaM2,
+                'area_varas'        => $areaV2,
+                'precio_final'      => (float) $v->precio_final,
+                'prima_pagada'      => $primaPagada,
+                'saldo_financiar'   => $saldoFinanciar,
+                'plazo_meses'       => (int) $v->plazo_meses,
+                'cuota_mensual'     => (float) $v->cuota_mensual,
+                'estado_contrato'   => $v->estado_contrato,
+                'fecha_venta'       => $v->fecha_venta,
+                'fecha_venta_fmt'   => $v->fecha_venta ? Carbon::parse($v->fecha_venta)->format('d/m/Y') : '-',
+                'beneficiario_final'=> $v->beneficiario_final,
+                'nota_beneficiario' => $v->nota_beneficiario,
+            ];
+        }
+
+        return array_merge($filtroProj, [
+            'fechaInicio'        => $fechaInicio,
+            'fechaFin'           => $fechaFin,
+            'estadoContrato'     => $estadoContrato,
+            'buscar'             => $buscar,
+            'ventasData'         => $ventasData,
+            'totalClientes'      => count($ventasData),
+            'totalPrecioVentas'  => $totalPrecioVentas,
+            'totalPrimas'        => $totalPrimas,
+            'totalSaldoFinanciar'=> $totalSaldoFinanciar,
+            'totalAreaM2'        => $totalAreaM2,
+            'generadoEl'         => now()->locale('es')->translatedFormat('d/m/Y h:i A'),
+        ]);
+    }
 }

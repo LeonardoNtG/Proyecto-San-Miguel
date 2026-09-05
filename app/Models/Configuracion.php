@@ -255,15 +255,79 @@ class Configuracion extends Model
 
             // 4. Recibos y Documentos
             'recibos' => [
-                'titulo' => 'Recibos y Documentos',
+                'titulo' => 'Recibos y Talonarios',
                 'icono' => 'fas fa-receipt',
                 'parametros' => [
+                    'tipo_numeracion_recibo' => [
+                        'clave' => 'tipo_numeracion_recibo',
+                        'tipo' => 'string',
+                        'default' => 'proyecto_correlativo',
+                        'options' => [
+                            'proyecto_correlativo' => 'Talonario Independiente por Proyecto (1, 2, 3...) [Recomendado]',
+                            'global' => 'Numeración Global del Sistema (ID de Base de Datos)',
+                        ],
+                        'label' => 'Modalidad de Numeración',
+                        'descripcion' => 'Define si este proyecto tiene su propia serie independiente de recibos que arranca desde 1 (o número inicial) o si comparte el consecutivo global con los demás proyectos.',
+                    ],
+                    'prefijo_recibo' => [
+                        'clave' => 'prefijo_recibo',
+                        'tipo' => 'string',
+                        'default' => '',
+                        'label' => 'Prefijo del Recibo (Opcional)',
+                        'descripcion' => 'Siglas o texto previo al número (ej: CSC-, LC-, SM-). Déjalo vacío si solo deseas el número limpio.',
+                    ],
+                    'numero_inicial_recibo' => [
+                        'clave' => 'numero_inicial_recibo',
+                        'tipo' => 'integer',
+                        'default' => 1,
+                        'label' => 'Número Inicial del Talonario',
+                        'descripcion' => 'Número inicial para nuevos recibos de este proyecto (útil si ya tenías un talonario físico previo y deseas continuar la serie).',
+                    ],
+                    'longitud_digitos_recibo' => [
+                        'clave' => 'longitud_digitos_recibo',
+                        'tipo' => 'string',
+                        'default' => '1',
+                        'options' => [
+                            '1' => 'Sin ceros a la izquierda (Ej: 15)',
+                            '4' => '4 dígitos con ceros (Ej: 0015)',
+                            '6' => '6 dígitos con ceros (Ej: 000015)',
+                        ],
+                        'label' => 'Formato de Dígitos / Ceros a la Izquierda',
+                        'descripcion' => 'Define cómo se visualiza el número en el recibo impreso y en los reportes.',
+                    ],
                     'imprimir_doble_recibo' => [
                         'clave' => 'imprimir_doble_recibo',
                         'tipo' => 'boolean',
                         'default' => true,
                         'label' => 'Formato Doble Vía (Cliente + Copia Inmobiliaria)',
-                        'descripcion' => 'Imprime el recibo en 2 partes en una sola página tamaño carta.',
+                        'descripcion' => 'Imprime el recibo en 2 partes en una sola página tamaño carta. Si se desmarca, se imprimirá un solo recibo al 100% de la hoja.',
+                    ],
+                    'proporcion_recibo_doble' => [
+                        'clave' => 'proporcion_recibo_doble',
+                        'tipo' => 'string',
+                        'default' => '50_50',
+                        'options' => [
+                            '50_50' => '50% Cliente / 50% Empresa (Simétrico exacto)',
+                            '55_45' => '55% Cliente / 45% Empresa (Cliente ligeramente más ancho)',
+                            '60_40' => '60% Cliente / 40% Empresa (Cliente amplio, empresa compacto)',
+                            '65_35' => '65% Cliente / 35% Empresa (Cliente dominante, empresa tipo talón)',
+                        ],
+                        'label' => 'Proporción de Ancho en Recibo Doble',
+                        'descripcion' => 'Define cuánto espacio relativo ocupa la copia del cliente (izquierda con QR) frente a la copia de la empresa (derecha).',
+                    ],
+                    'mostrar_qr_recibo' => [
+                        'clave' => 'mostrar_qr_recibo',
+                        'tipo' => 'boolean',
+                        'default' => true,
+                        'label' => 'Incluir Código QR de Estado de Cuenta',
+                        'descripcion' => 'Imprime el código QR de acceso directo al portal web del cliente en el recibo.',
+                    ],
+                    'sufijo_moneda_letras' => [
+                        'clave' => 'sufijo_moneda_letras',
+                        'tipo' => 'string',
+                        'default' => 'DÓLARES NETOS',
+                        'label' => 'Sufijo de Moneda en Letras',
+                        'descripcion' => 'Texto que se agrega al final de la cantidad en palabras (ej: DÓLARES NETOS, DÓLARES AMERICANOS, CÓRDOBAS NETOS).',
                     ],
                     'leyenda_pie_recibo' => [
                         'clave' => 'leyenda_pie_recibo',

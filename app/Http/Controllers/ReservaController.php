@@ -29,14 +29,24 @@ class ReservaController extends Controller
 
     public function store(Request $request)
     {
+        // Normalizar cédula si viene sin guiones (14 caracteres alfanuméricos)
+        $identificacion = trim((string)$request->input('identificacion'));
+        $cleanId = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $identificacion));
+        if (strlen($cleanId) === 14) {
+            $identificacion = substr($cleanId, 0, 3) . '-' . substr($cleanId, 3, 6) . '-' . substr($cleanId, 9, 5);
+            $request->merge(['identificacion' => $identificacion]);
+        }
+
         $request->validate([
             'nombres_apellidos' => 'required|string|max:100',
-            'identificacion' => 'required|string|max:20',
+            'identificacion' => ['required', 'string', 'regex:/^[A-Za-z0-9]{3}-[A-Za-z0-9]{6}-[A-Za-z0-9]{5}$/'],
             'lotes_ids' => 'required|array',
             'lotes_ids.*' => 'exists:lotes,id_lote',
             'monto_reserva' => 'nullable|numeric|min:0',
             'dias_validez' => 'nullable|integer|min:1',
             'metodo_pago' => 'nullable|string',
+        ], [
+            'identificacion.regex' => 'La cédula debe tener el formato XXX-XXXXXX-XXXXX (ej: 001-120395-0004Y).',
         ]);
 
         $montoReserva = floatval($request->input('monto_reserva', 0) ?: 0);
@@ -51,13 +61,14 @@ class ReservaController extends Controller
             // Check if cliente exists or create it
             $cliente = Cliente::where('identificacion', $request->identificacion)->first();
             if (!$cliente) {
+                $direccionCompleta = trim(($request->domicilio ? $request->domicilio . ', ' : '') . ($request->direccion ?? ''));
                 $cliente = Cliente::create([
-                    'nombres_apellidos' => $request->nombres_apellidos,
-                    'identificacion' => $request->identificacion,
+                    'nombres_apellidos' => mb_strtoupper($request->nombres_apellidos, 'UTF-8'),
+                    'identificacion' => mb_strtoupper($request->identificacion, 'UTF-8'),
                     'telefono' => $request->telefono ?? 'N/D',
-                    'direccion' => $request->direccion ?? 'N/D',
-                    'oficio' => $request->oficio ?? $request->profesion_oficio,
-                    'estado_civil' => $request->estado_civil,
+                    'direccion' => $direccionCompleta ?: ($request->direccion ?? 'N/D'),
+                    'oficio' => ($request->oficio ?? $request->profesion_oficio) ? mb_strtoupper($request->oficio ?? $request->profesion_oficio, 'UTF-8') : null,
+                    'estado_civil' => $request->estado_civil ? mb_strtoupper($request->estado_civil, 'UTF-8') : null,
                 ]);
             }
 

@@ -272,7 +272,7 @@
                                         <div class="d-flex justify-content-between border-bottom pb-1 mb-1">
                                             <span>
                                                 <i class="fas fa-caret-right me-1 text-success"></i>
-                                                {{ $ingreso->metodo_pago }} - {{ Str::limit(optional($ingreso->venta->cliente)->nombre1 . ' ' . optional($ingreso->venta->cliente)->apellido1, 15, '...') }}
+                                                {{ $ingreso->metodo_pago }} - {{ Str::limit(optional($ingreso->venta?->cliente)->nombres_apellidos ?? 'Cliente', 20, '...') }}
                                             </span>
                                             <span class="text-success">${{ number_format($ingreso->monto_abonado, 2) }}</span>
                                         </div>

@@ -59,8 +59,8 @@ class ClienteController extends Controller
         $clientes = $clientesQuery->paginate(15);
         $clientes->each(function ($cliente) {
             $cliente->ventas->each(function ($venta) {
-                // Sumar los abonos relacionados con esta venta
-                $totalAbonado = $venta->abonos()->sum('monto_abonado');
+                // Sumar los abonos relacionados con esta venta desde la colección precargada
+                $totalAbonado = (float) $venta->abonos->sum('monto_abonado');
                 $venta->total_abonado = $totalAbonado;
             });
         });
@@ -122,15 +122,25 @@ class ClienteController extends Controller
      */
     public function store(Request $request)
     {
+        // Normalizar cédula si viene sin guiones (14 caracteres alfanuméricos)
+        $identificacion = trim((string)$request->input('identificacion'));
+        $cleanId = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $identificacion));
+        if (strlen($cleanId) === 14) {
+            $identificacion = substr($cleanId, 0, 3) . '-' . substr($cleanId, 3, 6) . '-' . substr($cleanId, 9, 5);
+            $request->merge(['identificacion' => $identificacion]);
+        }
+
         // 1. VALIDACIÓN
         $request->validate([
             'pv_num' => 'nullable|string|max:50',
             'expediente_num' => 'nullable|string|max:50',    
             'nombres_apellidos' => 'required|string|max:255',
-            'identificacion' => 'required|string|max:30',
+            'identificacion' => ['required', 'string', 'regex:/^[A-Za-z0-9]{3}-[A-Za-z0-9]{6}-[A-Za-z0-9]{5}$/'],
             'lotes_ids' => 'nullable|array|min:1|max:20',
             'lotes' => 'nullable|array|min:1|max:20',
             'extension_value' => 'required|numeric|min:0',
+        ], [
+            'identificacion.regex' => 'La cédula debe tener el formato XXX-XXXXXX-XXXXX (ej: 001-120395-0004Y).',
         ]);
         
         $lotesIds = $request->input('lotes_ids') ?? $request->input('lotes');
@@ -146,16 +156,17 @@ class ClienteController extends Controller
             // CREAR EL CLIENTE
             $expedienteNum = $request->expediente_num ?: Cliente::generarSiguienteExpediente();
             $pvNum = $request->pv_num ?: 'PP';
+            $direccionCompleta = trim(($request->domicilio ? $request->domicilio . ', ' : '') . ($request->direccion ?? ''));
 
             $cliente = Cliente::create([
                 'expediente_num' => $expedienteNum,
                 'pv_num'         => $pvNum,
-                'nombres_apellidos' => $request->nombres_apellidos,
-                'identificacion'   => $request->identificacion,
+                'nombres_apellidos' => mb_strtoupper($request->nombres_apellidos, 'UTF-8'),
+                'identificacion'   => mb_strtoupper($request->identificacion, 'UTF-8'),
                 'telefono'         => $request->telefono,
-                'direccion'        => $request->direccion,
-                'estado_civil'     => $request->estado_civil,
-                'oficio'           => $request->oficio ?? $request->profesion_oficio,
+                'direccion'        => $direccionCompleta ?: ($request->direccion ?? null),
+                'estado_civil'     => $request->estado_civil ? mb_strtoupper($request->estado_civil, 'UTF-8') : null,
+                'oficio'           => ($request->oficio ?? $request->profesion_oficio) ? mb_strtoupper($request->oficio ?? $request->profesion_oficio, 'UTF-8') : null,
             ]);
 
             $activeLotificacionId = session('lotificacion_id');
@@ -188,8 +199,12 @@ class ClienteController extends Controller
                     ]);
                 }
 
+                $datosRecibo = Abono::generarSiguienteNumeroRecibo($lotificacionId);
+
                 $abonoInicial = Abono::create([
                     'id_venta'      => $venta->id_venta,
+                    'numero_recibo' => $datosRecibo['numero_recibo'],
+                    'codigo_recibo' => $datosRecibo['codigo_recibo'],
                     'fecha_pago'    => $request->fecha_ultimo_abono ?? now(),
                     'monto_abonado' => $request->primer_abono,
                     'tipo_pago'     => 'Prima/Primer Abono',
@@ -239,8 +254,12 @@ class ClienteController extends Controller
                         'fecha_asignacion'=> now(),
                     ]);
 
+                    $datosReciboLote = Abono::generarSiguienteNumeroRecibo($lotificacionId);
+
                     $abonoInicial = Abono::create([
                         'id_venta'      => $venta->id_venta,
+                        'numero_recibo' => $datosReciboLote['numero_recibo'],
+                        'codigo_recibo' => $datosReciboLote['codigo_recibo'],
                         'fecha_pago'    => $request->fecha_ultimo_abono ?? now(),
                         'monto_abonado' => $abonosPorLote,
                         'tipo_pago'     => 'Prima/Primer Abono',
@@ -265,16 +284,17 @@ class ClienteController extends Controller
     }
 
     /**
-     * Genera el Plan de Cuotas para una venta a partir de la fecha del primer pago.
+     * Genera el Plan de Cuotas para una venta a partir de la fecha del primer pago o fecha de venta.
      */
-    private function generarPlanCuotas(Venta $venta, $fechaInicio): void
+    public static function generarPlanCuotas(Venta $venta, $fechaInicio = null): void
     {
-        $plazoRestante = $venta->plazo_meses;
-        $saldoRestante = $venta->precio_final;
-        $cuotaMensual  = $venta->cuota_mensual;
+        $plazoRestante = (int) $venta->plazo_meses;
+        $saldoRestante = (float) $venta->precio_final;
+        $cuotaMensual  = (float) $venta->cuota_mensual;
 
         if ($plazoRestante > 0 && $saldoRestante > 0) {
-            $fechaVencimiento = \Carbon\Carbon::parse($fechaInicio);
+            $fechaBase = $fechaInicio ?: ($venta->fecha_venta ?: ($venta->created_at ?: now()));
+            $fechaVencimiento = \Carbon\Carbon::parse($fechaBase);
 
             for ($i = 1; $i <= $plazoRestante; $i++) {
                 $fechaVencimiento->addMonth();
@@ -377,9 +397,17 @@ class ClienteController extends Controller
      */
     public function update(Request $request, Cliente $cliente)
     {
+        // Normalizar cédula si viene sin guiones (14 caracteres alfanuméricos)
+        $identificacion = trim((string)$request->input('identificacion'));
+        $cleanId = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $identificacion));
+        if (strlen($cleanId) === 14) {
+            $identificacion = substr($cleanId, 0, 3) . '-' . substr($cleanId, 3, 6) . '-' . substr($cleanId, 9, 5);
+            $request->merge(['identificacion' => $identificacion]);
+        }
+
         $request->validate([
             'nombres_apellidos' => 'required|string|max:255',
-            'identificacion' => 'required|string|max:255',
+            'identificacion' => ['required', 'string', 'regex:/^[A-Za-z0-9]{3}-[A-Za-z0-9]{6}-[A-Za-z0-9]{5}$/'],
             'pv_num' => 'required|string|max:255',
             'expediente_num' => 'required|string|max:255',
             'telefono' => 'nullable|string|max:50',
@@ -387,6 +415,8 @@ class ClienteController extends Controller
             'estado_civil' => 'nullable|string|max:50',
             'oficio' => 'nullable|string|max:100',
             'motivo_modificacion' => 'required|string|max:500',
+        ], [
+            'identificacion.regex' => 'La cédula debe tener el formato XXX-XXXXXX-XXXXX (ej: 001-120395-0004Y).',
         ]);
 
         DB::beginTransaction();
@@ -405,9 +435,20 @@ class ClienteController extends Controller
             $cambios = [];
             $esCesion = false;
 
+            $datosActualizados = [
+                'expediente_num'   => mb_strtoupper(trim((string)$request->input('expediente_num')), 'UTF-8'),
+                'pv_num'           => mb_strtoupper(trim((string)$request->input('pv_num')), 'UTF-8'),
+                'nombres_apellidos'=> mb_strtoupper(trim((string)$request->input('nombres_apellidos')), 'UTF-8'),
+                'identificacion'   => mb_strtoupper(trim((string)$request->input('identificacion')), 'UTF-8'),
+                'telefono'         => trim((string)$request->input('telefono')),
+                'direccion'        => $request->input('direccion') ? mb_strtoupper(trim((string)$request->input('direccion')), 'UTF-8') : null,
+                'estado_civil'     => $request->input('estado_civil') ? mb_strtoupper(trim((string)$request->input('estado_civil')), 'UTF-8') : null,
+                'oficio'           => $request->input('oficio') ? mb_strtoupper(trim((string)$request->input('oficio')), 'UTF-8') : null,
+            ];
+
             foreach ($campos as $campo => $etiqueta) {
                 $valorAnterior = trim((string)$cliente->getOriginal($campo));
-                $valorNuevo = trim((string)$request->input($campo));
+                $valorNuevo = trim((string)($datosActualizados[$campo] ?? ''));
 
                 if ($valorAnterior !== $valorNuevo) {
                     $cambios[] = "• <strong>{$etiqueta}:</strong> '{$valorAnterior}' ➔ '{$valorNuevo}'";
@@ -417,10 +458,7 @@ class ClienteController extends Controller
                 }
             }
 
-            $cliente->update($request->only([
-                'expediente_num', 'pv_num', 'nombres_apellidos', 'identificacion',
-                'telefono', 'direccion', 'estado_civil', 'oficio'
-            ]));
+            $cliente->update($datosActualizados);
 
             if (!empty($cambios)) {
                 $motivo = $request->input('motivo_modificacion');

@@ -19,27 +19,28 @@
                 <h4 class="mb-3 text-info">Datos del Cliente / Representante</h4>
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="nombre_completo" class="form-label">Nombre Completo / Representante</label>
-                        <input type="text" class="form-control" id="nombre_completo" name="nombres_apellidos" 
-                               value="{{ old('nombres_apellidos', $cliente->nombres_apellidos) }}" required>
+                        <label for="nombre_completo" class="form-label">Nombre Completo / Representante <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control text-uppercase" id="nombre_completo" name="nombres_apellidos" 
+                               value="{{ old('nombres_apellidos', $cliente->nombres_apellidos) }}" style="text-transform: uppercase;" required>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label for="cedula" class="form-label">Cédula</label>
-                        <input type="text" class="form-control" id="cedula" name="identificacion" 
-                               value="{{ old('identificacion', $cliente->identificacion) }}" required>
+                        <label for="cedula" class="form-label">Cédula <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control text-uppercase font-monospace fw-bold" id="cedula" name="identificacion" 
+                               value="{{ old('identificacion', $cliente->identificacion) }}" maxlength="16" placeholder="000-000000-0000A" style="text-transform: uppercase;" required>
+                        <small class="text-muted"><i class="fas fa-id-card text-primary"></i> Formato: XXX-XXXXXX-XXXXX</small>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label for="pv_num" class="form-label">N° Promesa Venta (PV)</label>
-                        <input type="text" class="form-control" id="pv_num" name="pv_num" 
-                               value="{{ old('pv_num', $cliente->pv_num) }}" required>
+                        <label for="pv_num" class="form-label">N° Promesa Venta (PV) <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control text-uppercase" id="pv_num" name="pv_num" 
+                               value="{{ old('pv_num', $cliente->pv_num) }}" style="text-transform: uppercase;" required>
                     </div>
                 </div>
 
                 <div class="row">
                     <div class="col-md-3 mb-3">
-                        <label for="expediente_num" class="form-label">N° de Expediente</label>
-                        <input type="text" class="form-control" id="expediente_num" name="expediente_num" 
-                               value="{{ old('expediente_num', $cliente->expediente_num) }}" required>
+                        <label for="expediente_num" class="form-label">N° de Expediente <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control text-uppercase font-monospace fw-bold" id="expediente_num" name="expediente_num" 
+                               value="{{ old('expediente_num', $cliente->expediente_num) }}" style="text-transform: uppercase;" required>
                     </div>
                     <div class="col-md-3 mb-3">
                         <label for="telefono" class="form-label">Teléfono</label>
@@ -48,26 +49,26 @@
                     </div>
                     <div class="col-md-3 mb-3">
                         <label for="estado_civil" class="form-label">Estado Civil</label>
-                        <select class="form-control custom-select" id="estado_civil" name="estado_civil" required>
+                        <select class="form-control custom-select text-uppercase" id="estado_civil" name="estado_civil" style="text-transform: uppercase;" required>
                             <option value="">Seleccione...</option>
-                            @php $ec = old('estado_civil', $cliente->estado_civil); @endphp
-                            @foreach (['soltero', 'casado', 'union_libre', 'divorciado', 'viudo'] as $opcion)
-                                <option value="{{ $opcion }}" {{ $ec == $opcion ? 'selected' : '' }}>
-                                    {{ ucfirst(str_replace('_', ' ', $opcion)) }}
+                            @php $ec = strtoupper(old('estado_civil', $cliente->estado_civil)); @endphp
+                            @foreach (['SOLTERO' => 'Soltero(a)', 'CASADO' => 'Casado(a)', 'UNION_LIBRE' => 'Unión Libre', 'UNION_DE_HECHO' => 'Unión de Hecho', 'DIVORCIADO' => 'Divorciado(a)', 'VIUDO' => 'Viudo(a)'] as $opcion => $label)
+                                <option value="{{ $opcion }}" {{ ($ec == $opcion || $ec == strtolower($opcion)) ? 'selected' : '' }}>
+                                    {{ $label }}
                                 </option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-md-3 mb-3">
                         <label for="oficio" class="form-label">Oficio</label>
-                        <input type="text" class="form-control" id="oficio" name="oficio"
-                               value="{{ old('oficio', $cliente->oficio) }}">
+                        <input type="text" class="form-control text-uppercase" id="oficio" name="oficio"
+                               value="{{ old('oficio', $cliente->oficio) }}" style="text-transform: uppercase;">
                     </div>
                 </div>
 
                 <div class="mb-4">
                     <label for="direccion" class="form-label">Dirección</label>
-                    <textarea class="form-control" id="direccion" name="direccion" rows="2">{{ old('direccion', $cliente->direccion) }}</textarea>
+                    <textarea class="form-control text-uppercase" id="direccion" name="direccion" rows="2" style="text-transform: uppercase;">{{ old('direccion', $cliente->direccion) }}</textarea>
                 </div>
                 
                 <div class="mb-4 p-3 bg-light border rounded">
@@ -89,4 +90,43 @@
             
         </div>
     </div>
+
+    <script>
+    function formatearCedula(input) {
+        let val = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (val.length > 14) val = val.substring(0, 14);
+
+        let formatted = '';
+        if (val.length > 0) {
+            formatted += val.substring(0, Math.min(3, val.length));
+        }
+        if (val.length > 3) {
+            formatted += '-' + val.substring(3, Math.min(9, val.length));
+        }
+        if (val.length > 9) {
+            formatted += '-' + val.substring(9, 14);
+        }
+        input.value = formatted;
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        const cedulaInput = document.getElementById('cedula');
+        if (cedulaInput) {
+            cedulaInput.addEventListener('input', function() {
+                formatearCedula(this);
+            });
+            cedulaInput.addEventListener('blur', function() {
+                formatearCedula(this);
+            });
+        }
+
+        document.querySelectorAll('.text-uppercase').forEach(function(el) {
+            el.addEventListener('input', function() {
+                if (this.id !== 'cedula') {
+                    this.value = this.value.toUpperCase();
+                }
+            });
+        });
+    });
+    </script>
 @endsection

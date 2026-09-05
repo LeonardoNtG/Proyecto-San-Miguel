@@ -71,11 +71,12 @@
             <div class="row g-3">
                 <div class="col-md-5 mb-3">
                     <label for="nombre_completo" class="form-label font-weight-bold text-secondary">Nombre Completo / Representante <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="nombre_completo" name="nombres_apellidos" value="{{ old('nombres_apellidos') }}" placeholder="Ej: Juan Pérez Morales" required>
+                    <input type="text" class="form-control text-uppercase" id="nombre_completo" name="nombres_apellidos" value="{{ old('nombres_apellidos') }}" placeholder="Ej: JUAN PÉREZ MORALES" style="text-transform: uppercase;" required>
                 </div>
                 <div class="col-md-3 mb-3">
                     <label for="cedula" class="form-label font-weight-bold text-secondary">Cédula <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="cedula" name="identificacion" value="{{ old('identificacion') }}" placeholder="000-000000-0000A" required>
+                    <input type="text" class="form-control text-uppercase font-monospace fw-bold" id="cedula" name="identificacion" value="{{ old('identificacion') }}" placeholder="000-000000-0000A" maxlength="16" style="text-transform: uppercase;" required>
+                    <small class="text-muted"><i class="fas fa-id-card text-primary"></i> Formato: XXX-XXXXXX-XXXXX</small>
                 </div>
                 <div class="col-md-4 mb-3">
                     <label for="telefono" class="form-label font-weight-bold text-secondary">Teléfono</label>
@@ -86,29 +87,29 @@
             <div class="row g-3">
                 <div class="col-md-4 mb-3">
                     <label for="estado_civil" class="form-label font-weight-bold text-secondary">Estado Civil <span class="text-danger">*</span></label>
-                    <select class="custom-select form-control" id="estado_civil" name="estado_civil" required>
+                    <select class="custom-select form-control text-uppercase" id="estado_civil" name="estado_civil" style="text-transform: uppercase;" required>
                         <option value="">Seleccione...</option>
-                        <option value="soltero" @selected(old('estado_civil') == 'soltero')>Soltero(a)</option>
-                        <option value="casado" @selected(old('estado_civil') == 'casado')>Casado(a)</option>
-                        <option value="union_de_hecho" @selected(old('estado_civil') == 'union_de_hecho')>Unión de Hecho</option>
-                        <option value="divorciado" @selected(old('estado_civil') == 'divorciado')>Divorciado(a)</option>
-                        <option value="viudo" @selected(old('estado_civil') == 'viudo')>Viudo(a)</option>
+                        <option value="SOLTERO" @selected(strtoupper(old('estado_civil')) == 'SOLTERO')>Soltero(a)</option>
+                        <option value="CASADO" @selected(strtoupper(old('estado_civil')) == 'CASADO')>Casado(a)</option>
+                        <option value="UNION_DE_HECHO" @selected(strtoupper(old('estado_civil')) == 'UNION_DE_HECHO')>Unión de Hecho</option>
+                        <option value="DIVORCIADO" @selected(strtoupper(old('estado_civil')) == 'DIVORCIADO')>Divorciado(a)</option>
+                        <option value="VIUDO" @selected(strtoupper(old('estado_civil')) == 'VIUDO')>Viudo(a)</option>
                     </select>
                 </div>
                 <div class="col-md-4 mb-3">
                     <label for="profesion_oficio" class="form-label font-weight-bold text-secondary">Profesión u Oficio</label>
-                    <input type="text" class="form-control" id="profesion_oficio" name="profesion_oficio" value="{{ old('profesion_oficio') }}" placeholder="Ej: Comerciante, Docente">
+                    <input type="text" class="form-control text-uppercase" id="profesion_oficio" name="profesion_oficio" value="{{ old('profesion_oficio') }}" placeholder="Ej: Comerciante, Docente" style="text-transform: uppercase;">
                 </div>
                 <div class="col-md-4 mb-3">
                     <label for="domicilio" class="form-label font-weight-bold text-secondary">Domicilio / Municipio</label>
-                    <input type="text" class="form-control" id="domicilio" name="domicilio" value="{{ old('domicilio') }}" placeholder="Ej: San Miguel, San Rafael del Sur">
+                    <input type="text" class="form-control text-uppercase" id="domicilio" name="domicilio" value="{{ old('domicilio') }}" placeholder="Ej: San Miguel, San Rafael del Sur" style="text-transform: uppercase;">
                 </div>
             </div>
 
             <div class="row g-3">
                 <div class="col-md-12 mb-3">
                     <label for="direccion" class="form-label font-weight-bold text-secondary">Dirección Exacta</label>
-                    <textarea class="form-control" id="direccion" name="direccion" rows="1" placeholder="Dirección domiciliar del cliente...">{{ old('direccion') }}</textarea>
+                    <textarea class="form-control text-uppercase" id="direccion" name="direccion" rows="1" placeholder="Dirección domiciliar del cliente..." style="text-transform: uppercase;">{{ old('direccion') }}</textarea>
                 </div>
             </div>
         </div>
@@ -553,10 +554,40 @@ $(document).ready(function() {
         $('body').removeClass('modal-open').css('padding-right', '');
     });
 
-    $('#btn-confirmar-guardar-reserva').on('click', function(e) {
-        e.preventDefault();
-        $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Guardando Reserva...');
-        formReserva.submit();
+    // Formateador automático de Cédula (XXX-XXXXXX-XXXXX)
+    function formatearCedula(input) {
+        let val = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (val.length > 14) val = val.substring(0, 14);
+
+        let formatted = '';
+        if (val.length > 0) {
+            formatted += val.substring(0, Math.min(3, val.length));
+        }
+        if (val.length > 3) {
+            formatted += '-' + val.substring(3, Math.min(9, val.length));
+        }
+        if (val.length > 9) {
+            formatted += '-' + val.substring(9, 14);
+        }
+        input.value = formatted;
+    }
+
+    const cedulaInput = document.getElementById('cedula');
+    if (cedulaInput) {
+        cedulaInput.addEventListener('input', function() {
+            formatearCedula(this);
+        });
+        cedulaInput.addEventListener('blur', function() {
+            formatearCedula(this);
+        });
+    }
+
+    document.querySelectorAll('.text-uppercase').forEach(function(el) {
+        el.addEventListener('input', function() {
+            if (this.id !== 'cedula') {
+                this.value = this.value.toUpperCase();
+            }
+        });
     });
 });
 </script>

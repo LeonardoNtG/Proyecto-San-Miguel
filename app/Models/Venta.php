@@ -31,6 +31,23 @@ class Venta extends Model
         'nota_beneficiario',
     ];
 
+    public function setBeneficiarioFinalAttribute($value)
+    {
+        $this->attributes['beneficiario_final'] = $value ? mb_strtoupper(trim((string)$value), 'UTF-8') : null;
+    }
+
+    public function setNotaBeneficiarioAttribute($value)
+    {
+        $this->attributes['nota_beneficiario'] = $value ? mb_strtoupper(trim((string)$value), 'UTF-8') : null;
+    }
+
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->withoutGlobalScope('lotificacion')
+            ->where($field ?? $this->getRouteKeyName(), $value)
+            ->firstOrFail();
+    }
+
     public function lotificacion()
     {
         return $this->belongsTo(Lotificacion::class, 'lotificacion_id');
@@ -78,6 +95,11 @@ class Venta extends Model
         return $this->belongsToMany(Lote::class, 'historial_lotes', 'id_venta', 'id_lote')
                     ->withPivot('estado', 'fecha_asignacion', 'fecha_liberacion')
                     ->withTimestamps();
+    }
+
+    public function rescisiones()
+    {
+        return $this->hasMany(Rescision::class, 'id_venta', 'id_venta')->orderBy('created_at', 'desc');
     }
 
 

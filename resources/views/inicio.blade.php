@@ -283,7 +283,7 @@
                                         : '-';
                                 @endphp
                                 <tr>
-                                    <td class="fw-bold text-primary small">{{ $abono->codigo_recibo ?? 'REC-'.str_pad($abono->id_abono, 5, '0', STR_PAD_LEFT) }}</td>
+                                    <td class="fw-bold text-primary small">#{{ $abono->numero_recibo_formateado }}</td>
                                     <td>
                                         <div class="fw-bold text-dark small">{{ $abono->venta && $abono->venta->cliente ? $abono->venta->cliente->nombres_apellidos : 'Cliente Desconocido' }}</div>
                                         <small class="text-muted">{{ $abono->fecha_pago ? \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') : '-' }} &middot; {{ $abono->metodo_pago }}</small>
