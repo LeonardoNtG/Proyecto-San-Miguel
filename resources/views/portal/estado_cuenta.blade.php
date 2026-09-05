@@ -221,16 +221,16 @@
                                     @endphp
                                     @forelse($venta->cuotas as $cuota)
                                     @php
-                                        $montoAbonadoCuota = max(0, (float)$cuota->monto_total - (float)$cuota->saldo_restante);
                                         $saldoDecreciente = max(0, $saldoDecreciente - (float)$cuota->monto_total);
+                                        $estaPagada = ($cuota->estado === 'Pagada');
                                     @endphp
                                     <tr>
                                         <td class="fw-bold">{{ $cuota->numero_cuota }}</td>
                                         <td>{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
                                         <td>${{ number_format($cuota->monto_total, 2) }}</td>
                                         <td>
-                                            @if($montoAbonadoCuota > 0)
-                                                <span class="text-success fw-bold">${{ number_format($montoAbonadoCuota, 2) }}</span>
+                                            @if($estaPagada)
+                                                <span class="text-success fw-bold">${{ number_format($cuota->monto_total, 2) }}</span>
                                             @else
                                                 <span class="text-muted">$0.00</span>
                                             @endif
@@ -246,12 +246,10 @@
                                             @endif
                                         </td>
                                         <td>
-                                            @if($cuota->estado == 'Pagada')
+                                            @if($estaPagada)
                                                 <span class="badge bg-success">Pagada</span>
-                                            @elseif($cuota->estado == 'Mora')
+                                            @elseif($cuota->estado === 'Mora')
                                                 <span class="badge bg-danger">En Mora</span>
-                                            @elseif($cuota->estado == 'Parcial')
-                                                <span class="badge bg-info text-dark">Parcial</span>
                                             @else
                                                 <span class="badge bg-warning text-dark">Pendiente</span>
                                             @endif
