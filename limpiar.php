@@ -13,6 +13,10 @@ if (!file_exists($baseDir . '/artisan') && file_exists(dirname($baseDir) . '/art
     $baseDir = dirname($baseDir);
 }
 
+if (function_exists('opcache_reset')) {
+    @opcache_reset();
+}
+
 // 1. Borrar vistas compiladas en caché
 $viewsDir = $baseDir . '/storage/framework/views';
 $borradosVistas = 0;
