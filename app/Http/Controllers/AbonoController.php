@@ -590,32 +590,26 @@ class AbonoController extends Controller
 
 
         private function convertirMontoALetras($monto)
-{
-    $monto = number_format((float) $monto, 2, '.', '');
+        {
+            $monto = number_format((float) $monto, 2, '.', '');
 
-    [$entero, $decimal] = explode('.', $monto);
+            [$entero, $decimal] = explode('.', $monto);
 
-    $entero = (int) $entero;
-    $decimal = (int) $decimal;
+            $entero = (int) $entero;
+            $decimal = (int) $decimal;
 
-    $texto = strtoupper(
-        $this->numeroALetras($entero)
-    );
+            $texto = strtoupper(
+                $this->numeroALetras($entero)
+            );
 
-    if ($decimal > 0) {
+            if ($decimal > 0) {
+                $texto .= ' CON '
+                    . strtoupper($this->numeroALetras($decimal))
+                    . ' CENTAVOS';
+            }
 
-        $texto .= ' DÓLARES CON '
-            . strtoupper($this->numeroALetras($decimal))
-            . ' CENTAVOS';
-
-    } else {
-
-        $texto .= ' DÓLARES';
-
-    }
-
-    return $texto;
-}
+            return $texto;
+        }
 
         
         private function numeroALetras($numero)
