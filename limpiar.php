@@ -16,6 +16,7 @@ if (!file_exists($baseDir . '/artisan') && file_exists(dirname($baseDir) . '/art
 if (function_exists('opcache_reset')) {
     @opcache_reset();
 }
+clearstatcache(true);
 
 // 1. Borrar vistas compiladas en caché
 $viewsDir = $baseDir . '/storage/framework/views';
@@ -25,6 +26,7 @@ if (is_dir($viewsDir)) {
         if (is_file($file)) { @unlink($file); $borradosVistas++; }
     }
 }
+clearstatcache(true);
 
 // 2. Borrar solo caché de configuración y rutas (NUNCA borrar packages.php)
 $cacheDir = $baseDir . '/bootstrap/cache';
@@ -35,6 +37,7 @@ if (is_dir($cacheDir)) {
         if (is_file($filePath)) { @unlink($filePath); $borradosCache++; }
     }
 }
+clearstatcache(true);
 
 $migrationOutput = "";
 $logEntries = [];
