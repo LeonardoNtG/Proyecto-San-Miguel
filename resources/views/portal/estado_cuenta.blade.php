@@ -157,17 +157,25 @@
                                 @endforeach
                             </div>
                         </div>
-                        <div class="mb-3">
-                            <div class="info-label">Precio Final</div>
-                            <div class="info-value text-primary">${{ number_format($venta->precio_final, 2) }}</div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <div class="info-label">Precio Final</div>
+                                <div class="info-value text-primary fw-bold fs-5">${{ number_format($venta->precio_final, 2) }}</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="info-label">Saldo Pendiente</div>
+                                <div class="info-value text-danger fw-bold fs-5">${{ number_format(max(0, (float)$venta->precio_final - (float)$venta->total_abonado), 2) }}</div>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <div class="info-label">Total Abonado</div>
-                            <div class="info-value text-success">${{ number_format($venta->total_abonado, 2) }}</div>
-                        </div>
-                        <div class="mb-3">
-                            <div class="info-label">Cuota Mensual</div>
-                            <div class="info-value">${{ number_format($venta->cuota_mensual, 2) }} / {{ $venta->plazo_meses }} meses</div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-6">
+                                <div class="info-label">Total Abonado</div>
+                                <div class="info-value text-success fw-bold">${{ number_format($venta->total_abonado, 2) }}</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="info-label">Cuota Mensual</div>
+                                <div class="info-value text-dark fw-bold">${{ number_format($venta->cuota_mensual, 2) }} / {{ $venta->plazo_meses }} meses</div>
+                            </div>
                         </div>
                         
                         <hr>
@@ -196,24 +204,30 @@
                                     <tr>
                                         <th>#</th>
                                         <th>Vencimiento</th>
-                                        <th>Monto</th>
-                                        <th>Saldo</th>
+                                        <th>Monto Cuota</th>
+                                        <th>Saldo Total</th>
                                         <th>Mora</th>
                                         <th>Estado</th>
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    @php
+                                        // El saldo total inicial a amortizar
+                                        $saldoDecreciente = (float) $venta->precio_final;
+                                        if (isset($venta->prima) && $venta->prima > 0) {
+                                            $saldoDecreciente = (float) $venta->precio_final - (float)$venta->prima;
+                                        }
+                                    @endphp
                                     @forelse($venta->cuotas as $cuota)
+                                    @php
+                                        $saldoDecreciente = max(0, $saldoDecreciente - (float)$cuota->monto_total);
+                                    @endphp
                                     <tr>
                                         <td class="fw-bold">{{ $cuota->numero_cuota }}</td>
                                         <td>{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
                                         <td>${{ number_format($cuota->monto_total, 2) }}</td>
                                         <td>
-                                            @if($cuota->saldo_restante > 0)
-                                                <span class="fw-bold text-dark">${{ number_format($cuota->saldo_restante, 2) }}</span>
-                                            @else
-                                                <span class="text-muted">$0.00</span>
-                                            @endif
+                                            <span class="fw-bold text-dark">${{ number_format($saldoDecreciente, 2) }}</span>
                                         </td>
                                         <td>
                                             @if($cuota->mora_pendiente > 0)
