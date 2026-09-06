@@ -227,10 +227,11 @@
         <thead>
             <tr>
                 <th>Nombre del Cliente</th>
-                <th>N° Lote</th>
-                <th>N° Bloque</th>
+                <th>Lote / Bloque</th>
                 <th class="num-col">Abonado</th>
-                <th>Detalles del deposito</th>
+                <th>F. Transf.</th>
+                <th>F/Hora Registro</th>
+                <th>Banco / Cuenta Destino</th>
                 <th>Ref.</th>
             </tr>
         </thead>
@@ -238,21 +239,22 @@
             @forelse($abonosTransferencia as $abono)
             <tr>
                 <td>{{ $abono['cliente'] }}</td>
-                <td>{{ $abono['lotes'] }}</td>
-                <td>{{ $abono['bloques'] }}</td>
+                <td>Lote {{ $abono['lotes'] }} (Bl. {{ $abono['bloques'] }})</td>
                 <td class="num-col">{{ number_format($abono['monto'], 2) }}</td>
-                <td>{{ $abono['cuenta_destino'] }} ({{ $abono['metodo_pago'] }})</td>
-                <td style="color:#6a1b9a; font-weight:bold;">{{ $abono['referencia'] }}</td>
+                <td style="font-weight:bold; color:#1c3666;">{{ $abono['fecha_transferencia'] }}</td>
+                <td>{{ $abono['fecha_hora_registro'] }}</td>
+                <td>{{ $abono['cuenta_destino'] }} <span style="font-size:8px; color:#555;">({{ $abono['metodo_pago'] }})</span></td>
+                <td style="color:#6a1b9a; font-weight:bold; font-family:monospace;">{{ $abono['referencia'] }}</td>
             </tr>
             @empty
             <tr>
-                <td colspan="6" style="text-align:center; font-style:italic;">No hay transferencias registradas.</td>
+                <td colspan="7" style="text-align:center; font-style:italic;">No hay transferencias registradas.</td>
             </tr>
             @endforelse
             <tr class="total-row">
-                <td colspan="3" style="color:#1c3666;">TOTAL REGISTRADO EN TRANSFERENCIAS.</td>
+                <td colspan="2" style="color:#1c3666;">TOTAL REGISTRADO EN TRANSFERENCIAS</td>
                 <td class="num-col" style="color:#1c3666;">{{ number_format($totalTransferencias, 2) }}</td>
-                <td colspan="2"></td>
+                <td colspan="4"></td>
             </tr>
         </tbody>
     </table>

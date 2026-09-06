@@ -199,13 +199,13 @@
                 <table class="table table-hover align-middle mb-0">
                     <thead class="bg-light text-dark">
                         <tr>
-                            <th class="ps-3" style="width: 25%;">Cliente</th>
-                            <th style="width: 20%;">Lote(s)</th>
-                            <th style="width: 15%;">Concepto</th>
-                            <th style="width: 12%;">Método</th>
-                            <th style="width: 15%;">Referencia / Comentarios</th>
-                            <th class="text-end" style="width: 13%;">Monto</th>
-                            <th class="text-center no-print" style="width: 70px;">Recibo</th>
+                            <th class="ps-3" style="width: 22%;">Cliente</th>
+                            <th style="width: 18%;">Lote(s)</th>
+                            <th style="width: 18%;">Concepto y Fechas</th>
+                            <th style="width: 10%;">Método</th>
+                            <th style="width: 18%;">Banco / Ref. / Nota</th>
+                            <th class="text-end" style="width: 14%;">Monto</th>
+                            <th class="text-center no-print" style="width: 60px;">Recibo</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -234,7 +234,15 @@
                                 @endif
                             </td>
                             <td>
-                                <span class="fw-semibold text-dark">{{ $abono->tipo_pago }}</span>
+                                <span class="fw-semibold text-dark d-block">{{ $abono->tipo_pago }}</span>
+                                <small class="text-muted d-block" title="Fecha y hora de registro en el sistema">
+                                    <i class="fas fa-clock text-secondary me-1"></i>Reg: {{ $abono->created_at ? $abono->created_at->format('d/m/Y h:i a') : \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') }}
+                                </small>
+                                @if($abono->fecha_transferencia)
+                                    <small class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-block mt-1" title="Fecha real en que el cliente hizo la transferencia/depósito">
+                                        <i class="fas fa-calendar-check me-1"></i>F. Transf: {{ \Carbon\Carbon::parse($abono->fecha_transferencia)->format('d/m/Y') }}
+                                    </small>
+                                @endif
                             </td>
                             <td>
                                 @if($abono->metodo_pago == 'Efectivo')
@@ -255,7 +263,7 @@
                             </td>
                             <td>
                                 @if($abono->referencia)
-                                    <div class="small text-dark font-monospace">{{ $abono->referencia }}</div>
+                                    <div class="small text-dark font-monospace fw-bold"><i class="fas fa-receipt text-primary me-1"></i>{{ $abono->referencia }}</div>
                                 @endif
                                 @if($abono->cuenta_destino)
                                     <div class="small text-muted"><i class="fas fa-university text-secondary me-1"></i>{{ $abono->cuenta_destino }}</div>

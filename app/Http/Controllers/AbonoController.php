@@ -173,6 +173,7 @@ class AbonoController extends Controller
             'metodo_pago'   => 'required|string',
             'referencia'    => 'nullable|string',
             'cuenta_destino'=> 'nullable|string',
+            'fecha_transferencia' => 'nullable|date',
             'comentario'    => 'nullable|string|max:1000',
             'ruta_recibo'   => 'nullable|file|mimes:jpeg,png,jpg,pdf,webp|max:10240',
         ]);
@@ -197,6 +198,10 @@ class AbonoController extends Controller
         if ($ventasTarget->isEmpty()) {
             return back()->with('error', 'No se encontraron contratos activos seleccionados para abonar.');
         }
+
+        $fechaTransferencia = ($request->metodo_pago === 'Transferencia Bancaria' || $request->metodo_pago === 'Depósito Bancario') 
+            ? ($request->fecha_transferencia ?: $request->fecha_pago) 
+            : null;
 
         DB::beginTransaction();
         try {
@@ -237,6 +242,7 @@ class AbonoController extends Controller
                     'metodo_pago'   => $request->metodo_pago,
                     'referencia'    => $referenciaFinal,
                     'cuenta_destino'=> $request->cuenta_destino,
+                    'fecha_transferencia' => $fechaTransferencia,
                     'comentario'    => $request->comentario,
                     'ruta_recibo'   => $ruta_imagen,
                     'user_id'       => auth()->id()
@@ -303,6 +309,7 @@ class AbonoController extends Controller
                     'metodo_pago'   => $request->metodo_pago,
                     'referencia'    => $ref,
                     'cuenta_destino'=> $request->cuenta_destino,
+                    'fecha_transferencia' => $fechaTransferencia,
                     'comentario'    => $request->comentario,
                     'ruta_recibo'   => $ruta_imagen,
                     'user_id'       => auth()->id()

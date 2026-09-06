@@ -18,7 +18,10 @@ class ReportesController extends Controller
 
         // Obtener abonos del día, con sus relaciones (venta, cliente, lotes, bloque)
         $abonos = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
-            ->whereDate('fecha_pago', $fecha)
+            ->where(function($q) use ($fecha) {
+                $q->whereDate('created_at', $fecha)
+                  ->orWhereDate('fecha_pago', $fecha);
+            })
             ->where('user_id', auth()->id())
             ->get();
 
@@ -52,9 +55,12 @@ class ReportesController extends Controller
         $fecha = $request->input('fecha', Carbon::today()->format('Y-m-d'));
         $userId = auth()->id();
 
-        // 1. Obtener abonos de la fecha
+        // 1. Obtener abonos de la fecha (por fecha de registro o fecha de pago)
         $abonos = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
-            ->whereDate('fecha_pago', $fecha)
+            ->where(function($q) use ($fecha) {
+                $q->whereDate('created_at', $fecha)
+                  ->orWhereDate('fecha_pago', $fecha);
+            })
             ->where('user_id', $userId)
             ->get();
 
@@ -98,6 +104,8 @@ class ReportesController extends Controller
                 'bloques' => $bloques,
                 'monto' => $abono->monto_abonado,
                 'hora' => $abono->created_at ? $abono->created_at->format('h:i a') : '-',
+                'fecha_hora_registro' => $abono->created_at ? $abono->created_at->format('d/m/Y h:i a') : \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y'),
+                'fecha_transferencia' => $abono->fecha_transferencia ? \Carbon\Carbon::parse($abono->fecha_transferencia)->format('d/m/Y') : \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y'),
                 'referencia' => $abono->referencia ?? 'N/A',
                 'metodo_pago' => $abono->metodo_pago,
                 'cuenta_destino' => $abono->cuenta_destino ?? 'N/A',

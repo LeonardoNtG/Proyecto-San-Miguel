@@ -281,7 +281,12 @@
                             <tbody>
                                 @forelse($venta->abonos as $abono)
                                 <tr>
-                                    <td>{{ \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') }}</td>
+                                    <td>
+                                        <span class="fw-bold">{{ \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') }}</span>
+                                        @if($abono->fecha_transferencia)
+                                            <br><small class="badge bg-primary-subtle text-primary border border-primary-subtle" title="Fecha en que se realizó la transferencia"><i class="fas fa-calendar-check me-1"></i>Transf: {{ \Carbon\Carbon::parse($abono->fecha_transferencia)->format('d/m/Y') }}</small>
+                                        @endif
+                                    </td>
                                     <td class="text-success fw-bold">+${{ number_format($abono->monto_abonado, 2) }}</td>
                                     <td><span class="badge bg-info text-dark">{{ $abono->tipo_pago }}</span></td>
                                     <td>{{ $abono->metodo_pago ?? 'Efectivo' }}</td>

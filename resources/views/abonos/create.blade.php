@@ -325,7 +325,7 @@
                                 <label for="cuenta_destino" class="form-label text-dark fw-bold small">
                                     <i class="fas fa-university text-primary me-1"></i> Banco / Cuenta Destino
                                 </label>
-                                <div class="input-group">
+                                <div class="input-group flex-nowrap">
                                     <select class="form-select" id="cuenta_destino" name="cuenta_destino">
                                         <option value="">-- Seleccione Cuenta Destino --</option>
                                         @if(isset($cuentasBancarias) && $cuentasBancarias->isNotEmpty())
@@ -336,7 +336,7 @@
                                             @endforeach
                                         @endif
                                     </select>
-                                    <button type="button" class="btn btn-primary" id="btn_abrir_modal_cuenta" data-bs-toggle="modal" data-bs-target="#modalNuevaCuenta" title="Agregar Nueva Cuenta Bancaria">
+                                    <button type="button" class="btn btn-primary px-3" id="btn_abrir_modal_cuenta" data-bs-toggle="modal" data-bs-target="#modalNuevaCuenta" title="Agregar Nueva Cuenta Bancaria" style="flex-shrink: 0;">
                                         <i class="fas fa-plus"></i>
                                     </button>
                                 </div>
@@ -345,12 +345,18 @@
                                 <label for="referencia" class="form-label text-dark fw-bold small">N° Referencia / Minuta</label>
                                 <input type="text" class="form-control font-monospace" id="referencia" name="referencia" placeholder="Ej: 12345678">
                             </div>
-                            <div class="col-12 mt-2">
+                            <div class="col-md-6 mt-2">
+                                <label for="fecha_transferencia" class="form-label text-dark fw-bold small">
+                                    <i class="fas fa-calendar-alt text-primary me-1"></i> Fecha Real de la Transferencia / Depósito
+                                </label>
+                                <input type="date" class="form-control" id="fecha_transferencia" name="fecha_transferencia" value="{{ now()->format('Y-m-d') }}">
+                                <small class="text-muted"><i class="fas fa-info-circle text-info me-1"></i>Fecha en que el cliente realizó la operación bancaria.</small>
+                            </div>
+                            <div class="col-md-6 mt-2">
                                 <label for="ruta_recibo" class="form-label text-dark fw-bold small">
-                                    <i class="fas fa-paperclip text-primary me-1"></i> Adjuntar Comprobante / Minuta <span class="text-muted fw-normal">(Opcional - Imagen o PDF)</span>
+                                    <i class="fas fa-paperclip text-primary me-1"></i> Adjuntar Comprobante / Minuta <span class="text-muted fw-normal">(Opcional)</span>
                                 </label>
                                 <input type="file" class="form-control form-control-sm" id="ruta_recibo" name="ruta_recibo" accept="image/*,.pdf">
-                                <small class="text-muted"><i class="fas fa-info-circle text-info me-1"></i>Puede adjuntar una foto de la minuta bancaria o PDF de la transferencia. Quedará guardado en el expediente del cliente para descarga y auditoría.</small>
                             </div>
                         </div>
                     </div>
@@ -436,8 +442,16 @@
                         </div>
 
                         <div id="resumen-banco-fila" class="mt-2 pt-2 border-top small" style="display: none;">
-                            <span class="text-muted">Banco / Ref:</span>
-                            <strong class="text-dark ms-1" id="resumen-cuenta">-</strong> | <span class="font-monospace" id="resumen-referencia">-</span>
+                            <div class="d-flex flex-wrap justify-content-between align-items-center">
+                                <div>
+                                    <span class="text-muted">Banco / Ref:</span>
+                                    <strong class="text-dark ms-1" id="resumen-cuenta">-</strong> | <span class="font-monospace" id="resumen-referencia">-</span>
+                                </div>
+                                <div id="resumen-fecha-transf-box">
+                                    <span class="text-muted">F. Transf:</span>
+                                    <strong class="text-primary ms-1" id="resumen-fecha-transf">-</strong>
+                                </div>
+                            </div>
                         </div>
 
                         <div id="resumen-comentario-fila" class="mt-2 pt-2 border-top small" style="display: none;">
@@ -509,7 +523,12 @@
                             <tbody>
                                 @forelse ($todosAbonos as $abono)
                                     <tr>
-                                        <td>{{ \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y')}}</td>
+                                        <td>
+                                            <span class="fw-bold">{{ \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y')}}</span>
+                                            @if($abono->fecha_transferencia)
+                                                <br><small class="badge bg-light text-primary border" title="Fecha en que se realizó la transferencia"><i class="fas fa-calendar-alt me-1"></i>Transf: {{ \Carbon\Carbon::parse($abono->fecha_transferencia)->format('d/m/Y') }}</small>
+                                            @endif
+                                        </td>
                                         <td>
                                             @if($abono->venta && $abono->venta->lotes)
                                                 <span class="badge bg-secondary text-white">
@@ -935,6 +954,10 @@
         if (metodoVal !== 'Efectivo') {
             document.getElementById('resumen-cuenta').textContent = cuentaVal;
             document.getElementById('resumen-referencia').textContent = refVal;
+            var fechaTransfVal = document.getElementById('fecha_transferencia') ? document.getElementById('fecha_transferencia').value : '';
+            if (document.getElementById('resumen-fecha-transf')) {
+                document.getElementById('resumen-fecha-transf').textContent = fechaTransfVal || fechaVal;
+            }
             filaBanco.style.display = 'block';
         } else {
             filaBanco.style.display = 'none';

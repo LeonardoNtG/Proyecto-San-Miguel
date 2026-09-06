@@ -76,6 +76,12 @@ try {
                 });
                 $columnFixes[] = "✔ Agregada columna 'comentario' a la tabla 'abonos'.";
             }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'fecha_transferencia')) {
+                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->date('fecha_transferencia')->nullable()->after('cuenta_destino');
+                });
+                $columnFixes[] = "✔ Agregada columna 'fecha_transferencia' a la tabla 'abonos'.";
+            }
         }
 
         // 5. Limpiar caché desde Artisan

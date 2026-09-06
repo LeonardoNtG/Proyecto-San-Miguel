@@ -207,6 +207,7 @@ class ReservaController extends Controller
             $abonoInicial = \App\Models\Abono::create([
                 'id_venta' => $venta->id_venta,
                 'fecha_pago' => $request->fecha_ultimo_abono ?? now(),
+                'fecha_transferencia' => $request->fecha_transferencia ?? null,
                 'monto_abonado' => $request->primer_abono,
                 'tipo_pago' => 'Prima/Primer Abono',
                 'metodo_pago' => $request->metodo_pago ?? 'Efectivo',

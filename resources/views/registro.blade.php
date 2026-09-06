@@ -295,7 +295,7 @@
                         </div>
                     </div>
                     
-                    <div class="col-md-5 mb-2" id="div_cuenta_prima" style="display: none;">
+                    <div class="col-md-4 mb-2" id="div_cuenta_prima" style="display: none;">
                         <label for="cuenta_destino_prima" class="form-label font-weight-bold text-secondary">
                             <i class="fas fa-university text-primary me-1"></i> Banco / Cuenta Destino
                         </label>
@@ -315,9 +315,16 @@
                             </button>
                         </div>
                     </div>
+
+                    <div class="col-md-3 mb-2" id="div_fecha_transf_prima" style="display: none;">
+                        <label for="fecha_transferencia_prima" class="form-label font-weight-bold text-secondary">
+                            <i class="fas fa-calendar-alt text-primary me-1"></i> F. de Transferencia
+                        </label>
+                        <input type="date" class="form-control" id="fecha_transferencia_prima" name="fecha_transferencia_prima" value="{{ old('fecha_transferencia_prima', now()->format('Y-m-d')) }}">
+                    </div>
                     
-                    <div class="col-md-3 mb-2" id="div_referencia_prima">
-                        <label for="referencia_prima" class="form-label font-weight-bold text-secondary" id="label_referencia_prima">Referencia / Comprobante</label>
+                    <div class="col-md-2 mb-2" id="div_referencia_prima">
+                        <label for="referencia_prima" class="form-label font-weight-bold text-secondary" id="label_referencia_prima">Referencia</label>
                         <input type="text" class="form-control" id="referencia_prima" name="referencia_prima" placeholder="Registro Inicial de Venta">
                     </div>
                 </div>
@@ -758,19 +765,24 @@ $(document).ready(function() {
         var divMetodo = document.getElementById('div_metodo_pago_prima');
         var divCuenta = document.getElementById('div_cuenta_prima');
         var inputCuenta = document.getElementById('cuenta_destino_prima');
+        var divFechaTransf = document.getElementById('div_fecha_transf_prima');
         var labelRef = document.getElementById('label_referencia_prima');
         var inputRef = document.getElementById('referencia_prima');
         var divRef = document.getElementById('div_referencia_prima');
 
         if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario') {
-            if (divMetodo) divMetodo.className = 'col-md-4 mb-2';
+            if (divMetodo) divMetodo.className = 'col-md-3 mb-2';
             if (divCuenta) {
                 divCuenta.style.display = 'block';
-                divCuenta.className = 'col-md-5 mb-2';
+                divCuenta.className = 'col-md-4 mb-2';
+            }
+            if (divFechaTransf) {
+                divFechaTransf.style.display = 'block';
+                divFechaTransf.className = 'col-md-3 mb-2';
             }
             if (inputCuenta) inputCuenta.required = true;
-            if (divRef) divRef.className = 'col-md-3 mb-2';
-            if (labelRef) labelRef.innerText = 'N° de Referencia / Comprobante';
+            if (divRef) divRef.className = 'col-md-2 mb-2';
+            if (labelRef) labelRef.innerText = 'N° Referencia';
             if (inputRef) {
                 inputRef.placeholder = 'N° de transacción';
                 inputRef.required = true;
@@ -778,6 +790,7 @@ $(document).ready(function() {
         } else {
             if (divMetodo) divMetodo.className = 'col-md-6 mb-2';
             if (divCuenta) divCuenta.style.display = 'none';
+            if (divFechaTransf) divFechaTransf.style.display = 'none';
             if (inputCuenta) {
                 inputCuenta.required = false;
                 inputCuenta.value = '';

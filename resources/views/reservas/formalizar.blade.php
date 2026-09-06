@@ -235,7 +235,7 @@
                     <label for="cuenta_destino" class="form-label font-weight-bold text-secondary">
                         <i class="fas fa-university text-primary me-1"></i> Banco / Cuenta Destino
                     </label>
-                    <div class="input-group">
+                    <div class="input-group flex-nowrap">
                         <select class="form-select" id="cuenta_destino" name="cuenta_destino">
                             <option value="">-- Seleccione Cuenta Destino --</option>
                             @if(isset($cuentasBancarias) && $cuentasBancarias->isNotEmpty())
@@ -246,10 +246,16 @@
                                 @endforeach
                             @endif
                         </select>
-                        <button type="button" class="btn btn-primary" id="btn_abrir_modal_cuenta" data-bs-toggle="modal" data-bs-target="#modalNuevaCuenta" title="Agregar Nueva Cuenta Bancaria">
+                        <button type="button" class="btn btn-primary px-3" id="btn_abrir_modal_cuenta" data-bs-toggle="modal" data-bs-target="#modalNuevaCuenta" title="Agregar Nueva Cuenta Bancaria" style="flex-shrink: 0;">
                             <i class="fas fa-plus"></i>
                         </button>
                     </div>
+                </div>
+                <div class="col-md-3 mb-3" id="div_fecha_transf" style="display: none;">
+                    <label for="fecha_transferencia" class="form-label font-weight-bold text-secondary">
+                        <i class="fas fa-calendar-alt text-primary me-1"></i> F. de Transferencia
+                    </label>
+                    <input type="date" class="form-control" id="fecha_transferencia" name="fecha_transferencia" value="{{ old('fecha_transferencia', date('Y-m-d')) }}">
                 </div>
                 <div class="col-md-3 mb-3" id="div_referencia">
                     <label for="referencia" class="form-label font-weight-bold text-secondary" id="label_referencia">Referencia / Comentarios</label>
@@ -614,8 +620,36 @@ $(document).ready(function() {
         formFormalizar.submit();
     });
 
-    // Inicializar cálculos
+    function toggleMetodoFields() {
+        var checkedRadio = document.querySelector('input[name="metodo_pago"]:checked');
+        var metodo = checkedRadio ? checkedRadio.value : 'Efectivo';
+        var divCuenta = document.getElementById('div_cuenta');
+        var inputCuenta = document.getElementById('cuenta_destino');
+        var divFechaTransf = document.getElementById('div_fecha_transf');
+        var labelRef = document.getElementById('label_referencia');
+        var inputRef = document.getElementById('referencia');
+
+        if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario') {
+            if (divCuenta) divCuenta.style.display = 'block';
+            if (divFechaTransf) divFechaTransf.style.display = 'block';
+            if (inputCuenta) inputCuenta.required = true;
+            if (labelRef) labelRef.innerText = 'N° Referencia / Comprobante';
+            if (inputRef) inputRef.required = true;
+        } else {
+            if (divCuenta) divCuenta.style.display = 'none';
+            if (divFechaTransf) divFechaTransf.style.display = 'none';
+            if (inputCuenta) {
+                inputCuenta.required = false;
+                inputCuenta.value = '';
+            }
+            if (labelRef) labelRef.innerText = 'Referencia / Comentarios';
+            if (inputRef) inputRef.required = false;
+        }
+    }
+
+    // Inicializar cálculos y campos de pago
     recalcularTotalesLotes();
+    toggleMetodoFields();
 
     // Manejo AJAX para creación rápida de cuenta bancaria
     var formNuevaCuenta = document.getElementById('formNuevaCuentaBancaria');
