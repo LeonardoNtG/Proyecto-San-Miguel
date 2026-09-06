@@ -756,4 +756,140 @@ class AbonoController extends Controller
 
     return 'cantidad demasiado grande';
         }
+
+    /**
+     * Módulo de Auditoría de Recibos y Firmas del Cliente
+     */
+    public function auditoriaRecibos(Request $request)
+    {
+        $estadoFirma = $request->input('estado_firma', 'todos');
+        $search = $request->input('search');
+        $fechaDesde = $request->input('fecha_desde');
+        $fechaHasta = $request->input('fecha_hasta');
+
+        $query = Abono::with([
+            'venta.cliente',
+            'venta.lotes.bloque',
+            'user',
+            'userReciboFirmado'
+        ]);
+
+        if ($estadoFirma === 'firmados') {
+            $query->whereNotNull('recibo_firmado');
+        } elseif ($estadoFirma === 'pendientes') {
+            $query->whereNull('recibo_firmado');
+        }
+
+        if ($fechaDesde) {
+            $query->whereDate('fecha_pago', '>=', $fechaDesde);
+        }
+        if ($fechaHasta) {
+            $query->whereDate('fecha_pago', '<=', $fechaHasta);
+        }
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('numero_recibo', 'like', "%{$search}%")
+                  ->orWhere('id_abono', 'like', "%{$search}%")
+                  ->orWhere('referencia', 'like', "%{$search}%")
+                  ->orWhereHas('venta.cliente', function($cq) use ($search) {
+                      $cq->where('nombres_apellidos', 'like', "%{$search}%")
+                         ->orWhere('expediente_num', 'like', "%{$search}%")
+                         ->orWhere('dni_num', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('venta.lotes', function($lq) use ($search) {
+                      $lq->where('numero_lote', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        // Estadísticas globales
+        $baseQuery = Abono::query();
+        if ($fechaDesde) $baseQuery->whereDate('fecha_pago', '>=', $fechaDesde);
+        if ($fechaHasta) $baseQuery->whereDate('fecha_pago', '<=', $fechaHasta);
+
+        $totalRecibos = (clone $baseQuery)->count();
+        $totalFirmados = (clone $baseQuery)->whereNotNull('recibo_firmado')->count();
+        $totalPendientes = (clone $baseQuery)->whereNull('recibo_firmado')->count();
+        $porcentajeCumplimiento = $totalRecibos > 0 ? round(($totalFirmados / $totalRecibos) * 100, 1) : 100;
+        $montoTotalAuditoria = (clone $baseQuery)->sum('monto_abonado');
+
+        $abonos = $query->orderBy('fecha_pago', 'desc')
+            ->orderBy('id_abono', 'desc')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('abonos.auditoria', compact(
+            'abonos',
+            'estadoFirma',
+            'search',
+            'fechaDesde',
+            'fechaHasta',
+            'totalRecibos',
+            'totalFirmados',
+            'totalPendientes',
+            'porcentajeCumplimiento',
+            'montoTotalAuditoria'
+        ));
+    }
+
+    /**
+     * Subir soporte/archivo del recibo firmado físicamente por el cliente
+     */
+    public function subirReciboFirmado(Request $request, $id)
+    {
+        $request->validate([
+            'recibo_firmado' => 'required|file|mimes:jpeg,png,jpg,pdf,webp|max:15360',
+        ], [
+            'recibo_firmado.required' => 'Debe seleccionar un archivo (imagen o PDF).',
+            'recibo_firmado.mimes' => 'El formato debe ser PDF, JPG, PNG o WEBP.',
+            'recibo_firmado.max' => 'El tamaño del archivo no puede superar los 15MB.'
+        ]);
+
+        $abono = Abono::withoutGlobalScope('lotificacion')->findOrFail($id);
+
+        if ($request->hasFile('recibo_firmado')) {
+            if ($abono->recibo_firmado && Storage::disk('public')->exists($abono->recibo_firmado)) {
+                Storage::disk('public')->delete($abono->recibo_firmado);
+            }
+
+            $rutaArchivo = $request->file('recibo_firmado')->store('recibos_firmados', 'public');
+            
+            $abono->update([
+                'recibo_firmado' => $rutaArchivo,
+                'fecha_recibo_firmado' => now(),
+                'user_recibo_firmado_id' => auth()->id()
+            ]);
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Recibo firmado por el cliente guardado exitosamente para auditoría.',
+                'url' => asset('storage/' . $abono->recibo_firmado)
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Recibo firmado por el cliente guardado exitosamente para auditoría.');
+    }
+
+    /**
+     * Eliminar el recibo firmado (por si se subió un archivo erróneo)
+     */
+    public function eliminarReciboFirmado(Request $request, $id)
+    {
+        $abono = Abono::withoutGlobalScope('lotificacion')->findOrFail($id);
+
+        if ($abono->recibo_firmado && Storage::disk('public')->exists($abono->recibo_firmado)) {
+            Storage::disk('public')->delete($abono->recibo_firmado);
+        }
+
+        $abono->update([
+            'recibo_firmado' => null,
+            'fecha_recibo_firmado' => null,
+            'user_recibo_firmado_id' => null
+        ]);
+
+        return redirect()->back()->with('success', 'Recibo firmado eliminado correctamente.');
+    }
 }

@@ -82,6 +82,24 @@ try {
                 });
                 $columnFixes[] = "✔ Agregada columna 'fecha_transferencia' a la tabla 'abonos'.";
             }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'recibo_firmado')) {
+                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('recibo_firmado')->nullable()->after('ruta_recibo');
+                });
+                $columnFixes[] = "✔ Agregada columna 'recibo_firmado' a la tabla 'abonos'.";
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'fecha_recibo_firmado')) {
+                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->dateTime('fecha_recibo_firmado')->nullable()->after('recibo_firmado');
+                });
+                $columnFixes[] = "✔ Agregada columna 'fecha_recibo_firmado' a la tabla 'abonos'.";
+            }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'user_recibo_firmado_id')) {
+                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->unsignedBigInteger('user_recibo_firmado_id')->nullable()->after('fecha_recibo_firmado');
+                });
+                $columnFixes[] = "✔ Agregada columna 'user_recibo_firmado_id' a la tabla 'abonos'.";
+            }
         }
 
         // 5. Limpiar caché desde Artisan

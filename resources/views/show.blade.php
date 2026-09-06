@@ -274,8 +274,9 @@
                                     <th>Concepto</th>
                                     <th>Método de Pago</th>
                                     <th>Referencia / Banco</th>
+                                    <th class="text-center">Recibo Firmado (Auditoría)</th>
                                     <th class="text-center">Soporte Bancario</th>
-                                    <th class="text-center">Recibo</th>
+                                    <th class="text-center">Recibo Original</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -304,23 +305,37 @@
                                         @endif
                                     </td>
                                     <td class="text-center">
+                                        @if($abono->recibo_firmado)
+                                            <a href="{{ asset('storage/' . $abono->recibo_firmado) }}" target="_blank" class="btn btn-sm btn-success fw-bold py-1 px-2 shadow-sm" title="Ver Recibo Firmado por el Cliente">
+                                                <i class="fas fa-file-signature me-1"></i> Firmado
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-1 ms-1" onclick="abrirModalSubirFirmaShow({{ $abono->id_abono }}, '{{ $abono->numero_recibo_formateado }}', true)" title="Reemplazar archivo de firma">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </button>
+                                        @else
+                                            <button type="button" class="btn btn-sm btn-outline-warning text-dark fw-bold py-1 px-2 shadow-sm" onclick="abrirModalSubirFirmaShow({{ $abono->id_abono }}, '{{ $abono->numero_recibo_formateado }}', false)" title="Subir Recibo Firmado físicamente por el cliente">
+                                                <i class="fas fa-upload me-1 text-primary"></i> Subir Firma
+                                            </button>
+                                        @endif
+                                    </td>
+                                    <td class="text-center">
                                         @if($abono->ruta_recibo)
                                             <a href="{{ asset('storage/' . $abono->ruta_recibo) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver / Descargar Comprobante Bancario">
-                                                <i class="fas fa-paperclip me-1"></i> Ver Comprobante
+                                                <i class="fas fa-paperclip me-1"></i> Minuta
                                             </a>
                                         @else
                                             <span class="text-muted small">Sin adjunto</span>
                                         @endif
                                     </td>
                                     <td class="text-center">
-                                        <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Imprimir Recibo">
+                                        <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Imprimir Recibo Original">
                                             <i class="fas fa-print me-1"></i> Imprimir
                                         </a>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="7" class="text-center py-3 text-muted">No hay abonos registrados.</td>
+                                    <td colspan="8" class="text-center py-3 text-muted">No hay abonos registrados.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -828,7 +843,64 @@
                 }, 400);
             @endif
         });
+
+        function abrirModalSubirFirmaShow(idAbono, numRecibo, esReemplazo) {
+            var formAction = "{{ route('abonos.subir_recibo_firmado', ':id') }}".replace(':id', idAbono);
+            $('#formSubirFirmaShow').attr('action', formAction);
+            $('#modalFirmaNumReciboShow').text(numRecibo);
+            $('#archivo_recibo_firmado_show').val('');
+            if (esReemplazo) {
+                $('#modalFirmaTituloShow').html('<i class="fas fa-sync-alt me-2 text-warning"></i> Reemplazar Recibo Firmado');
+            } else {
+                $('#modalFirmaTituloShow').html('<i class="fas fa-file-signature me-2 text-success"></i> Subir Recibo Firmado por Cliente');
+            }
+            var modal = new bootstrap.Modal(document.getElementById('modalSubirFirmaShow'));
+            modal.show();
+        }
     </script>
+
+    {{-- Modal para Subir Recibo Firmado --}}
+    <div class="modal fade" id="modalSubirFirmaShow" tabindex="-1" aria-labelledby="modalFirmaTituloShow" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content border-success">
+                <form action="" method="POST" enctype="multipart/form-data" id="formSubirFirmaShow">
+                    @csrf
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title fw-bold" id="modalFirmaTituloShow">
+                            <i class="fas fa-file-signature me-2"></i> Subir Recibo Firmado
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info py-2 small mb-3">
+                            <i class="fas fa-info-circle me-1"></i> <strong>Recibo N°: <span id="modalFirmaNumReciboShow" class="fw-bold"></span></strong><br>
+                            Suba el escaneo o fotografía del recibo debidamente firmado y sellado por el cliente para archivo de auditoría.
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="archivo_recibo_firmado_show" class="form-label fw-bold text-dark">
+                                Seleccionar Documento / Imagen: <span class="text-danger">*</span>
+                            </label>
+                            <input type="file" 
+                                   name="archivo_recibo_firmado" 
+                                   id="archivo_recibo_firmado_show" 
+                                   class="form-control" 
+                                   accept=".pdf,.png,.jpg,.jpeg,.webp" 
+                                   required>
+                            <div class="form-text small text-muted">Formatos admitidos: PDF, JPG, PNG, WEBP (Máx. 15MB).</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success fw-bold">
+                            <i class="fas fa-cloud-upload-alt me-1"></i> Guardar para Auditoría
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ asset('js/jqueryEM.js') }}"></script>
     <script src="{{ asset('js/sbAdmin2M.js') }}"></script>
 @endsection

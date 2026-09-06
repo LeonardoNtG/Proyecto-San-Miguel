@@ -29,6 +29,9 @@ class Abono extends Model
         'fecha_transferencia',
         'comentario',
         'ruta_recibo',
+        'recibo_firmado',
+        'fecha_recibo_firmado',
+        'user_recibo_firmado_id',
         'user_id'
     ];
     
@@ -43,6 +46,12 @@ class Abono extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    // Relación: Usuario que subió el recibo firmado
+    public function userReciboFirmado()
+    {
+        return $this->belongsTo(User::class, 'user_recibo_firmado_id');
     }
 
     /**

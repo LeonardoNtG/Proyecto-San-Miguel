@@ -86,6 +86,11 @@ Route::middleware(['auth'])->group(function () {
     Route::get('abonos/{abono_id}/imprimir', [AbonoController::class, 'imprimirRecibo'])->name('abonos.imprimir');
     Route::post('cuotas/{cuota}/exonerar-mora', [CuotaController::class, 'exonerarMora'])->name('cuotas.exonerarMora');
 
+    // Auditoría y Gestión de Recibos Firmados por el Cliente
+    Route::get('recibos-firmados', [AbonoController::class, 'auditoriaRecibos'])->name('abonos.auditoria');
+    Route::post('abonos/{id}/subir-recibo-firmado', [AbonoController::class, 'subirReciboFirmado'])->name('abonos.subir_recibo_firmado');
+    Route::delete('abonos/{id}/eliminar-recibo-firmado', [AbonoController::class, 'eliminarReciboFirmado'])->name('abonos.eliminar_recibo_firmado');
+
     // Módulo de Caja (Arqueo, Apertura, Cierre de Turno y Reporte Diario)
     Route::prefix('reportes')->name('reportes.')->group(function () {
         Route::get('/', [ReporteController::class, 'index'])->name('index');

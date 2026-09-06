@@ -98,6 +98,9 @@
                         <h6 class="collapse-header mt-2">Caja y Reportes:</h6>
                         <a class="collapse-item" href="{{ route('reportes.index') }}">Apertura y Egresos</a>
                         <a class="collapse-item" href="{{ route('reportes.cierre_caja') }}">Reporte Diario</a>
+                        <a class="collapse-item {{ request()->routeIs('abonos.auditoria') ? 'active' : '' }}" href="{{ route('abonos.auditoria') }}">
+                            <i class="fas fa-file-signature text-success me-1"></i> Recibos Firmados
+                        </a>
                     </div>
                 </div>
             </li>
@@ -128,6 +131,7 @@
                         <h6 class="collapse-header text-primary fw-bold mt-2">Cartera y Legal:</h6>
                         <a class="collapse-item" href="{{ route('reportes.cartera_clientes') }}"><i class="fas fa-users me-1"></i> Cartera y Abonos</a>
                         <a class="collapse-item" href="{{ route('reportes.datos_legales') }}"><i class="fas fa-file-contract text-primary me-1"></i> Fichas Legales / PV</a>
+                        <a class="collapse-item {{ request()->routeIs('abonos.auditoria') ? 'active' : '' }}" href="{{ route('abonos.auditoria') }}"><i class="fas fa-file-signature text-success me-1"></i> Auditoría Recibos Firmados</a>
                         <a class="collapse-item" href="{{ route('reportes.morosidad') }}"><i class="fas fa-exclamation-triangle text-danger me-1"></i> Morosidad y Atrasos</a>
 
                         <h6 class="collapse-header text-primary fw-bold mt-2">Inventario:</h6>
