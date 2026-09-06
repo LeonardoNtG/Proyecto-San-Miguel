@@ -116,7 +116,7 @@
                                 <div class="p-2 rounded border {{ $esActual ? 'border-primary bg-primary text-white shadow-sm' : 'border-secondary-subtle bg-light text-dark' }}">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <strong class="fs-6">{{ $nombreLotes ?: 'Contrato #'.$v->id_venta }}</strong>
-                                        <span class="badge {{ $esActual ? 'bg-light text-primary' : 'bg-success' }}">{{ $v->estado_contrato }}</span>
+                                        <span class="badge {{ $esActual ? ($v->estado_contrato === 'Rescindido' ? 'bg-danger text-white' : 'bg-light text-primary') : ($v->estado_contrato === 'Rescindido' ? 'bg-danger' : 'bg-success') }}">{{ $v->estado_contrato }}</span>
                                     </div>
                                     @if($v->beneficiario_final)
                                         <div class="small {{ $esActual ? 'text-white-50' : 'text-muted' }} mt-1">
@@ -147,7 +147,7 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <div class="info-label">Estado</div>
-                            <span class="badge bg-success status-badge">{{ $venta->estado_contrato }}</span>
+                            <span class="badge {{ $venta->estado_contrato === 'Rescindido' ? 'bg-danger' : 'bg-success' }} status-badge">{{ $venta->estado_contrato }}</span>
                         </div>
                         <div class="mb-3">
                             <div class="info-label">Lotes Adquiridos</div>
@@ -178,12 +178,14 @@
                             </div>
                         </div>
                         
+                        @if($venta->estado_contrato !== 'Rescindido')
                         <hr>
                         <div class="d-grid gap-2">
                             <button class="btn btn-outline-primary" onclick="alert('Funcionalidad de Promesa de Venta en PDF próximamente')">
                                 <i class="fas fa-file-pdf"></i> Descargar Promesa de Venta
                             </button>
                         </div>
+                        @endif
                     </div>
                 </div>
             </div>
@@ -191,6 +193,28 @@
             <!-- Tablas y Detalles -->
             <div class="col-lg-8">
                 
+                @if($venta->estado_contrato === 'Rescindido')
+                <!-- Aviso de Contrato Rescindido -->
+                <div class="card card-custom border-0 shadow-sm">
+                    <div class="card-body p-5 text-center">
+                        <div class="mb-3">
+                            <i class="fas fa-ban fa-4x text-danger opacity-75"></i>
+                        </div>
+                        <h4 class="fw-bold text-danger mb-2">Contrato Rescindido</h4>
+                        <p class="text-muted fs-6 mb-4">
+                            Este contrato se encuentra actualmente en estado <strong>Rescindido</strong>.
+                        </p>
+                        <div class="alert alert-secondary text-start p-3 px-4 rounded-3 d-inline-block border-0 shadow-sm">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-info-circle text-primary fs-4 me-3"></i>
+                                <span class="small text-muted">
+                                    El plan de cuotas y pagos no está disponible debido a la rescisión o cancelación del contrato. Para más detalles o aclaraciones, por favor contacta a la administración de <strong>Proyecto San Miguel</strong>.
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @else
                 <!-- Plan de Pagos -->
                 <div class="card card-custom">
                     <div class="card-custom-header d-flex justify-content-between align-items-center">
@@ -265,6 +289,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
 
             </div>
         </div>
