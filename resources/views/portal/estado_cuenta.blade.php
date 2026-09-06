@@ -215,79 +215,174 @@
                     </div>
                 </div>
                 @else
-                <!-- Plan de Pagos -->
-                <div class="card card-custom">
-                    <div class="card-custom-header d-flex justify-content-between align-items-center">
-                        <div><i class="fas fa-calendar-alt me-1"></i> Plan Completo de Cuotas y Pagos</div>
-                        <span class="badge bg-primary">{{ $venta->cuotas->count() }} Cuotas</span>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
-                            <table class="table table-hover mb-0">
-                                <thead class="table-light sticky-top">
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Vencimiento</th>
-                                        <th>Monto Cuota</th>
-                                        <th>Monto Abonado</th>
-                                        <th>Saldo Total</th>
-                                        <th>Mora</th>
-                                        <th>Estado</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @php
-                                        // El saldo total inicial a amortizar
-                                        $saldoDecreciente = (float) $venta->precio_final;
-                                        if (isset($venta->prima) && $venta->prima > 0) {
-                                            $saldoDecreciente = (float) $venta->precio_final - (float)$venta->prima;
-                                        }
-                                    @endphp
-                                    @forelse($venta->cuotas as $cuota)
-                                    @php
-                                        $saldoDecreciente = max(0, $saldoDecreciente - (float)$cuota->monto_total);
-                                        $estaPagada = ($cuota->estado === 'Pagada');
-                                    @endphp
-                                    <tr>
-                                        <td class="fw-bold">{{ $cuota->numero_cuota }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
-                                        <td>${{ number_format($cuota->monto_total, 2) }}</td>
-                                        <td>
-                                            @if($estaPagada)
-                                                <span class="text-success fw-bold">${{ number_format($cuota->monto_total, 2) }}</span>
-                                            @else
-                                                <span class="text-muted">$0.00</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            <span class="fw-bold text-dark">${{ number_format($saldoDecreciente, 2) }}</span>
-                                        </td>
-                                        <td>
-                                            @if($cuota->mora_pendiente > 0)
-                                                <span class="text-danger fw-bold">${{ number_format($cuota->mora_pendiente, 2) }}</span>
-                                            @else
-                                                <span class="text-muted">$0.00</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if($estaPagada)
-                                                <span class="badge bg-success">Pagada</span>
-                                            @elseif($cuota->estado === 'Mora')
-                                                <span class="badge bg-danger">En Mora</span>
-                                            @else
-                                                <span class="badge bg-warning text-dark">Pendiente</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                    @empty
-                                    <tr>
-                                        <td colspan="7" class="text-center py-4 text-muted">No hay cuotas generadas para esta venta.</td>
-                                    </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
+                
+                <!-- Pestañas de Navegación: Pagos Realizados vs Plan de Cuotas -->
+                <ul class="nav nav-pills mb-3 p-1 bg-white rounded-3 shadow-sm border" id="pills-tab" role="tablist">
+                    <li class="nav-item flex-fill" role="presentation">
+                        <button class="nav-link active w-100 fw-bold py-2" id="pills-abonos-tab" data-bs-toggle="pill" data-bs-target="#pills-abonos" type="button" role="tab" aria-controls="pills-abonos" aria-selected="true">
+                            <i class="fas fa-receipt me-1 text-success"></i> Tus Pagos Realizados ({{ $venta->abonos->count() }})
+                        </button>
+                    </li>
+                    <li class="nav-item flex-fill" role="presentation">
+                        <button class="nav-link w-100 fw-bold py-2" id="pills-cuotas-tab" data-bs-toggle="pill" data-bs-target="#pills-cuotas" type="button" role="tab" aria-controls="pills-cuotas" aria-selected="false">
+                            <i class="fas fa-calendar-alt me-1 text-primary"></i> Plan de Cuotas ({{ $venta->cuotas->count() }})
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="pills-tabContent">
+                    
+                    <!-- PESTAÑA 1: HISTORIAL DE PAGOS / ABONOS REALIZADOS -->
+                    <div class="tab-pane fade show active" id="pills-abonos" role="tabpanel" aria-labelledby="pills-abonos-tab">
+                        <div class="card card-custom">
+                            <div class="card-custom-header d-flex justify-content-between align-items-center">
+                                <div><i class="fas fa-receipt text-success me-1"></i> Historial de Pagos y Abonos Registrados</div>
+                                <span class="badge bg-success">{{ $venta->abonos->count() }} Transacciones</span>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>N° Recibo / Fechas</th>
+                                                <th>Concepto</th>
+                                                <th>Método / Ref.</th>
+                                                <th class="text-end">Monto Abonado</th>
+                                                <th class="text-center">Recibo</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @forelse($venta->abonos as $abono)
+                                            <tr>
+                                                <td>
+                                                    <strong class="text-dark d-block">Recibo #{{ $abono->numero_recibo ?? $abono->id_abono }}</strong>
+                                                    <small class="text-muted d-block" title="Fecha en que se registró el abono en el sistema">
+                                                        <i class="fas fa-calendar-check text-secondary me-1"></i>Fecha Pago: {{ \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') }}
+                                                    </small>
+                                                    @if($abono->fecha_transferencia)
+                                                        <small class="badge bg-primary-subtle text-primary border border-primary-subtle d-inline-block mt-1" title="Fecha real en que hiciste la transferencia bancaria">
+                                                            <i class="fas fa-university me-1"></i>Transf: {{ \Carbon\Carbon::parse($abono->fecha_transferencia)->format('d/m/Y') }}
+                                                        </small>
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-info text-dark">{{ $abono->tipo_pago }}</span>
+                                                </td>
+                                                <td>
+                                                    <span class="fw-semibold text-dark d-block">{{ $abono->metodo_pago ?? 'Efectivo' }}</span>
+                                                    @if($abono->referencia)
+                                                        <div class="small font-monospace text-muted">Ref: {{ $abono->referencia }}</div>
+                                                    @endif
+                                                    @if($abono->cuenta_destino)
+                                                        <div class="small text-muted"><i class="fas fa-university me-1"></i>{{ $abono->cuenta_destino }}</div>
+                                                    @endif
+                                                    @if($abono->comentario)
+                                                        <div class="small text-muted fst-italic">"{{ $abono->comentario }}"</div>
+                                                    @endif
+                                                </td>
+                                                <td class="text-end">
+                                                    <span class="fw-bold text-success fs-5">+${{ number_format($abono->monto_abonado, 2) }}</span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <a href="{{ route('portal.recibo.imprimir', [$cliente->token_seguimiento, $abono->id_abono]) }}" target="_blank" class="btn btn-sm btn-outline-primary shadow-sm" title="Descargar / Imprimir Recibo Oficial">
+                                                        <i class="fas fa-print me-1"></i> Recibo
+                                                    </a>
+                                                    @if($abono->ruta_recibo)
+                                                        <a href="{{ asset('storage/' . $abono->ruta_recibo) }}" target="_blank" class="btn btn-sm btn-outline-secondary shadow-sm ms-1" title="Ver Comprobante Adjunto">
+                                                            <i class="fas fa-paperclip"></i>
+                                                        </a>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                            @empty
+                                            <tr>
+                                                <td colspan="5" class="text-center py-4 text-muted">No se registran abonos para este contrato.</td>
+                                            </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
                     </div>
+
+                    <!-- PESTAÑA 2: PLAN COMPLETO DE CUOTAS -->
+                    <div class="tab-pane fade" id="pills-cuotas" role="tabpanel" aria-labelledby="pills-cuotas-tab">
+                        <div class="card card-custom">
+                            <div class="card-custom-header d-flex justify-content-between align-items-center">
+                                <div><i class="fas fa-calendar-alt me-1"></i> Plan Completo de Cuotas y Financiamiento</div>
+                                <span class="badge bg-primary">{{ $venta->cuotas->count() }} Cuotas</span>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+                                    <table class="table table-hover mb-0">
+                                        <thead class="table-light sticky-top">
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Vencimiento</th>
+                                                <th>Monto Cuota</th>
+                                                <th>Monto Abonado</th>
+                                                <th>Saldo Total</th>
+                                                <th>Mora</th>
+                                                <th>Estado</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @php
+                                                // El saldo total inicial a amortizar
+                                                $saldoDecreciente = (float) $venta->precio_final;
+                                                if (isset($venta->prima) && $venta->prima > 0) {
+                                                    $saldoDecreciente = (float) $venta->precio_final - (float)$venta->prima;
+                                                }
+                                            @endphp
+                                            @forelse($venta->cuotas as $cuota)
+                                            @php
+                                                $saldoDecreciente = max(0, $saldoDecreciente - (float)$cuota->monto_total);
+                                                $estaPagada = ($cuota->estado === 'Pagada');
+                                            @endphp
+                                            <tr>
+                                                <td class="fw-bold">{{ $cuota->numero_cuota }}</td>
+                                                <td>{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
+                                                <td>${{ number_format($cuota->monto_total, 2) }}</td>
+                                                <td>
+                                                    @if($estaPagada)
+                                                        <span class="text-success fw-bold">${{ number_format($cuota->monto_total, 2) }}</span>
+                                                    @else
+                                                        <span class="text-muted">$0.00</span>
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    <span class="fw-bold text-dark">${{ number_format($saldoDecreciente, 2) }}</span>
+                                                </td>
+                                                <td>
+                                                    @if($cuota->mora_pendiente > 0)
+                                                        <span class="text-danger fw-bold">${{ number_format($cuota->mora_pendiente, 2) }}</span>
+                                                    @else
+                                                        <span class="text-muted">$0.00</span>
+                                                    @endif
+                                                </td>
+                                                <td>
+                                                    @if($estaPagada)
+                                                        <span class="badge bg-success">Pagada</span>
+                                                    @elseif($cuota->estado === 'Mora')
+                                                        <span class="badge bg-danger">En Mora</span>
+                                                    @else
+                                                        <span class="badge bg-warning text-dark">Pendiente</span>
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                            @empty
+                                            <tr>
+                                                <td colspan="7" class="text-center py-4 text-muted">No hay cuotas generadas para esta venta.</td>
+                                            </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
                 @endif
 

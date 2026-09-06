@@ -38,6 +38,9 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::get('/mi-estado/{token}', [PortalClienteController::class, 'show'])
     ->name('portal.estado_cuenta')
     ->middleware('throttle:30,1');
+Route::get('/mi-estado/{token}/recibo/{abono_id}', [PortalClienteController::class, 'imprimirRecibo'])
+    ->name('portal.recibo.imprimir')
+    ->middleware('throttle:30,1');
 
 // =========================================================================
 // RUTAS AUTENTICADAS

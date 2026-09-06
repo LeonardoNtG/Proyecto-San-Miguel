@@ -41,4 +41,20 @@ class PortalClienteController extends Controller
 
         return view('portal.estado_cuenta', compact('cliente', 'venta', 'ventas'));
     }
+
+    public function imprimirRecibo(Request $request, $token, $abonoId)
+    {
+        $cliente = \App\Models\Cliente::withoutGlobalScope('lotificacion')
+            ->where('token_seguimiento', $token)
+            ->firstOrFail();
+
+        $abono = \App\Models\Abono::withoutGlobalScope('lotificacion')
+            ->whereHas('venta', function($q) use ($cliente) {
+                $q->withoutGlobalScope('lotificacion')->where('id_cliente', $cliente->id_cliente);
+            })
+            ->where('id_abono', $abonoId)
+            ->firstOrFail();
+
+        return app(\App\Http\Controllers\AbonoController::class)->imprimirRecibo($abono->id_abono);
+    }
 }
