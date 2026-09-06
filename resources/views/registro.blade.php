@@ -271,57 +271,64 @@
             </div>
 
             <!-- Datos de pago de la Prima con Selector Rápido de 1 Clic -->
-            <div class="row g-3 bg-white p-3 mb-3 rounded border shadow-sm">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label font-weight-bold text-secondary d-block">
-                        <i class="fas fa-wallet text-primary me-1"></i> Método de Pago (Prima) <span class="text-danger">*</span>
-                    </label>
-                    <div class="btn-group w-100 d-flex flex-wrap shadow-sm" role="group" id="group_metodo_pago_prima">
-                        <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_efectivo" value="Efectivo" autocomplete="off" {{ old('metodo_pago_prima', 'Efectivo') == 'Efectivo' ? 'checked' : '' }} onchange="togglePrimaFields()">
-                        <label class="btn btn-outline-success py-2 fw-bold flex-fill" for="metodo_prima_efectivo">
-                            <i class="fas fa-money-bill-wave me-1"></i> Efectivo
+            <div class="bg-white p-3 mb-3 rounded border shadow-sm">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4 mb-2" id="div_metodo_pago_prima">
+                        <label class="form-label font-weight-bold text-secondary d-block">
+                            <i class="fas fa-wallet text-primary me-1"></i> Método de Pago (Prima) <span class="text-danger">*</span>
                         </label>
+                        <div class="btn-group w-100 d-flex flex-wrap shadow-sm" role="group" id="group_metodo_pago_prima">
+                            <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_efectivo" value="Efectivo" autocomplete="off" {{ old('metodo_pago_prima', 'Efectivo') == 'Efectivo' ? 'checked' : '' }} onchange="togglePrimaFields()">
+                            <label class="btn btn-outline-success py-2 fw-bold flex-fill" for="metodo_prima_efectivo">
+                                <i class="fas fa-money-bill-wave me-1"></i> Efectivo
+                            </label>
 
-                        <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_transferencia" value="Transferencia Bancaria" autocomplete="off" {{ old('metodo_pago_prima') == 'Transferencia Bancaria' ? 'checked' : '' }} onchange="togglePrimaFields()">
-                        <label class="btn btn-outline-primary py-2 fw-bold flex-fill" for="metodo_prima_transferencia">
-                            <i class="fas fa-exchange-alt me-1"></i> Transferencia
-                        </label>
+                            <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_transferencia" value="Transferencia Bancaria" autocomplete="off" {{ old('metodo_pago_prima') == 'Transferencia Bancaria' ? 'checked' : '' }} onchange="togglePrimaFields()">
+                            <label class="btn btn-outline-primary py-2 fw-bold flex-fill" for="metodo_prima_transferencia">
+                                <i class="fas fa-exchange-alt me-1"></i> Transf.
+                            </label>
 
-                        <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_deposito" value="Depósito Bancario" autocomplete="off" {{ old('metodo_pago_prima') == 'Depósito Bancario' ? 'checked' : '' }} onchange="togglePrimaFields()">
-                        <label class="btn btn-outline-info py-2 fw-bold flex-fill" for="metodo_prima_deposito">
-                            <i class="fas fa-university me-1"></i> Depósito
+                            <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_deposito" value="Depósito Bancario" autocomplete="off" {{ old('metodo_pago_prima') == 'Depósito Bancario' ? 'checked' : '' }} onchange="togglePrimaFields()">
+                            <label class="btn btn-outline-info py-2 fw-bold flex-fill" for="metodo_prima_deposito">
+                                <i class="fas fa-university me-1"></i> Depósito
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-5 mb-2" id="div_cuenta_prima" style="display: none;">
+                        <label for="cuenta_destino_prima" class="form-label font-weight-bold text-secondary">
+                            <i class="fas fa-university text-primary me-1"></i> Banco / Cuenta Destino
                         </label>
+                        <div class="input-group flex-nowrap">
+                            <select class="form-select" id="cuenta_destino_prima" name="cuenta_destino_prima">
+                                <option value="">-- Seleccione Cuenta Destino --</option>
+                                @if(isset($cuentasBancarias) && $cuentasBancarias->isNotEmpty())
+                                    @foreach($cuentasBancarias as $cta)
+                                        <option value="{{ $cta->texto_completo }}" {{ old('cuenta_destino_prima') == $cta->texto_completo ? 'selected' : '' }}>
+                                            {{ $cta->texto_completo }}
+                                        </option>
+                                    @endforeach
+                                @endif
+                            </select>
+                            <button type="button" class="btn btn-primary px-3" id="btn_abrir_modal_cuenta_prima" data-bs-toggle="modal" data-bs-target="#modalNuevaCuenta" title="Agregar Nueva Cuenta Bancaria" style="flex-shrink: 0;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-3 mb-2" id="div_referencia_prima">
+                        <label for="referencia_prima" class="form-label font-weight-bold text-secondary" id="label_referencia_prima">Referencia / Comprobante</label>
+                        <input type="text" class="form-control" id="referencia_prima" name="referencia_prima" placeholder="Registro Inicial de Venta">
                     </div>
                 </div>
-                <div class="col-md-3 mb-3" id="div_cuenta_prima" style="display: none;">
-                    <label for="cuenta_destino_prima" class="form-label font-weight-bold text-secondary">
-                        <i class="fas fa-university text-primary me-1"></i> Banco / Cuenta Destino
-                    </label>
-                    <div class="input-group flex-nowrap">
-                        <select class="form-select" id="cuenta_destino_prima" name="cuenta_destino_prima">
-                            <option value="">-- Seleccione Cuenta Destino --</option>
-                            @if(isset($cuentasBancarias) && $cuentasBancarias->isNotEmpty())
-                                @foreach($cuentasBancarias as $cta)
-                                    <option value="{{ $cta->texto_completo }}" {{ old('cuenta_destino_prima') == $cta->texto_completo ? 'selected' : '' }}>
-                                        {{ $cta->texto_completo }}
-                                    </option>
-                                @endforeach
-                            @endif
-                        </select>
-                        <button type="button" class="btn btn-primary" id="btn_abrir_modal_cuenta_prima" data-bs-toggle="modal" data-bs-target="#modalNuevaCuenta" title="Agregar Nueva Cuenta Bancaria">
-                            <i class="fas fa-plus"></i>
-                        </button>
+                
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <label for="comentario_prima" class="form-label font-weight-bold text-secondary">
+                            <i class="fas fa-comment-dots text-primary me-1"></i> Comentarios / Observaciones <span class="text-muted fw-normal">(Opcional)</span>
+                        </label>
+                        <textarea class="form-control" id="comentario_prima" name="comentario_prima" rows="2" placeholder="Notas u observaciones sobre el registro y pago inicial (opcional)">{{ old('comentario_prima') }}</textarea>
                     </div>
-                </div>
-                <div class="col-md-3 mb-3" id="div_referencia_prima">
-                    <label for="referencia_prima" class="form-label font-weight-bold text-secondary" id="label_referencia_prima">Comentarios / Referencia</label>
-                    <input type="text" class="form-control" id="referencia_prima" name="referencia_prima" placeholder="Registro Inicial de Venta">
-                </div>
-                <div class="col-12 mb-2">
-                    <label for="comentario_prima" class="form-label font-weight-bold text-secondary">
-                        <i class="fas fa-comment-dots text-primary me-1"></i> Comentarios / Observaciones <span class="text-muted fw-normal">(Opcional)</span>
-                    </label>
-                    <textarea class="form-control" id="comentario_prima" name="comentario_prima" rows="2" placeholder="Notas u observaciones sobre el registro y pago inicial (opcional)">{{ old('comentario_prima') }}</textarea>
                 </div>
             </div>
 
@@ -748,6 +755,7 @@ $(document).ready(function() {
     function togglePrimaFields() {
         var checkedRadio = document.querySelector('input[name="metodo_pago_prima"]:checked');
         var metodo = checkedRadio ? checkedRadio.value : (document.getElementById('metodo_pago_prima') ? document.getElementById('metodo_pago_prima').value : 'Efectivo');
+        var divMetodo = document.getElementById('div_metodo_pago_prima');
         var divCuenta = document.getElementById('div_cuenta_prima');
         var inputCuenta = document.getElementById('cuenta_destino_prima');
         var labelRef = document.getElementById('label_referencia_prima');
@@ -755,21 +763,26 @@ $(document).ready(function() {
         var divRef = document.getElementById('div_referencia_prima');
 
         if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario') {
-            if (divCuenta) divCuenta.style.display = 'block';
+            if (divMetodo) divMetodo.className = 'col-md-4 mb-2';
+            if (divCuenta) {
+                divCuenta.style.display = 'block';
+                divCuenta.className = 'col-md-5 mb-2';
+            }
             if (inputCuenta) inputCuenta.required = true;
-            if (divRef) divRef.className = 'col-md-3 mb-3';
+            if (divRef) divRef.className = 'col-md-3 mb-2';
             if (labelRef) labelRef.innerText = 'N° de Referencia / Comprobante';
             if (inputRef) {
                 inputRef.placeholder = 'N° de transacción';
                 inputRef.required = true;
             }
         } else {
+            if (divMetodo) divMetodo.className = 'col-md-6 mb-2';
             if (divCuenta) divCuenta.style.display = 'none';
             if (inputCuenta) {
                 inputCuenta.required = false;
                 inputCuenta.value = '';
             }
-            if (divRef) divRef.className = 'col-md-6 mb-3';
+            if (divRef) divRef.className = 'col-md-6 mb-2';
             if (labelRef) labelRef.innerText = 'Comentarios / Referencia';
             if (inputRef) {
                 inputRef.placeholder = 'Registro Inicial de Venta';
