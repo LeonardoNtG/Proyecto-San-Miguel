@@ -62,8 +62,16 @@
                                 });
                             @endphp
                             <tr>
-                                <td>{{ $cliente->expediente_num }}</td>
-                                <td>{{ $cliente->nombres_apellidos }}</td>
+                                <td>
+                                    <a href="{{ route('registro.show', $cliente->id_cliente) }}" class="fw-bold text-primary" title="Ver expediente">
+                                        {{ $cliente->expediente_num }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <a href="{{ route('registro.show', $cliente->id_cliente) }}" class="fw-bold text-dark text-decoration-none" title="Ver expediente y recibos">
+                                        {{ $cliente->nombres_apellidos }}
+                                    </a>
+                                </td>
                                 <td>
                                     @if($todosLotes->count() > 0)
                                         @foreach($todosLotes as $lote)
@@ -89,16 +97,21 @@
                                     <span class="text-danger fw-bold">${{ number_format($saldoTotal, 2) }}</span>
                                 </td>
                                 <td class="text-center">
-                                    @if($cliente->token_seguimiento)
-                                        <button type="button" class="btn btn-sm btn-info text-white" onclick="navigator.clipboard.writeText('{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}'); alert('¡Enlace del portal copiado al portapapeles!');" title="Copiar Link">
-                                            <i class="fas fa-copy"></i> Copiar Link
-                                        </button>
-                                        <a href="{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}" target="_blank" class="btn btn-sm btn-secondary" title="Abrir Portal">
-                                            <i class="fas fa-external-link-alt"></i> Ver Portal
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ route('registro.show', $cliente->id_cliente) }}" class="btn btn-outline-success" title="Ver expediente y Recibos Firmados">
+                                            <i class="fas fa-file-signature"></i> Recibos
                                         </a>
-                                    @else
-                                        <span class="badge badge-warning">Sin Token</span>
-                                    @endif
+                                        @if($cliente->token_seguimiento)
+                                            <button type="button" class="btn btn-info text-white" onclick="navigator.clipboard.writeText('{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}'); alert('¡Enlace del portal copiado al portapapeles!');" title="Copiar Link Portal">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                            <a href="{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}" target="_blank" class="btn btn-secondary" title="Abrir Portal">
+                                                <i class="fas fa-external-link-alt"></i>
+                                            </a>
+                                        @else
+                                            <span class="badge badge-warning">Sin Token</span>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty

@@ -131,11 +131,7 @@
                         <h6 class="collapse-header text-primary fw-bold mt-2">Cartera y Legal:</h6>
                         <a class="collapse-item" href="{{ route('reportes.cartera_clientes') }}"><i class="fas fa-users me-1"></i> Cartera y Abonos</a>
                         <a class="collapse-item" href="{{ route('reportes.datos_legales') }}"><i class="fas fa-file-contract text-primary me-1"></i> Fichas Legales / PV</a>
-                        <a class="collapse-item {{ request()->routeIs('abonos.auditoria') ? 'active' : '' }}" href="{{ route('abonos.auditoria') }}"><i class="fas fa-file-signature text-success me-1"></i> Auditoría Recibos Firmados</a>
                         <a class="collapse-item" href="{{ route('reportes.morosidad') }}"><i class="fas fa-exclamation-triangle text-danger me-1"></i> Morosidad y Atrasos</a>
-
-                        <h6 class="collapse-header text-primary fw-bold mt-2">Inventario:</h6>
-                        <a class="collapse-item" href="{{ route('reportes.inventario_lotes') }}"><i class="fas fa-boxes me-1"></i> Inventario de Lotes</a>
                     </div>
                 </div>
             </li>
@@ -153,6 +149,9 @@
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">Inventario:</h6>
                         <a class="collapse-item" href="{{ route('bloques.index') }}">Bloques y Lotes</a>
+                        <a class="collapse-item {{ request()->routeIs('reportes.inventario_lotes') ? 'active' : '' }}" href="{{ route('reportes.inventario_lotes') }}">
+                            <i class="fas fa-boxes me-1 text-primary"></i> Inventario de Lotes
+                        </a>
                         <a class="collapse-item" href="{{ route('lotificaciones.index') }}">Datos de Proyectos</a>
                     </div>
                 </div>

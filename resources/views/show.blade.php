@@ -45,6 +45,10 @@
                 <i class="fas fa-edit"></i> Editar Cliente
                 </a>
                 
+                <a href="{{ route('abonos.auditoria', ['search' => $cliente->expediente_num]) }}" class="btn btn-outline-success" title="Ver todos los recibos firmados de este cliente">
+                    <i class="fas fa-file-signature"></i> Recibos Firmados
+                </a>
+                
                 @if($cliente->token_seguimiento)
                 <a href="{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}" target="_blank" class="btn btn-primary" title="Abrir portal del cliente">
                     <i class="fas fa-external-link-alt"></i> Portal
@@ -274,7 +278,7 @@
                                     <th>Concepto</th>
                                     <th>Método de Pago</th>
                                     <th>Referencia / Banco</th>
-                                    <th class="text-center">Recibo Firmado (Auditoría)</th>
+                                    <th class="text-center">Recibo Firmado</th>
                                     <th class="text-center">Soporte Bancario</th>
                                     <th class="text-center">Recibo Original</th>
                                 </tr>

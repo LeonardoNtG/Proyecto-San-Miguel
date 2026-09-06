@@ -1,6 +1,6 @@
 @extends('template')
 
-@section('titulo', 'Auditoría de Recibos Firmados')
+@section('titulo', 'Recibos Firmados por Clientes')
 
 @section('contenido')
 <div class="container-fluid py-3">
@@ -9,13 +9,16 @@
     <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2 pb-2 border-bottom">
         <div>
             <h3 class="mb-1 text-gray-800 fw-bold">
-                <i class="fas fa-file-signature text-primary me-2"></i> Auditoría de Recibos Firmados
+                <i class="fas fa-file-signature text-success me-2"></i> Recibos Firmados por Clientes
             </h3>
             <p class="text-muted small mb-0">
-                Control y custodia de comprobantes físicos firmados por los clientes para respaldo legal y auditoría contable.
+                Control y custodia de comprobantes físicos firmados por los clientes para respaldo y control de pagos.
             </p>
         </div>
         <div class="d-flex align-items-center gap-2">
+            <a href="{{ route('estados_cuenta') }}" class="btn btn-sm btn-outline-info">
+                <i class="fas fa-file-invoice-dollar me-1"></i> Estados de Cuenta
+            </a>
             <a href="{{ route('registro.index') }}" class="btn btn-sm btn-outline-secondary">
                 <i class="fas fa-users me-1"></i> Expedientes de Clientes
             </a>
@@ -49,7 +52,7 @@
         </div>
     @endif
 
-    {{-- TARJETAS KPI DE AUDITORÍA --}}
+    {{-- TARJETAS KPI --}}
     <div class="row g-3 mb-4">
         {{-- Total Recibos --}}
         <div class="col-xl-3 col-md-6 col-12">
@@ -74,7 +77,7 @@
                     <div>
                         <span class="text-muted text-uppercase fw-bold small" style="font-size: 0.75rem;">Recibos con Firma Subida</span>
                         <h3 class="mb-0 fw-bold text-success mt-1">{{ number_format($totalFirmados) }}</h3>
-                        <small class="text-success fw-bold"><i class="fas fa-check-double me-1"></i>{{ $porcentajeCumplimiento }}% Custodiados</small>
+                        <small class="text-success fw-bold"><i class="fas fa-check-double me-1"></i>{{ $porcentajeCumplimiento }}% Firmados</small>
                     </div>
                     <div class="p-3 bg-success bg-opacity-10 text-success rounded-3 fs-3">
                         <i class="fas fa-file-signature"></i>
@@ -99,15 +102,15 @@
             </div>
         </div>
 
-        {{-- Cumplimiento Auditoría --}}
+        {{-- Porcentaje Firmados --}}
         <div class="col-xl-3 col-md-6 col-12">
-            <div class="card shadow-sm border-0 h-100 text-white" style="background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%); border-radius: 10px;">
+            <div class="card shadow-sm border-0 h-100 text-white" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); border-radius: 10px;">
                 <div class="card-body p-3 d-flex justify-content-between align-items-center">
                     <div>
-                        <span class="text-uppercase fw-bold small text-white-50" style="font-size: 0.75rem;">Cumplimiento Auditoría</span>
+                        <span class="text-uppercase fw-bold small text-white-50" style="font-size: 0.75rem;">Cobertura de Firmas</span>
                         <h3 class="mb-0 fw-bold text-white mt-1">{{ $porcentajeCumplimiento }}%</h3>
                         <div class="progress mt-2" style="height: 6px; width: 130px; background: rgba(255,255,255,0.2);">
-                            <div class="progress-bar bg-success" role="progressbar" style="width: {{ $porcentajeCumplimiento }}%;" aria-valuenow="{{ $porcentajeCumplimiento }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            <div class="progress-bar bg-white" role="progressbar" style="width: {{ $porcentajeCumplimiento }}%;" aria-valuenow="{{ $porcentajeCumplimiento }}" aria-valuemin="0" aria-valuemax="100"></div>
                         </div>
                     </div>
                     <div class="p-3 rounded-3 fs-3" style="background: rgba(255,255,255,0.15);">
