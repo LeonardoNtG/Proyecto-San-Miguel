@@ -23,8 +23,9 @@ class ReservaController extends Controller
         $activeLotificacionId = session('lotificacion_id');
         $lotificacionActiva = \App\Models\Lotificacion::find($activeLotificacionId);
         $bloques = Bloque::where('lotificacion_id', $activeLotificacionId)->orderBy('nombre')->get();
+        $cuentasBancarias = \App\Models\CuentaBancaria::activas()->get();
 
-        return view('reservas.create', compact('lotificacionActiva', 'bloques'));
+        return view('reservas.create', compact('lotificacionActiva', 'bloques', 'cuentasBancarias'));
     }
 
     public function store(Request $request)
@@ -136,7 +137,9 @@ class ReservaController extends Controller
             return redirect()->route('reservas.index')->with('error', 'La reserva ya fue procesada o anulada.');
         }
 
-        return view('reservas.formalizar', compact('reserva'));
+        $cuentasBancarias = \App\Models\CuentaBancaria::activas()->get();
+
+        return view('reservas.formalizar', compact('reserva', 'cuentasBancarias'));
     }
 
     public function procesarFormalizacion(Request $request, Reserva $reserva)
@@ -206,6 +209,8 @@ class ReservaController extends Controller
                 'tipo_pago' => 'Prima/Primer Abono',
                 'metodo_pago' => $request->metodo_pago ?? 'Efectivo',
                 'referencia' => $request->referencia ?? ('Formalización de Reserva #' . $reserva->id_reserva),
+                'cuenta_destino' => $request->cuenta_destino ?? null,
+                'comentario' => $request->comentario ?? null,
                 'user_id' => auth()->id(),
             ]);
 

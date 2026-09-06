@@ -103,15 +103,15 @@ class ClienteController extends Controller
         
         return view('estados_cuenta', compact('clientes', 'search'));
     }
-
     public function create()
     {
         $activeLotificacionId = session('lotificacion_id');
         $lotificacionActiva = \App\Models\Lotificacion::find($activeLotificacionId);
         $bloques = Bloque::where('lotificacion_id', $activeLotificacionId)->orderBy('nombre')->get();
         $siguienteExpediente = Cliente::generarSiguienteExpediente();
+        $cuentasBancarias = \App\Models\CuentaBancaria::activas()->get();
 
-        return view('registro', compact('lotificacionActiva', 'bloques', 'siguienteExpediente'));
+        return view('registro', compact('lotificacionActiva', 'bloques', 'siguienteExpediente', 'cuentasBancarias'));
     }
 
     /**
@@ -138,42 +138,82 @@ class ClienteController extends Controller
             'identificacion' => ['required', 'string', 'regex:/^[A-Za-z0-9]{3}-[A-Za-z0-9]{6}-[A-Za-z0-9]{5}$/'],
             'lotes_ids' => 'nullable|array|min:1|max:20',
             'lotes' => 'nullable|array|min:1|max:20',
-            'extension_value' => 'required|numeric|min:0',
+            'lotes_ids.*' => 'exists:lotes,id_lote',
+            'lotes.*' => 'exists:lotes,id_lote',
+            'tipo_contrato' => 'required|in:colectivo,individual',
+            'precio_final' => 'required|numeric|min:1',
+            'plazo_meses' => 'required|integer|min:1',
+            'cuota_mensual' => 'required|numeric|min:0.01',
+            'primer_abono' => 'required|numeric|min:0',
+            'fecha_ultimo_abono' => 'required|date',
+            'beneficiario_final' => 'nullable|string|max:150',
+            'parentesco_beneficiario' => 'nullable|string|max:50',
+            'telefono_beneficiario' => 'nullable|string|max:20',
+            'observaciones_beneficiario' => 'nullable|string|max:500',
         ], [
             'identificacion.regex' => 'La cédula debe tener el formato XXX-XXXXXX-XXXXX (ej: 001-120395-0004Y).',
+            'cuota_mensual.min' => 'La cuota mensual debe ser mayor a 0.',
         ]);
-        
-        $lotesIds = $request->input('lotes_ids') ?? $request->input('lotes');
-        if (empty($lotesIds) || !is_array($lotesIds)) {
-            return back()->withInput()->withErrors(['lotes_ids' => 'Debe seleccionar al menos un lote para la venta.']);
-        }
 
-        $tipoContrato = $request->input('tipo_contrato', 'unificado');
+        $activeLotificacionId = session('lotificacion_id');
+        $lotificacionId = $activeLotificacionId ?: $request->lotificacion_id;
 
         DB::beginTransaction();
 
         try {
-            // CREAR EL CLIENTE
-            $expedienteNum = $request->expediente_num ?: Cliente::generarSiguienteExpediente();
-            $pvNum = $request->pv_num ?: 'PP';
+            // Unificar lotes seleccionados
+            $lotesIds = $request->lotes_ids ?? $request->lotes ?? [];
+
+            // Verificar si el cliente ya existe por cédula
+            $cliente = Cliente::where('identificacion', $request->identificacion)->first();
+
             $direccionCompleta = trim(($request->domicilio ? $request->domicilio . ', ' : '') . ($request->direccion ?? ''));
 
-            $cliente = Cliente::create([
-                'expediente_num' => $expedienteNum,
-                'pv_num'         => $pvNum,
-                'nombres_apellidos' => mb_strtoupper($request->nombres_apellidos, 'UTF-8'),
-                'identificacion'   => mb_strtoupper($request->identificacion, 'UTF-8'),
-                'telefono'         => $request->telefono,
-                'direccion'        => $direccionCompleta ?: ($request->direccion ?? null),
-                'estado_civil'     => $request->estado_civil ? mb_strtoupper($request->estado_civil, 'UTF-8') : null,
-                'oficio'           => ($request->oficio ?? $request->profesion_oficio) ? mb_strtoupper($request->oficio ?? $request->profesion_oficio, 'UTF-8') : null,
-            ]);
+            if (!$cliente) {
+                // Obtener siguiente expediente disponible si no viene en el request
+                $expedienteFinal = $request->expediente_num;
+                if (empty($expedienteFinal)) {
+                    $expedienteFinal = Cliente::generarSiguienteExpediente();
+                }
 
-            $activeLotificacionId = session('lotificacion_id');
-            $lotificacionId = $activeLotificacionId ?: $request->lotificacion_id;
+                $cliente = Cliente::create([
+                    'nombres_apellidos' => mb_strtoupper($request->nombres_apellidos, 'UTF-8'),
+                    'identificacion'    => mb_strtoupper($request->identificacion, 'UTF-8'),
+                    'telefono'          => $request->telefono ?? 'N/D',
+                    'direccion'         => $direccionCompleta ?: ($request->direccion ?? 'N/D'),
+                    'pv_num'            => $request->pv_num,
+                    'expediente_num'    => $expedienteFinal,
+                    'tipo_cliente'      => $request->tipo_cliente ?? 'Nicaragüense',
+                    'nacionalidad'      => $request->nacionalidad ?? 'Nicaragüense',
+                    'departamento'      => $request->departamento,
+                    'municipio'         => $request->municipio,
+                    'pais_residencia'   => $request->pais_residencia ?? 'Nicaragua',
+                    'correo'            => $request->correo,
+                    'oficio'            => ($request->oficio ?? $request->profesion_oficio) ? mb_strtoupper($request->oficio ?? $request->profesion_oficio, 'UTF-8') : null,
+                    'estado_civil'      => $request->estado_civil ? mb_strtoupper($request->estado_civil, 'UTF-8') : null,
+                ]);
+            } else {
+                $cliente->update([
+                    'nombres_apellidos' => mb_strtoupper($request->nombres_apellidos, 'UTF-8'),
+                    'telefono'          => $request->telefono ?? $cliente->telefono,
+                    'direccion'         => $direccionCompleta ?: ($request->direccion ?? $cliente->direccion),
+                    'pv_num'            => $request->pv_num ?? $cliente->pv_num,
+                    'expediente_num'    => $request->expediente_num ?? $cliente->expediente_num,
+                    'tipo_cliente'      => $request->tipo_cliente ?? $cliente->tipo_cliente,
+                    'nacionalidad'      => $request->nacionalidad ?? $cliente->nacionalidad,
+                    'departamento'      => $request->departamento ?? $cliente->departamento,
+                    'municipio'         => $request->municipio ?? $cliente->municipio,
+                    'pais_residencia'   => $request->pais_residencia ?? $cliente->pais_residencia,
+                    'correo'            => $request->correo ?? $cliente->correo,
+                    'oficio'            => ($request->oficio ?? $request->profesion_oficio) ? mb_strtoupper($request->oficio ?? $request->profesion_oficio, 'UTF-8') : $cliente->oficio,
+                    'estado_civil'      => $request->estado_civil ? mb_strtoupper($request->estado_civil, 'UTF-8') : $cliente->estado_civil,
+                ]);
+            }
 
-            // ─── MODO UNIFICADO (flujo original) ────────────────────────────────
-            if ($tipoContrato !== 'individual' || count($lotesIds) === 1) {
+            // ─── MODO COLECTIVO (un solo contrato/plan para todos los lotes) ──
+            if ($request->tipo_contrato === 'colectivo') {
+
+                $extensionTotal = Lote::whereIn('id_lote', $lotesIds)->sum('area_metros');
 
                 $venta = Venta::create([
                     'id_cliente'        => $cliente->id_cliente,
@@ -182,10 +222,12 @@ class ClienteController extends Controller
                     'precio_final'      => $request->precio_final,
                     'plazo_meses'       => $request->plazo_meses,
                     'estado_contrato'   => 'Vigente',
-                    'extension_lote'    => $request->extension_value,
+                    'extension_lote'    => $extensionTotal,
                     'cuota_mensual'     => $request->cuota_mensual,
-                    'beneficiario_final'=> $request->beneficiario_final,
-                    'nota_beneficiario' => $request->nota_beneficiario,
+                    'beneficiario_final'=> $request->beneficiario_final ? mb_strtoupper($request->beneficiario_final, 'UTF-8') : null,
+                    'parentesco_beneficiario' => $request->parentesco_beneficiario,
+                    'telefono_beneficiario'   => $request->telefono_beneficiario,
+                    'observaciones_beneficiario' => $request->observaciones_beneficiario,
                 ]);
 
                 Lote::whereIn('id_lote', $lotesIds)->update(['estado' => 'Vendido']);
@@ -211,6 +253,7 @@ class ClienteController extends Controller
                     'metodo_pago'   => $request->metodo_pago_prima ?? 'Efectivo',
                     'referencia'    => $request->referencia_prima ?? 'Registro Inicial de Venta',
                     'cuenta_destino'=> $request->cuenta_destino_prima ?? null,
+                    'comentario'    => $request->comentario_prima ?? $request->comentario ?? null,
                     'user_id'       => auth()->id()
                 ]);
 
@@ -266,6 +309,7 @@ class ClienteController extends Controller
                         'metodo_pago'   => $request->metodo_pago_prima ?? 'Efectivo',
                         'referencia'    => $request->referencia_prima ?? 'Registro Inicial - Lote ' . $lote->numero_lote,
                         'cuenta_destino'=> $request->cuenta_destino_prima ?? null,
+                        'comentario'    => $request->comentario_prima ?? $request->comentario ?? null,
                         'user_id'       => auth()->id()
                     ]);
 
