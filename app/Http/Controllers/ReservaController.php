@@ -154,10 +154,12 @@ class ReservaController extends Controller
             'precio_final' => 'required|numeric|min:0',
             'plazo_meses' => 'required|integer|min:1',
             'cuota_mensual' => 'required|numeric|min:0',
-            'primer_abono' => 'required|numeric|min:0',
+            'primer_abono' => 'required|numeric|min:0|lte:precio_final',
             'fecha_ultimo_abono' => 'nullable|date',
             'metodo_pago' => 'nullable|string',
             'referencia' => 'nullable|string',
+        ], [
+            'primer_abono.lte' => 'La prima total no puede exceder el precio final de la venta.',
         ]);
 
         DB::beginTransaction();

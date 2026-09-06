@@ -144,7 +144,7 @@ class ClienteController extends Controller
             'precio_final' => 'required|numeric|min:1',
             'plazo_meses' => 'required|integer|min:1',
             'cuota_mensual' => 'required|numeric|min:0.01',
-            'primer_abono' => 'required|numeric|min:0',
+            'primer_abono' => 'required|numeric|min:0|lte:precio_final',
             'fecha_ultimo_abono' => 'required|date',
             'beneficiario_final' => 'nullable|string|max:150',
             'parentesco_beneficiario' => 'nullable|string|max:50',
@@ -153,6 +153,7 @@ class ClienteController extends Controller
         ], [
             'identificacion.regex' => 'La cédula debe tener el formato XXX-XXXXXX-XXXXX (ej: 001-120395-0004Y).',
             'cuota_mensual.min' => 'La cuota mensual debe ser mayor a 0.',
+            'primer_abono.lte' => 'La prima o enganche no puede ser mayor al precio total de la venta.',
         ]);
 
         $activeLotificacionId = session('lotificacion_id');

@@ -297,7 +297,7 @@
                     <label for="cuenta_destino_prima" class="form-label font-weight-bold text-secondary">
                         <i class="fas fa-university text-primary me-1"></i> Banco / Cuenta Destino
                     </label>
-                    <div class="input-group">
+                    <div class="input-group flex-nowrap">
                         <select class="form-select" id="cuenta_destino_prima" name="cuenta_destino_prima">
                             <option value="">-- Seleccione Cuenta Destino --</option>
                             @if(isset($cuentasBancarias) && $cuentasBancarias->isNotEmpty())
@@ -698,6 +698,12 @@ $(document).ready(function() {
         var primaVal = parseFloat($('#primer_abono').val()) || 0;
         var plazoVal = parseInt($('#plazo_cuotas').val()) || 0;
         var cuotaVal = parseFloat($('#cuotas').val()) || 0;
+
+        if (primaVal > precioVal) {
+            alert('La prima o enganche ($' + primaVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ') no puede ser mayor al precio total de la venta ($' + precioVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ').');
+            $('#primer_abono').focus();
+            return;
+        }
 
         $('#modal-resumen-precio').text('$' + precioVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
         $('#modal-resumen-prima').text('$' + primaVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
