@@ -29,6 +29,14 @@ class CuentaBancaria extends Model
         return "{$this->banco} - {$this->moneda} • {$this->numero_cuenta} - {$this->titular}";
     }
 
+    /**
+     * Scope para filtrar solo cuentas activas
+     */
+    public function scopeActivas($query)
+    {
+        return $query->where('estado', 'Activa')->orderBy('banco');
+    }
+
     public function lotificacion()
     {
         return $this->belongsTo(Lotificacion::class);
