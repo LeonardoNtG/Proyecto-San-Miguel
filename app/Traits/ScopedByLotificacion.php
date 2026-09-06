@@ -25,20 +25,20 @@ trait ScopedByLotificacion
                         $builder->where("$table.lotificacion_id", $activeLotificacionId);
                     } elseif ($table === 'lotes') {
                         $builder->whereHas('bloque', function ($q) use ($activeLotificacionId) {
-                            $q->where('lotificacion_id', $activeLotificacionId);
+                            $q->where('bloques.lotificacion_id', $activeLotificacionId);
                         });
                     } elseif ($table === 'ventas') {
                         $builder->where("$table.lotificacion_id", $activeLotificacionId);
                     } elseif ($table === 'abonos') {
                         $builder->whereHas('venta', function ($q) use ($activeLotificacionId) {
-                            $q->where('lotificacion_id', $activeLotificacionId);
+                            $q->where('ventas.lotificacion_id', $activeLotificacionId);
                         });
                     } elseif ($table === 'clientes') {
                         $builder->where(function($b) use ($activeLotificacionId) {
                             $b->whereHas('ventas', function ($q) use ($activeLotificacionId) {
-                                $q->where('lotificacion_id', $activeLotificacionId);
+                                $q->where('ventas.lotificacion_id', $activeLotificacionId);
                             })->orWhereHas('reservas', function ($q) use ($activeLotificacionId) {
-                                $q->where('lotificacion_id', $activeLotificacionId);
+                                $q->where('reservas.lotificacion_id', $activeLotificacionId);
                             });
                         });
                     } elseif ($table === 'apertura_cajas' || $table === 'cierre_cajas' || $table === 'salidas' || $table === 'reservas') {

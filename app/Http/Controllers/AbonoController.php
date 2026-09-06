@@ -758,7 +758,7 @@ class AbonoController extends Controller
         }
 
     /**
-     * Módulo de Auditoría de Recibos y Firmas del Cliente
+     * Módulo de Recibos Firmados por el Cliente
      */
     public function auditoriaRecibos(Request $request)
     {
@@ -775,47 +775,48 @@ class AbonoController extends Controller
         ]);
 
         if ($estadoFirma === 'firmados') {
-            $query->whereNotNull('recibo_firmado');
+            $query->whereNotNull('abonos.recibo_firmado');
         } elseif ($estadoFirma === 'pendientes') {
-            $query->whereNull('recibo_firmado');
+            $query->whereNull('abonos.recibo_firmado');
         }
 
         if ($fechaDesde) {
-            $query->whereDate('fecha_pago', '>=', $fechaDesde);
+            $query->whereDate('abonos.fecha_pago', '>=', $fechaDesde);
         }
         if ($fechaHasta) {
-            $query->whereDate('fecha_pago', '<=', $fechaHasta);
+            $query->whereDate('abonos.fecha_pago', '<=', $fechaHasta);
         }
 
         if ($search) {
             $query->where(function($q) use ($search) {
-                $q->where('numero_recibo', 'like', "%{$search}%")
-                  ->orWhere('id_abono', 'like', "%{$search}%")
-                  ->orWhere('referencia', 'like', "%{$search}%")
-                  ->orWhereHas('venta.cliente', function($cq) use ($search) {
-                      $cq->where('nombres_apellidos', 'like', "%{$search}%")
-                         ->orWhere('expediente_num', 'like', "%{$search}%")
-                         ->orWhere('dni_num', 'like', "%{$search}%");
-                  })
-                  ->orWhereHas('venta.lotes', function($lq) use ($search) {
-                      $lq->where('numero_lote', 'like', "%{$search}%");
+                $q->where('abonos.numero_recibo', 'like', "%{$search}%")
+                  ->orWhere('abonos.id_abono', 'like', "%{$search}%")
+                  ->orWhere('abonos.referencia', 'like', "%{$search}%")
+                  ->orWhereHas('venta', function($vq) use ($search) {
+                      $vq->whereHas('cliente', function($cq) use ($search) {
+                          $cq->where('clientes.nombres_apellidos', 'like', "%{$search}%")
+                             ->orWhere('clientes.expediente_num', 'like', "%{$search}%")
+                             ->orWhere('clientes.dni_num', 'like', "%{$search}%");
+                      })->orWhereHas('lotes', function($lq) use ($search) {
+                          $lq->where('lotes.numero_lote', 'like', "%{$search}%");
+                      });
                   });
             });
         }
 
         // Estadísticas globales
         $baseQuery = Abono::query();
-        if ($fechaDesde) $baseQuery->whereDate('fecha_pago', '>=', $fechaDesde);
-        if ($fechaHasta) $baseQuery->whereDate('fecha_pago', '<=', $fechaHasta);
+        if ($fechaDesde) $baseQuery->whereDate('abonos.fecha_pago', '>=', $fechaDesde);
+        if ($fechaHasta) $baseQuery->whereDate('abonos.fecha_pago', '<=', $fechaHasta);
 
         $totalRecibos = (clone $baseQuery)->count();
-        $totalFirmados = (clone $baseQuery)->whereNotNull('recibo_firmado')->count();
-        $totalPendientes = (clone $baseQuery)->whereNull('recibo_firmado')->count();
+        $totalFirmados = (clone $baseQuery)->whereNotNull('abonos.recibo_firmado')->count();
+        $totalPendientes = (clone $baseQuery)->whereNull('abonos.recibo_firmado')->count();
         $porcentajeCumplimiento = $totalRecibos > 0 ? round(($totalFirmados / $totalRecibos) * 100, 1) : 100;
-        $montoTotalAuditoria = (clone $baseQuery)->sum('monto_abonado');
+        $montoTotalAuditoria = (clone $baseQuery)->sum('abonos.monto_abonado') ?? 0;
 
-        $abonos = $query->orderBy('fecha_pago', 'desc')
-            ->orderBy('id_abono', 'desc')
+        $abonos = $query->orderBy('abonos.fecha_pago', 'desc')
+            ->orderBy('abonos.id_abono', 'desc')
             ->paginate(20)
             ->withQueryString();
 
