@@ -633,7 +633,7 @@ $(document).ready(function() {
 
             var formData = new FormData(formNuevaCuenta);
 
-            fetch('{{ route("cuentas-bancarias.store") }}', {
+            fetch("{{ route('api.cuentas_bancarias.store') }}", {
                 method: 'POST',
                 headers: {
                     'X-CSRF-TOKEN': '{{ csrf_token() }}',
