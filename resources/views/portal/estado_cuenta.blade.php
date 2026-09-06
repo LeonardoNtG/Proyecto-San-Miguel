@@ -274,11 +274,6 @@
                                         <td>
                                             @if($montoAbonadoMostrar > 0)
                                                 <span class="text-success fw-bold fs-6">${{ number_format($montoAbonadoMostrar, 2) }}</span>
-                                                @if($abonoCorrespondiente)
-                                                    <a href="{{ route('portal.recibo.imprimir', [$cliente->token_seguimiento, $abonoCorrespondiente->id_abono]) }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2 ms-1 rounded-pill" style="font-size: 0.72rem;" title="Descargar Recibo #{{ $abonoCorrespondiente->numero_recibo ?? $abonoCorrespondiente->id_abono }}">
-                                                        <i class="fas fa-print me-1"></i>Recibo
-                                                    </a>
-                                                @endif
                                             @else
                                                 <span class="text-muted">$0.00</span>
                                             @endif
