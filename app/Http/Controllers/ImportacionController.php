@@ -421,24 +421,30 @@ class ImportacionController extends Controller
         $advertencias = [];
         $resumen      = ["clientes_nuevos" => 0, "clientes_existentes" => 0, "contratos" => 0, "pagos" => 0, "lotes_creados" => 0];
 
+        // Obtener hojas de forma flexible por nombre o posición
+        $hojaLotes     = $this->buscarHoja($datos, ['CATALOGO_LOTES', 'CATALOGO LOTES', 'LOTES', 'CATALOGO_DE_LOTES', 'CATALOGO', 'HOJA 3', 'HOJA3']);
+        $hojaClientes  = $this->buscarHoja($datos, ['CLIENTES_CONTRATOS', 'CLIENTES CONTRATOS', 'CLIENTES_Y_CONTRATOS', 'CLIENTES', 'CONTRATOS', 'HOJA 1', 'HOJA1'], 0);
+        $hojaPagos     = $this->buscarHoja($datos, ['HISTORIAL_PAGOS', 'HISTORIAL PAGOS', 'PAGOS', 'HISTORIAL_DE_PAGOS', 'HISTORIAL', 'HOJA 2', 'HOJA2']);
+
         DB::beginTransaction();
 
         try {
             // FASE 0: Lotes opcionales
-            if (!empty($datos["CATALOGO_LOTES"])) {
-                [$errLotes, $advLotes, $resLotes] = $this->procesarLotes($datos["CATALOGO_LOTES"], $lotificacion, $modo);
+            if (!empty($hojaLotes)) {
+                [$errLotes, $advLotes, $resLotes] = $this->procesarLotes($hojaLotes, $lotificacion, $modo);
                 $errores      = array_merge($errores, $errLotes);
                 $advertencias = array_merge($advertencias, $advLotes);
                 $resumen["lotes_creados"] += $resLotes;
             }
             if (!empty($errores)) { DB::rollBack(); return $this->respuestaResultado($errores, $advertencias, $resumen, $modo, false, $lotificacion->id); }
 
-            // FASE 1: Clientes y Contratos
-            if (empty($datos["CLIENTES_CONTRATOS"])) {
+            // FASE 1: Clientes y Contratos (Obligatoria)
+            if (empty($hojaClientes)) {
                 DB::rollBack();
-                return back()->with("error", "La hoja CLIENTES_CONTRATOS no fue encontrada o está vacía.");
+                $hojasEncontradas = implode(', ', array_keys($datos));
+                return back()->with("error", "La hoja CLIENTES_CONTRATOS no fue encontrada o está vacía. Hojas encontradas en el archivo: [{$hojasEncontradas}]");
             }
-            [$errClientes, $advClientes, $resClientes, $mapeoVentas] = $this->procesarClientesContratos($datos["CLIENTES_CONTRATOS"], $lotificacion, $modo);
+            [$errClientes, $advClientes, $resClientes, $mapeoVentas] = $this->procesarClientesContratos($hojaClientes, $lotificacion, $modo);
             $errores      = array_merge($errores, $errClientes);
             $advertencias = array_merge($advertencias, $advClientes);
             $resumen["clientes_nuevos"]     += $resClientes["clientes_nuevos"];
@@ -446,9 +452,9 @@ class ImportacionController extends Controller
             $resumen["contratos"]           += $resClientes["contratos"];
             if (!empty($errores)) { DB::rollBack(); return $this->respuestaResultado($errores, $advertencias, $resumen, $modo, false, $lotificacion->id); }
 
-            // FASE 2: Historial de pagos
-            if (!empty($datos["HISTORIAL_PAGOS"])) {
-                [$errPagos, $advPagos, $numPagos] = $this->procesarPagos($datos["HISTORIAL_PAGOS"], $mapeoVentas, $lotificacion, $modo);
+            // FASE 2: Historial de pagos (Opcional)
+            if (!empty($hojaPagos)) {
+                [$errPagos, $advPagos, $numPagos] = $this->procesarPagos($hojaPagos, $mapeoVentas, $lotificacion, $modo);
                 $errores      = array_merge($errores, $errPagos);
                 $advertencias = array_merge($advertencias, $advPagos);
                 $resumen["pagos"] += $numPagos;
@@ -465,333 +471,98 @@ class ImportacionController extends Controller
         }
     }
 
-    private function procesarLotes(array $filas, Lotificacion $lotificacion, string $modo): array
+    /**
+     * Busca una hoja en el array de datos con nombres flexibles o fallback de índice.
+     */
+    private function buscarHoja(array $datos, array $posiblesNombres, ?int $indiceFallback = null): array
     {
-        $errores = []; $advertencias = []; $creados = 0;
-        foreach ($filas as $i => $fila) {
-            $numFila     = $i + 2;
-            $nombreBloque = trim($fila["nombre_bloque"] ?? "");
-            $numeroLote  = trim($fila["numero_lote"] ?? "");
-            $areaMetros  = $fila["area_metros"] ?? null;
-            $precioBase  = $fila["precio_base"] ?? null;
-            $estado      = trim($fila["estado"] ?? "Disponible");
-
-            if (empty($nombreBloque)) { $errores[] = "[Lotes F{$numFila}] nombre_bloque obligatorio."; continue; }
-            if (empty($numeroLote))   { $errores[] = "[Lotes F{$numFila}] numero_lote obligatorio."; continue; }
-            if (!is_numeric($areaMetros) || $areaMetros <= 0) { $errores[] = "[Lotes F{$numFila}] area_metros inválido: {$areaMetros}"; continue; }
-            if (!is_numeric($precioBase) || $precioBase < 0)  { $errores[] = "[Lotes F{$numFila}] precio_base inválido."; continue; }
-            if (!in_array($estado, self::ESTADOS_LOTE)) { $errores[] = "[Lotes F{$numFila}] estado inválido: {$estado}"; continue; }
-
-            $bloque = Bloque::withoutGlobalScope("lotificacion")->where("nombre", $nombreBloque)->where("lotificacion_id", $lotificacion->id)->first();
-            if (!$bloque) {
-                if ($modo === "importar") {
-                    $bloque = Bloque::create([
-                        "nombre"          => $nombreBloque,
-                        "lotificacion_id" => $lotificacion->id,
-                        "prefijo"         => $nombreBloque,
-                    ]);
-                } else {
-                    $bloque = (object)["id_bloque" => "SIM_BLOQUE_{$nombreBloque}"];
-                }
+        // 1. Coincidencia exacta
+        foreach ($posiblesNombres as $nombre) {
+            if (isset($datos[$nombre]) && !empty($datos[$nombre])) {
+                return $datos[$nombre];
             }
-
-            if ($modo === "importar") {
-                $existe = Lote::withoutGlobalScope("lotificacion")->where("id_bloque", $bloque->id_bloque)->where("numero_lote", $numeroLote)->exists();
-                if ($existe) { $advertencias[] = "[Lotes F{$numFila}] Lote {$numeroLote}/{$nombreBloque} ya existe en '{$lotificacion->nombre}'. Omitido."; continue; }
-
-                Lote::create(["id_bloque" => $bloque->id_bloque, "numero_lote" => $numeroLote, "area_metros" => (float)$areaMetros, "precio_base" => (float)$precioBase, "estado" => $estado]);
-            }
-            $creados++;
-        }
-        return [$errores, $advertencias, $creados];
-    }
-
-    private function procesarClientesContratos(array $filas, Lotificacion $lotificacion, string $modo): array
-    {
-        $errores = []; $advertencias = []; $resumen = ["clientes_nuevos" => 0, "clientes_existentes" => 0, "contratos" => 0];
-        $mapeoVentas = []; $clientesCache = [];
-
-        foreach ($filas as $i => $fila) {
-            $numFila        = $i + 2;
-            $expediente     = mb_strtoupper(trim($fila["expediente_num"] ?? ""), 'UTF-8');
-            $nombres        = mb_strtoupper(trim($fila["nombres_apellidos"] ?? ""), 'UTF-8');
-            $identificacionRaw = trim($fila["identificacion"] ?? "");
-            $cleanId = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $identificacionRaw));
-            if (strlen($cleanId) === 14) {
-                $identificacion = substr($cleanId, 0, 3) . '-' . substr($cleanId, 3, 6) . '-' . substr($cleanId, 9, 5);
-            } else {
-                $identificacion = mb_strtoupper($identificacionRaw, 'UTF-8');
-            }
-            $telefono       = trim($fila["telefono"] ?? "");
-            $direccion      = !empty(trim($fila["direccion"] ?? "")) ? mb_strtoupper(trim($fila["direccion"]), 'UTF-8') : null;
-            $estadoCivil    = !empty(trim($fila["estado_civil"] ?? "")) ? mb_strtoupper(trim($fila["estado_civil"]), 'UTF-8') : null;
-            $oficio         = !empty(trim($fila["oficio"] ?? "")) ? mb_strtoupper(trim($fila["oficio"]), 'UTF-8') : null;
-            $pvNum          = mb_strtoupper(trim($fila["pv_num"] ?? ""), 'UTF-8');
-            $nombreBloque   = trim($fila["nombre_bloque"] ?? "");
-            $numeroLote     = trim($fila["numero_lote"] ?? "");
-            $fechaVenta     = trim($fila["fecha_venta"] ?? "");
-            $precioFinal    = $fila["precio_final"] ?? null;
-            $plazoMeses     = $fila["plazo_meses"] ?? null;
-            $cuotaMensual   = $fila["cuota_mensual"] ?? null;
-            $estadoContrato = trim($fila["estado_contrato"] ?? "Vigente");
-            $primaPagada    = $fila["prima_pagada"] ?? null;
-            $fechaPrima     = trim($fila["fecha_prima"] ?? "");
-            $beneficiario   = !empty(trim($fila["beneficiario_final"] ?? "")) ? mb_strtoupper(trim($fila["beneficiario_final"]), 'UTF-8') : null;
-            $notaBenef      = !empty(trim($fila["nota_beneficiario"] ?? "")) ? mb_strtoupper(trim($fila["nota_beneficiario"]), 'UTF-8') : null;
-
-            // Validaciones obligatorias
-            $camposObligatorios = [
-                "expediente_num"    => $expediente,
-                "nombres_apellidos" => $nombres,
-                "identificacion"    => $identificacion,
-                "nombre_bloque"     => $nombreBloque,
-                "numero_lote"       => $numeroLote,
-            ];
-            $faltantes = array_keys(array_filter($camposObligatorios, fn($v) => $v === ""));
-            if (!empty($faltantes)) {
-                $errores[] = "[Contratos F{$numFila}] Campos obligatorios vacíos: " . implode(", ", $faltantes);
-                continue;
-            }
-            if (!in_array($estadoContrato, self::ESTADOS_CONTRATO)) {
-                $errores[] = "[Contratos F{$numFila}] estado_contrato inválido: '{$estadoContrato}'.";
-                continue;
-            }
-            $fechaVentaParsed = $this->parsearFecha($fechaVenta);
-            if (!$fechaVentaParsed) {
-                $errores[] = "[Contratos F{$numFila}] fecha_venta inválida: '{$fechaVenta}'. Use DD/MM/AAAA.";
-                continue;
-            }
-            if (!is_numeric($precioFinal) || (float)$precioFinal < 0) {
-                $errores[] = "[Contratos F{$numFila}] precio_final inválido: '{$precioFinal}'";
-                continue;
-            }
-            if (!is_numeric($plazoMeses) || (int)$plazoMeses < 0) {
-                $errores[] = "[Contratos F{$numFila}] plazo_meses inválido: '{$plazoMeses}'";
-                continue;
-            }
-            if (!is_numeric($cuotaMensual) || (float)$cuotaMensual < 0) {
-                $errores[] = "[Contratos F{$numFila}] cuota_mensual inválido: '{$cuotaMensual}'";
-                continue;
-            }
-
-            // Advertencia de consistencia financiera
-            $plazoInt  = (int)$plazoMeses;
-            $precioNum = (float)$precioFinal;
-            $cuotaNum  = (float)$cuotaMensual;
-            if ($plazoInt > 0 && $cuotaNum > 0) {
-                $total = round($plazoInt * $cuotaNum, 2);
-                $diff  = abs($total - $precioNum);
-                if ($diff > 1.00) {
-                    $advertencias[] = "[Contratos F{$numFila}] plazo x cuota=\${$total} difiere del precio_final=\${$precioNum} (diferencia: \${$diff}).";
-                }
-            }
-
-            // Expediente duplicado
-            if (Cliente::withoutGlobalScope("lotificacion")->where("expediente_num", $expediente)->exists()) {
-                $errores[] = "[Contratos F{$numFila}] Expediente '{$expediente}' ya existe.";
-                continue;
-            }
-
-            // Buscar o crear cliente
-            if (isset($clientesCache[$identificacion])) {
-                $cliente = $clientesCache[$identificacion];
-                $resumen["clientes_existentes"]++;
-            } else {
-                $clienteExistente = Cliente::withoutGlobalScope("lotificacion")->where("identificacion", $identificacion)->first();
-                if ($clienteExistente) {
-                    $cliente = $clienteExistente;
-                    $resumen["clientes_existentes"]++;
-                } else {
-                    if ($modo === "importar") {
-                        $cliente = Cliente::create([
-                            "expediente_num"    => $expediente,
-                            "nombres_apellidos" => $nombres,
-                            "identificacion"    => $identificacion,
-                            "telefono"          => $telefono ?: null,
-                            "direccion"         => $direccion ?: null,
-                            "estado_civil"      => $estadoCivil ?: null,
-                            "oficio"            => $oficio ?: null,
-                            "pv_num"            => $pvNum ?: null,
-                            "token_seguimiento" => Str::uuid()->toString(),
-                        ]);
-                    } else {
-                        $cliente = (object)["id_cliente" => "SIM_{$identificacion}", "identificacion" => $identificacion];
-                    }
-                    $resumen["clientes_nuevos"]++;
-                }
-                $clientesCache[$identificacion] = $cliente;
-            }
-
-            // Buscar bloque y lote
-            $bloque = Bloque::withoutGlobalScope("lotificacion")->where("nombre", $nombreBloque)->where("lotificacion_id", $lotificacion->id)->first();
-            if (!$bloque) {
-                $errores[] = "[Contratos F{$numFila}] Bloque '{$nombreBloque}' no encontrado en proyecto '{$lotificacion->nombre}'.";
-                continue;
-            }
-            $lote = Lote::withoutGlobalScope("lotificacion")->where("id_bloque", $bloque->id_bloque)->where("numero_lote", $numeroLote)->first();
-            if (!$lote) {
-                $errores[] = "[Contratos F{$numFila}] Lote '{$numeroLote}' no encontrado en bloque '{$nombreBloque}'.";
-                continue;
-            }
-
-            // Verificar lote sin contrato vigente
-            $ventaVigente = Venta::withoutGlobalScope("lotificacion")->where("id_lote", $lote->id_lote)->where("estado_contrato", "Vigente")->first();
-            if ($ventaVigente) {
-                $errores[] = "[Contratos F{$numFila}] Lote '{$numeroLote}'/'{$nombreBloque}' ya tiene contrato Vigente (ID: {$ventaVigente->id_venta}).";
-                continue;
-            }
-
-            // Crear Venta
-            $ventaId = null;
-            if ($modo === "importar") {
-                $venta = Venta::create([
-                    "id_cliente"         => $cliente->id_cliente,
-                    "id_lote"            => $lote->id_lote,
-                    "lotificacion_id"    => $lotificacion->id,
-                    "fecha_venta"        => $fechaVentaParsed,
-                    "precio_final"       => $precioNum,
-                    "plazo_meses"        => $plazoInt,
-                    "cuota_mensual"      => $cuotaNum,
-                    "extension_lote"     => $lote->area_metros . " m²",
-                    "estado_contrato"    => $estadoContrato,
-                    "beneficiario_final" => $beneficiario ?: null,
-                    "nota_beneficiario"  => $notaBenef ?: null,
-                ]);
-                $ventaId = $venta->id_venta;
-                $lote->estado = ($estadoContrato === "Rescindido") ? "Disponible" : "Vendido";
-                $lote->save();
-                if ($estadoContrato === "Vigente" && $plazoInt > 0) {
-                    $this->generarPlanCuotas($venta, $fechaVentaParsed);
-                }
-                // Prima como abono
-                if (!empty($primaPagada) && is_numeric($primaPagada) && (float)$primaPagada > 0) {
-                    $fechaPrimaParsed = $this->parsearFecha($fechaPrima) ?? $fechaVentaParsed;
-                    $maxNum = (int)(Abono::withoutGlobalScope("lotificacion")->whereHas("venta", fn($q) => $q->where("lotificacion_id", $lotificacion->id))->max("numero_recibo") ?? 0);
-                    $maxNum++;
-                    Abono::create([
-                        "id_venta" => $ventaId, "fecha_pago" => $fechaPrimaParsed,
-                        "monto_abonado" => (float)$primaPagada, "tipo_pago" => "Prima",
-                        "metodo_pago" => "Efectivo", "numero_recibo" => $maxNum, "codigo_recibo" => (string)$maxNum,
-                    ]);
-                    $resumen["pagos"]++;
-                }
-            }
-
-            $clave = strtolower("{$identificacion}_{$nombreBloque}_{$numeroLote}");
-            $mapeoVentas[$clave] = $ventaId;
-            $resumen["contratos"]++;
         }
 
-        return [$errores, $advertencias, $resumen, $mapeoVentas];
-    }
+        // 2. Coincidencia normalizada (sin espacios, sin guiones, mayúsculas)
+        $normalizar = fn($str) => strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $str));
+        $normPosibles = array_map($normalizar, $posiblesNombres);
 
-    private function procesarPagos(array $filas, array $mapeoVentas, Lotificacion $lotificacion, string $modo): array
-    {
-        $errores = []; $advertencias = []; $procesados = 0;
-        $numRecibo = (int)(Abono::withoutGlobalScope("lotificacion")->whereHas("venta", fn($q) => $q->where("lotificacion_id", $lotificacion->id))->max("numero_recibo") ?? 0);
-
-        foreach ($filas as $i => $fila) {
-            $numFila        = $i + 2;
-            $identificacion = trim($fila["identificacion_cliente"] ?? "");
-            $numeroLote     = trim($fila["numero_lote"] ?? "");
-            $nombreBloque   = trim($fila["nombre_bloque"] ?? "");
-            $fechaPago      = trim($fila["fecha_pago"] ?? "");
-            $monto          = $fila["monto_abonado"] ?? null;
-            $tipoPago       = trim($fila["tipo_pago"] ?? "Cuota");
-            $metodoPago     = trim($fila["metodo_pago"] ?? "Efectivo");
-            $referencia     = trim($fila["referencia"] ?? "");
-            $cuentaDestino  = trim($fila["cuenta_destino"] ?? "");
-            $numOrig        = trim($fila["numero_recibo_original"] ?? "");
-
-            if (empty($identificacion) || empty($numeroLote) || empty($nombreBloque)) {
-                $advertencias[] = "[Pagos F{$numFila}] Campos de identificación incompletos. Fila omitida.";
-                continue;
+        foreach ($datos as $sheetName => $filas) {
+            $normSheet = $normalizar($sheetName);
+            if (in_array($normSheet, $normPosibles)) {
+                return $filas;
             }
-            $fechaParsed = $this->parsearFecha($fechaPago);
-            if (!$fechaParsed) { $errores[] = "[Pagos F{$numFila}] fecha_pago inválida: '{$fechaPago}'."; continue; }
-            if (!is_numeric($monto) || (float)$monto <= 0) { $errores[] = "[Pagos F{$numFila}] monto_abonado inválido: '{$monto}'"; continue; }
-            if (!in_array($tipoPago, self::TIPOS_PAGO)) { $advertencias[] = "[Pagos F{$numFila}] tipo_pago '{$tipoPago}' desconocido. Se usará 'Cuota'."; $tipoPago = "Cuota"; }
-            if (!in_array($metodoPago, self::METODOS_PAGO)) { $advertencias[] = "[Pagos F{$numFila}] metodo_pago '{$metodoPago}' desconocido. Se usará 'Efectivo'."; $metodoPago = "Efectivo"; }
-
-            $clave = strtolower("{$identificacion}_{$nombreBloque}_{$numeroLote}");
-            if (!isset($mapeoVentas[$clave])) {
-                $advertencias[] = "[Pagos F{$numFila}] Sin contrato para cédula='{$identificacion}', Bloque='{$nombreBloque}', Lote='{$numeroLote}'. Omitido.";
-                continue;
+            foreach ($normPosibles as $np) {
+                if ($np !== '' && (str_contains($normSheet, $np) || str_contains($np, $normSheet))) {
+                    return $filas;
+                }
             }
-
-            $idVenta = $mapeoVentas[$clave];
-            if ($modo === "importar" && $idVenta) {
-                $numRecibo++;
-                Abono::create([
-                    "id_venta"       => $idVenta,
-                    "fecha_pago"     => $fechaParsed,
-                    "monto_abonado"  => (float)$monto,
-                    "tipo_pago"      => $tipoPago,
-                    "metodo_pago"    => $metodoPago,
-                    "referencia"     => $referencia ?: null,
-                    "cuenta_destino" => $cuentaDestino ?: null,
-                    "numero_recibo"  => $numRecibo,
-                    "codigo_recibo"  => !empty($numOrig) ? $numOrig : (string)$numRecibo,
-                ]);
-            }
-            $procesados++;
         }
-        return [$errores, $advertencias, $procesados];
-    }
 
-    private function generarPlanCuotas(Venta $venta, string $fechaInicio): void
-    {
-        $plazo = $venta->plazo_meses;
-        $cuota = $venta->cuota_mensual;
-        $saldo = $venta->precio_final;
-        $fecha = Carbon::parse($fechaInicio);
-        for ($i = 1; $i <= $plazo; $i++) {
-            $fecha->addMonth();
-            $montoCuota = ($i === $plazo) ? $saldo : $cuota;
-            Cuota::create(["id_venta" => $venta->id_venta, "numero_cuota" => $i, "fecha_vencimiento" => $fecha->format("Y-m-d"), "monto_total" => $montoCuota, "capital" => $montoCuota, "interes" => 0, "saldo_restante" => $montoCuota, "estado" => "Pendiente"]);
-            $saldo -= $montoCuota;
+        // 3. Fallback por índice numérico
+        if ($indiceFallback !== null) {
+            $valores = array_values($datos);
+            if (isset($valores[$indiceFallback]) && !empty($valores[$indiceFallback])) {
+                return $valores[$indiceFallback];
+            }
         }
+
+        return [];
     }
 
     private function parsearExcel(string $ruta, ?string $originalName = null): array
     {
+        // 1. Probar si es un archivo XML Spreadsheet 2003
+        $primerosBytes = file_get_contents($ruta, false, null, 0, 1000);
+        if ($primerosBytes && (str_contains($primerosBytes, 'urn:schemas-microsoft-com:office:spreadsheet') || str_contains($primerosBytes, '<?mso-application progid="Excel.Sheet"?>'))) {
+            return $this->parsearXmlSpreadsheet($ruta);
+        }
+
+        // 2. Abrir como archivo ZIP OpenXML (.xlsx)
         $zip = new \ZipArchive();
         if ($zip->open($ruta) !== true) {
-            throw new \Exception("No se pudo abrir el archivo XLSX. Asegúrese de que sea un archivo de Excel válido (.xlsx) y no esté dañado.");
+            // Intentar como XML por si acaso
+            try {
+                return $this->parsearXmlSpreadsheet($ruta);
+            } catch (\Throwable $t) {
+                throw new \Exception("No se pudo abrir el archivo Excel. Asegúrese de que sea un archivo .xlsx válido y no esté protegido con contraseña.");
+            }
         }
 
         // Shared strings
         $sharedStrings = [];
         $ssXml = $zip->getFromName("xl/sharedStrings.xml");
         if ($ssXml) {
-            $ss = simplexml_load_string($ssXml);
-            if ($ss && isset($ss->si)) {
-                foreach ($ss->si as $si) {
-                    $txt = "";
-                    if (isset($si->r)) {
-                        foreach ($si->r as $r) { $txt .= (string)($r->t ?? ""); }
+            if (preg_match_all('/<si>(.*?)<\/si>/s', $ssXml, $siMatches)) {
+                foreach ($siMatches[1] as $si) {
+                    if (preg_match_all('/<t[^>]*>(.*?)<\/t>/s', $si, $tMatches)) {
+                        $sharedStrings[] = html_entity_decode(implode('', $tMatches[1]), ENT_QUOTES | ENT_XML1, 'UTF-8');
+                    } else {
+                        $sharedStrings[] = '';
                     }
-                    if ($txt === "" && isset($si->t)) {
-                        $txt = (string)$si->t;
-                    }
-                    $sharedStrings[] = $txt;
                 }
             }
         }
 
-        // Workbook + rels
-        $wbXml = $zip->getFromName("xl/workbook.xml");
-        if (!$wbXml) {
-            $zip->close();
-            throw new \Exception("Estructura de Excel inválida (falta xl/workbook.xml). Guarde el archivo como Libro de Excel (.xlsx).");
-        }
-        $wb      = simplexml_load_string($wbXml);
-        $relsXml = $zip->getFromName("xl/_rels/workbook.xml.rels");
-        $rels    = $relsXml ? simplexml_load_string($relsXml) : null;
+        // Relaciones entre hojas y archivos XML
         $sheetRels = [];
-        if ($rels && isset($rels->Relationship)) {
-            foreach ($rels->Relationship as $rel) {
-                $sheetRels[(string)$rel["Id"]] = (string)$rel["Target"];
+        $relsXml = $zip->getFromName("xl/_rels/workbook.xml.rels");
+        if ($relsXml) {
+            if (preg_match_all('/<Relationship[^>]+Id="([^"]+)"[^>]+Target="([^"]+)"/i', $relsXml, $relMatches, PREG_SET_ORDER)) {
+                foreach ($relMatches as $rm) {
+                    $sheetRels[$rm[1]] = $rm[2];
+                }
+            }
+        }
+
+        // Hojas definidas en workbook.xml
+        $wbXml = $zip->getFromName("xl/workbook.xml");
+        $sheetDefs = [];
+        if ($wbXml) {
+            if (preg_match_all('/<sheet[^>]+name="([^"]+)"[^>]+(?:r:id|id)="([^"]+)"/i', $wbXml, $sheetMatches, PREG_SET_ORDER)) {
+                foreach ($sheetMatches as $sm) {
+                    $sheetDefs[$sm[1]] = $sm[2]; // name => rId
+                }
             }
         }
 
@@ -799,29 +570,115 @@ class ImportacionController extends Controller
         $dateStyleIds = $this->obtenerEstilosFecha($stylesXml ?: null);
 
         $resultado = [];
-        if ($wb && isset($wb->sheets->sheet)) {
-            foreach ($wb->sheets->sheet as $sheet) {
-                $nombre = trim((string)$sheet["name"]);
-                $rId    = (string)$sheet->attributes("http://schemas.openxmlformats.org/officeDocument/2006/relationships")["id"];
+
+        // Leer hojas mapeadas por nombre
+        if (!empty($sheetDefs)) {
+            foreach ($sheetDefs as $nombre => $rId) {
                 $target = $sheetRels[$rId] ?? null;
-                if (!$target) continue;
-                $sheetPath = "xl/" . ltrim($target, "/");
-                $sheetXml  = $zip->getFromName($sheetPath);
-                if (!$sheetXml) continue;
-                $resultado[$nombre] = $this->parsearHoja($sheetXml, $sharedStrings, $dateStyleIds);
+                $sheetPath = $target ? 'xl/' . ltrim(str_replace('xl/', '', $target), '/') : null;
+                $sheetXml = ($sheetPath && $zip->locateName($sheetPath) !== false) ? $zip->getFromName($sheetPath) : null;
+
+                if (!$sheetXml && $target) {
+                    $sheetXml = $zip->getFromName($target);
+                }
+
+                if ($sheetXml) {
+                    $filas = $this->parsearHoja($sheetXml, $sharedStrings, $dateStyleIds);
+                    $resultado[trim($nombre)] = $filas;
+                }
             }
         }
+
+        // Fallback: si por alguna razón no se leyeron hojas, buscar archivos sheet1.xml, sheet2.xml, etc.
+        if (empty($resultado)) {
+            for ($i = 1; $i <= 10; $i++) {
+                $sheetPath = "xl/worksheets/sheet{$i}.xml";
+                if ($zip->locateName($sheetPath) !== false) {
+                    $sheetXml = $zip->getFromName($sheetPath);
+                    $filas = $this->parsearHoja($sheetXml, $sharedStrings, $dateStyleIds);
+                    $sheetName = match($i) {
+                        1 => 'CLIENTES_CONTRATOS',
+                        2 => 'HISTORIAL_PAGOS',
+                        3 => 'CATALOGO_LOTES',
+                        default => "HOJA_{$i}"
+                    };
+                    $resultado[$sheetName] = $filas;
+                }
+            }
+        }
+
         $zip->close();
+        return $resultado;
+    }
+
+    /**
+     * Parser para plantillas en formato XML Spreadsheet 2003.
+     */
+    private function parsearXmlSpreadsheet(string $ruta): array
+    {
+        $contenido = file_get_contents($ruta);
+        $xml = simplexml_load_string($contenido);
+        if (!$xml) {
+            throw new \Exception("Formato XML inválido.");
+        }
+
+        $resultado = [];
+        foreach ($xml->Worksheet as $ws) {
+            $sheetName = trim((string)$ws->attributes('ss', true)['Name'] ?? (string)$ws['Name'] ?? 'Hoja');
+            $filas = [];
+            $header = [];
+
+            if (isset($ws->Table->Row)) {
+                foreach ($ws->Table->Row as $row) {
+                    $rowData = [];
+                    $colIdx = 0;
+                    foreach ($row->Cell as $cell) {
+                        $colIdx++;
+                        $val = trim((string)($cell->Data ?? ''));
+                        $rowData['C' . $colIdx] = $val;
+                    }
+
+                    if (empty(array_filter($rowData, fn($v) => $v !== ''))) {
+                        continue;
+                    }
+
+                    if (empty($header)) {
+                        $firstVal = strtolower(reset($rowData) ?: '');
+                        if (count($rowData) <= 2 || str_starts_with($firstVal, 'hoja') || str_starts_with($firstVal, 'guia')) {
+                            continue;
+                        }
+                        foreach ($rowData as $col => $enc) {
+                            $header[$col] = strtolower(str_replace([' ', '-'], '_', trim($enc)));
+                        }
+                    } else {
+                        $filaMapeada = [];
+                        foreach ($header as $col => $campo) {
+                            $filaMapeada[$campo] = $rowData[$col] ?? '';
+                        }
+                        $filas[] = $filaMapeada;
+                    }
+                }
+            }
+            $resultado[$sheetName] = $filas;
+        }
+
         return $resultado;
     }
 
     private function parsearHoja(string $xml, array $sharedStrings, array $dateStyleIds): array
     {
-        $sheet  = simplexml_load_string($xml);
-        $filas  = []; $header = [];
+        $sheet = simplexml_load_string($xml);
+        $filas = []; $header = [];
         if (!$sheet || !isset($sheet->sheetData->row)) {
             return [];
         }
+
+        $palabrasClaveEncabezado = [
+            'expediente_num', 'expediente', 'nombres_apellidos', 'nombre', 'identificacion',
+            'identificacion_cliente', 'nombre_bloque', 'bloque', 'numero_lote', 'lote',
+            'fecha_venta', 'precio_final', 'plazo_meses', 'cuota_mensual', 'estado_contrato',
+            'fecha_pago', 'monto_abonado', 'tipo_pago', 'area_metros', 'precio_base'
+        ];
 
         foreach ($sheet->sheetData->row as $row) {
             $rowData = [];
@@ -853,16 +710,29 @@ class ImportacionController extends Controller
                 continue;
             }
 
-            // Si aún no se han detectado los encabezados de columna:
+            // Detección inteligente de fila de encabezados:
             if (empty($header)) {
-                $primeraCelda = strtolower(reset($rowData) ?: '');
-                // Si es la fila de título/banner explicativo, la saltamos
-                if (count($rowData) <= 2 || str_starts_with($primeraCelda, 'hoja') || str_starts_with($primeraCelda, 'guia')) {
+                $filaTexto = array_map(fn($v) => strtolower(str_replace([' ', '-'], '_', trim($v))), $rowData);
+                $coincidencias = count(array_intersect($filaTexto, $palabrasClaveEncabezado));
+
+                // Si tiene al menos 2 columnas que coinciden con los nombres de campos estándar:
+                if ($coincidencias >= 2) {
+                    foreach ($rowData as $col => $enc) {
+                        $header[$col] = strtolower(str_replace([" ", "-"], "_", trim($enc)));
+                    }
                     continue;
                 }
-                foreach ($rowData as $col => $enc) {
-                    $header[$col] = strtolower(str_replace([" ", "-"], "_", trim($enc)));
+
+                // O si es la primera fila con más de 3 celdas no vacías y no es banner:
+                $primeraCelda = strtolower(reset($rowData) ?: '');
+                if (!str_starts_with($primeraCelda, 'hoja') && !str_starts_with($primeraCelda, 'guia') && count($rowData) >= 4) {
+                    foreach ($rowData as $col => $enc) {
+                        $header[$col] = strtolower(str_replace([" ", "-"], "_", trim($enc)));
+                    }
+                    continue;
                 }
+
+                continue; // Saltar fila de título / banner
             } else {
                 $filaMapeada = [];
                 foreach ($header as $col => $campo) {
