@@ -626,11 +626,13 @@ class ImportacionController extends Controller
                     $cliente = $clienteExistente;
                     $resumen["clientes_existentes"]++;
                 } else {
-                    // Verificar si el expediente ya pertenece a otro cliente
+                    // Si el número de expediente ya está en uso por otra persona (ej. de otro proyecto),
+                    // auto-asignar el siguiente número de expediente disponible sin bloquear la importación
                     $expedienteEnUso = Cliente::withoutGlobalScope("lotificacion")->where("expediente_num", $expediente)->first();
-                    if ($expedienteEnUso) {
-                        $errores[] = "[Contratos F{$numFila}] El expediente '{$expediente}' ya pertenece a otro cliente ('{$expedienteEnUso->nombres_apellidos}').";
-                        continue;
+                    if ($expedienteEnUso && $expedienteEnUso->identificacion !== $identificacion) {
+                        $expedienteNuevo = Cliente::generarSiguienteExpediente();
+                        $advertencias[] = "[Contratos F{$numFila}] El expediente '{$expediente}' ya existía en otro cliente del sistema. Se asignó automáticamente '{$expedienteNuevo}'.";
+                        $expediente = $expedienteNuevo;
                     }
 
                     $cliente = Cliente::create([
@@ -684,13 +686,13 @@ class ImportacionController extends Controller
                 continue;
             }
 
-            // Verificar lote sin contrato vigente
+            // Verificar lote sin contrato vigente en este proyecto
             $historialVigente = HistorialLote::where("id_lote", $lote->id_lote)
                 ->where("estado", "Activo")
-                ->whereHas("venta", fn($q) => $q->withoutGlobalScope("lotificacion")->where("estado_contrato", "Vigente"))
+                ->whereHas("venta", fn($q) => $q->withoutGlobalScope("lotificacion")->where("lotificacion_id", $lotificacion->id)->where("estado_contrato", "Vigente"))
                 ->first();
             if ($historialVigente) {
-                $errores[] = "[Contratos F{$numFila}] Lote '{$numeroLote}'/'{$nombreBloque}' ya tiene contrato Vigente (ID Venta: {$historialVigente->id_venta}).";
+                $errores[] = "[Contratos F{$numFila}] Lote '{$numeroLote}'/'{$nombreBloque}' ya tiene contrato Vigente en '{$lotificacion->nombre}' (ID Venta: {$historialVigente->id_venta}).";
                 continue;
             }
 
