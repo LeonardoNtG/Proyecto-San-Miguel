@@ -140,7 +140,7 @@ class ClienteController extends Controller
             'lotes' => 'nullable|array|min:1|max:20',
             'lotes_ids.*' => 'exists:lotes,id_lote',
             'lotes.*' => 'exists:lotes,id_lote',
-            'tipo_contrato' => 'required|in:colectivo,individual',
+            'tipo_contrato' => 'required|in:unificado,colectivo,individual',
             'precio_final' => 'required|numeric|min:1',
             'plazo_meses' => 'required|integer|min:1',
             'cuota_mensual' => 'required|numeric|min:0.01',
@@ -211,8 +211,8 @@ class ClienteController extends Controller
                 ]);
             }
 
-            // ─── MODO COLECTIVO (un solo contrato/plan para todos los lotes) ──
-            if ($request->tipo_contrato === 'colectivo') {
+            // ─── MODO UNIFICADO / COLECTIVO (un solo contrato/plan para todos los lotes) ──
+            if ($request->tipo_contrato === 'unificado' || $request->tipo_contrato === 'colectivo') {
 
                 $extensionTotal = Lote::whereIn('id_lote', $lotesIds)->sum('area_metros');
 
