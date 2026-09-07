@@ -75,7 +75,7 @@
                                 <td>
                                     @if($todosLotes->count() > 0)
                                         @foreach($todosLotes as $lote)
-                                            <span class="badge badge-info">Bloque {{ $lote->bloque->nombre ?? 'N/A' }} - Lote {{ $lote->numero_lote ?? 'N/A' }}</span><br>
+                                            <span class="badge badge-info">{{ $lote->nombre_completo }}</span><br>
                                         @endforeach
                                     @else
                                         <span class="text-muted">N/A</span>

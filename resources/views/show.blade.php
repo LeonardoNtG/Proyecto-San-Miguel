@@ -180,19 +180,15 @@
                                 <p><strong>Precio Final:</strong> ${{ number_format($venta->precio_final, 2) }}</p>
                                 <p><strong>Plazo (Meses):</strong> {{ $venta->plazo_meses }}</p>
                                 <p><strong>Cuota Mensual:</strong> ${{ number_format($venta->cuota_mensual, 2) }}
-                                    @if($venta->total_lotes_vendidos > 1)
-                                        <span class="badge bg-light text-dark border ms-1">
-                                            ${{ number_format(max(0, $venta->cuota_mensual / max(1, $venta->total_lotes_vendidos)), 2) }} / lote
-                                        </span>
-                                    @endif
-                                </p>
-                                <p><strong>Extensión Total:</strong> {{ $venta->extension_lote }} m²</p>
+                                <p><strong>Fecha de Venta:</strong> {{ \Carbon\Carbon::parse($venta->fecha_venta)->format('d/m/Y') }}</p>
+                                <p><strong>Precio Final:</strong> <span class="text-primary fw-bold">${{ number_format($venta->precio_final, 2) }}</span></p>
+                                <p><strong>Plazo:</strong> {{ $venta->plazo_meses }} meses</p>
+                                <p><strong>Cuota Mensual:</strong> ${{ number_format($venta->cuota_mensual, 2) }}</p>
                                 @if($venta->beneficiario_final)
-                                    <div class="alert alert-warning py-2 px-3 mt-2 mb-0">
-                                        <small class="fw-bold d-block"><i class="fas fa-user-tie me-1"></i> Beneficiario Final / Futuro Titular:</small>
-                                        <strong>{{ $venta->beneficiario_final }}</strong>
+                                    <div class="alert alert-info py-1 px-2 small mb-2">
+                                        <strong><i class="fas fa-user-tie me-1"></i> Beneficiario Final:</strong> {{ $venta->beneficiario_final }}
                                         @if($venta->nota_beneficiario)
-                                            <br><small class="text-muted">{{ $venta->nota_beneficiario }}</small>
+                                            <div class="text-muted" style="font-size: 0.8rem;">Nota: {{ $venta->nota_beneficiario }}</div>
                                         @endif
                                     </div>
                                 @endif
@@ -203,8 +199,7 @@
                                     @forelse ($venta->lotes as $lote)
                                         <li class="mb-2">
                                             <i class="fas fa-map-marker-alt text-primary me-1"></i>
-                                            <strong>Bloque {{ $lote->bloque ? $lote->bloque->nombre : '' }}</strong>, 
-                                            <strong>Lote {{ $lote->numero_lote }}</strong> 
+                                            <strong>{{ $lote->nombre_completo }}</strong> 
                                             <span class="text-muted">({{ number_format($lote->area_metros, 2) }} m²)</span>
                                         </li>
                                     @empty
@@ -219,7 +214,7 @@
                                         </small>
                                         @foreach($venta->lotesRescindidos as $loteRes)
                                             <span class="badge bg-light text-muted border text-decoration-line-through me-1 mb-1" title="Lote devuelto a disponible">
-                                                Bloque {{ $loteRes->bloque ? $loteRes->bloque->nombre : '' }} - Lote {{ $loteRes->numero_lote }}
+                                                {{ $loteRes->nombre_completo }}
                                             </span>
                                         @endforeach
                                     </div>
@@ -552,7 +547,7 @@
                                                data-area="{{ $lote->area_metros }}"
                                                checked>
                                         <label class="form-check-label fw-bold text-dark" for="lote_res_{{ $lote->id_lote }}">
-                                            Bloque {{ $lote->bloque ? $lote->bloque->nombre : '' }} - Lote {{ $lote->numero_lote }}
+                                            {{ $lote->nombre_completo }}
                                             <span class="text-muted fw-normal">({{ number_format($lote->area_metros, 2) }} m²)</span>
                                         </label>
                                     </div>
@@ -589,7 +584,7 @@
                                 <select name="id_venta_destino" class="form-select form-select-sm mt-1">
                                     @foreach($otrosContratosActivos as $otraVenta)
                                         @php
-                                            $lotesOtra = $otraVenta->lotes->map(fn($l) => ($l->bloque ? 'Blq '.$l->bloque->nombre.' - ' : '').'Lote '.$l->numero_lote)->implode(', ');
+                                            $lotesOtra = $otraVenta->lotes->map(fn($l) => $l->nombre_completo)->implode(', ');
                                         @endphp
                                         <option value="{{ $otraVenta->id_venta }}">Contrato #{{ $otraVenta->id_venta }} ({{ $lotesOtra ?: 'Sin lotes' }}) — Saldo actual: ${{ number_format(max(0, $otraVenta->precio_final - $otraVenta->abonos()->sum('monto_abonado')), 2) }}</option>
                                     @endforeach

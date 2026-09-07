@@ -229,7 +229,7 @@
                                 @if($abono->venta && $abono->venta->lotes)
                                     @foreach($abono->venta->lotes as $lote)
                                         <span class="badge bg-dark text-white mb-1" style="font-size: 0.75rem;">
-                                            Bloque {{ $lote->bloque->nombre ?? '' }} - Lote {{ $lote->numero_lote }}
+                                            {{ $lote->nombre_completo }}
                                         </span>
                                     @endforeach
                                 @else

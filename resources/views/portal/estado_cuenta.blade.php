@@ -108,7 +108,7 @@
                     @foreach($ventas as $v)
                         @php
                             $lotesV = $v->lotes;
-                            $nombreLotes = $lotesV->map(fn($l) => 'Bloque '.($l->bloque->nombre ?? '').' - Lote '.$l->numero_lote)->implode(', ');
+                            $nombreLotes = $lotesV->map(fn($l) => $l->nombre_completo)->implode(', ');
                             $esActual = ($venta && $venta->id_venta == $v->id_venta);
                         @endphp
                         <div class="col-md-4">
@@ -151,9 +151,9 @@
                         </div>
                         <div class="mb-3">
                             <div class="info-label">Lotes Adquiridos</div>
-                            <div class="info-value">
+                            <div class="info-value fw-bold text-dark fs-6">
                                 @foreach($venta->lotes as $lote)
-                                    Bloque {{ $lote->bloque->nombre ?? 'N/A' }}, Lote {{ $lote->numero_lote ?? 'N/A' }}<br>
+                                    <i class="fas fa-map-marker-alt text-primary me-1"></i> {{ $lote->nombre_completo }}<br>
                                 @endforeach
                             </div>
                         </div>
