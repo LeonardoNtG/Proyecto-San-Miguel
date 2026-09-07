@@ -267,19 +267,24 @@
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    @php
+                                        $saldoAcumulado = (float) $venta->precio_final;
+                                    @endphp
                                     @forelse($cuotasVisibles as $index => $cuota)
                                     @php
                                         $abonoCorrespondiente = ($index < $numAbonos) ? $abonosOrdenados->get($index) : null;
                                         if ($abonoCorrespondiente) {
                                             $montoAbonadoMostrar = (float) $abonoCorrespondiente->monto_abonado;
-                                            $saldoMostrar = 0.00;
+                                            $saldoAcumulado = max(0, $saldoAcumulado - $montoAbonadoMostrar);
+                                            $saldoMostrar = $saldoAcumulado;
                                             $moraMostrar = 0.00;
                                             $estadoTexto = 'Pagada';
                                             $fechaAbonoMostrar = $abonoCorrespondiente->fecha_pago;
                                             $fechaTransfMostrar = $abonoCorrespondiente->fecha_transferencia;
                                         } else {
                                             $montoAbonadoMostrar = 0.00;
-                                            $saldoMostrar = (float) $cuota->monto_total;
+                                            $saldoAcumulado = max(0, $saldoAcumulado - (float) $cuota->monto_total);
+                                            $saldoMostrar = $saldoAcumulado;
                                             $moraMostrar = ($cuota->fecha_vencimiento < now()->format('Y-m-d')) ? (float) $cuota->mora_pendiente : 0.00;
                                             $estadoTexto = ($cuota->fecha_vencimiento < now()->format('Y-m-d') && $moraMostrar > 0) ? 'Mora' : 'Pendiente';
                                             $fechaAbonoMostrar = null;
