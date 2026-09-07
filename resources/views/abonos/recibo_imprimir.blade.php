@@ -7,10 +7,8 @@
     <style>
         /* CSS Reset for Printing */
         @page {
-            /* Solo forzar orientación — el tamaño lo controla el diálogo de impresión.
-               Esto evita que Chrome encoja el contenido si el papel no es "letter". */
             size: landscape;
-            margin: 0;
+            margin: 8mm 10mm 6mm 10mm;
         }
         html, body {
             width: 100%;
@@ -24,7 +22,7 @@
         }
         
         body {
-            padding: 6mm 8mm 0 8mm;
+            padding: 8mm 10mm 6mm 10mm;
         }
 
         .page-container {
@@ -33,7 +31,7 @@
             flex-direction: row;
             justify-content: center;
             align-items: stretch;
-            gap: 6px;
+            gap: 8px;
             background-color: transparent;
         }
 
