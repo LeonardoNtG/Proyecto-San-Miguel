@@ -821,12 +821,25 @@ class AbonoController extends Controller
         $fechaDesde = $request->input('fecha_desde');
         $fechaHasta = $request->input('fecha_hasta');
 
-        $query = Abono::with([
-            'venta.cliente',
-            'venta.lotes.bloque',
-            'user',
-            'userReciboFirmado'
-        ]);
+        $query = Abono::withoutGlobalScope('lotificacion')
+            ->with([
+                'venta' => fn($q) => $q->withoutGlobalScope('lotificacion')->with([
+                    'cliente' => fn($cq) => $cq->withoutGlobalScope('lotificacion'),
+                    'lotes' => fn($lq) => $lq->withoutGlobalScope('lotificacion')->with([
+                        'bloque' => fn($bq) => $bq->withoutGlobalScope('lotificacion')
+                    ]),
+                    'lotificacion'
+                ]),
+                'user',
+                'userReciboFirmado'
+            ]);
+
+        $activeLotId = session('lotificacion_id');
+        if ($activeLotId) {
+            $query->whereHas('venta', function($vq) use ($activeLotId) {
+                $vq->withoutGlobalScope('lotificacion')->where('ventas.lotificacion_id', $activeLotId);
+            });
+        }
 
         if ($estadoFirma === 'firmados') {
             $query->whereNotNull('abonos.recibo_firmado');
@@ -847,19 +860,31 @@ class AbonoController extends Controller
                   ->orWhere('abonos.id_abono', 'like', "%{$search}%")
                   ->orWhere('abonos.referencia', 'like', "%{$search}%")
                   ->orWhereHas('venta', function($vq) use ($search) {
-                      $vq->whereHas('cliente', function($cq) use ($search) {
-                          $cq->where('clientes.nombres_apellidos', 'like', "%{$search}%")
-                             ->orWhere('clientes.expediente_num', 'like', "%{$search}%")
-                             ->orWhere('clientes.dni_num', 'like', "%{$search}%");
-                      })->orWhereHas('lotes', function($lq) use ($search) {
-                          $lq->where('lotes.numero_lote', 'like', "%{$search}%");
-                      });
+                      $vq->withoutGlobalScope('lotificacion')
+                         ->where(function($vq2) use ($search) {
+                             $vq2->whereHas('cliente', function($cq) use ($search) {
+                                 $cq->withoutGlobalScope('lotificacion')
+                                    ->where(function($cq2) use ($search) {
+                                        $cq2->where('clientes.nombres_apellidos', 'like', "%{$search}%")
+                                            ->orWhere('clientes.expediente_num', 'like', "%{$search}%")
+                                            ->orWhere('clientes.dni_num', 'like', "%{$search}%");
+                                    });
+                             })->orWhereHas('lotes', function($lq) use ($search) {
+                                 $lq->withoutGlobalScope('lotificacion')
+                                    ->where('lotes.numero_lote', 'like', "%{$search}%");
+                             });
+                         });
                   });
             });
         }
 
         // Estadísticas globales
-        $baseQuery = Abono::query();
+        $baseQuery = Abono::withoutGlobalScope('lotificacion');
+        if ($activeLotId) {
+            $baseQuery->whereHas('venta', function($vq) use ($activeLotId) {
+                $vq->withoutGlobalScope('lotificacion')->where('ventas.lotificacion_id', $activeLotId);
+            });
+        }
         if ($fechaDesde) $baseQuery->whereDate('abonos.fecha_pago', '>=', $fechaDesde);
         if ($fechaHasta) $baseQuery->whereDate('abonos.fecha_pago', '<=', $fechaHasta);
 
