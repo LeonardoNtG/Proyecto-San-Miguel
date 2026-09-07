@@ -7,16 +7,19 @@
     <style>
         /* CSS Reset for Printing */
         @page {
-            size: letter portrait;
-            margin: 5mm 6mm;
+            size: letter landscape;
+            margin: 5mm 8mm;
         }
         body, html {
             margin: 0;
-            padding: 5mm 6mm;
+            padding: 5mm 8mm;
             width: 100%;
             font-family: Arial, sans-serif;
             box-sizing: border-box;
             background-color: #f8fafc;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
         }
         * {
             box-sizing: inherit;
@@ -24,11 +27,11 @@
         
         .page-container {
             width: 100%;
-            max-width: 8.2in;
+            max-width: 10.5in;  /* ancho útil en landscape letter */
             margin: 0 auto;
-            min-height: 3.8in;
+            min-height: 3.2in;
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: stretch;
             gap: 8px;
             padding: 0;
@@ -345,12 +348,16 @@
                 background: none;
                 padding: 0;
                 margin: 0;
+                display: flex;
+                justify-content: center;
+                align-items: flex-start;
             }
             .page-container {
                 padding: 0;
                 margin: 0 auto;
                 width: 100%;
                 max-width: 100%;
+                justify-content: center;
             }
             .receipt-card {
                 border: 2px solid #1A237E !important;
