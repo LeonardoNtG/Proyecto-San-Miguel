@@ -240,33 +240,19 @@
                                 </thead>
                                 <tbody>
                                     @php
-                                        $abonosOrdenados = $venta->abonos->sortBy('fecha_pago')->values();
                                         $saldoAcumulado = (float) $venta->precio_final;
                                     @endphp
-                                    @forelse($venta->cuotas as $index => $cuota)
+                                    @forelse($venta->cuotas as $cuota)
                                     @php
-                                        $abonoCorrespondiente = $abonosOrdenados->get($index);
-                                        if ($abonoCorrespondiente) {
-                                            $montoAbonadoMostrar = (float) $abonoCorrespondiente->monto_abonado;
-                                            $saldoAcumulado = max(0, $saldoAcumulado - $montoAbonadoMostrar);
-                                            $estaPagada = true;
-                                            $moraMostrar = 0;
-                                            $estadoTexto = 'Pagada';
-                                        } else {
-                                            $montoAbonadoMostrar = 0;
-                                            $saldoAcumulado = max(0, $saldoAcumulado - (float) $cuota->monto_total);
-                                            $estaPagada = ($cuota->estado === 'Pagada');
-                                            $moraMostrar = $cuota->mora_pendiente;
-                                            $estadoTexto = $cuota->estado;
-                                        }
+                                        $montoAbonadoMostrar = max(0, (float)$cuota->monto_total - (float)$cuota->saldo_restante);
+                                        $saldoAcumulado = max(0, $saldoAcumulado - $montoAbonadoMostrar);
+                                        $moraMostrar = (float) $cuota->mora_pendiente;
+                                        $estadoTexto = $cuota->estado;
                                     @endphp
                                     <tr>
                                         <td class="text-center fw-bold text-muted">{{ $cuota->numero_cuota }}</td>
                                         <td>
                                             <span class="fw-semibold text-dark">{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</span>
-                                            @if($abonoCorrespondiente && $abonoCorrespondiente->fecha_transferencia)
-                                                <br><small class="text-muted" style="font-size: 0.75rem;" title="Fecha en que se realizó la transferencia"><i class="fas fa-university me-1 text-primary"></i>Transf: {{ \Carbon\Carbon::parse($abonoCorrespondiente->fecha_transferencia)->format('d/m/Y') }}</small>
-                                            @endif
                                         </td>
                                         <td>
                                             <span class="text-dark">${{ number_format($cuota->monto_total, 2) }}</span>
@@ -279,7 +265,7 @@
                                             @endif
                                         </td>
                                         <td>
-                                            <strong class="text-dark">${{ number_format($saldoAcumulado, 2) }}</strong>
+                                            <strong class="text-dark">${{ number_format($cuota->saldo_restante, 2) }}</strong>
                                         </td>
                                         <td>
                                             @if($moraMostrar > 0)
@@ -290,9 +276,11 @@
                                         </td>
                                         <td>
                                             @if($estadoTexto === 'Pagada')
-                                                <span class="badge bg-success px-2 py-1">Pagada</span>
+                                                <span class="badge bg-success px-2 py-1"><i class="fas fa-check me-1"></i>Pagada</span>
                                             @elseif($estadoTexto === 'Mora')
-                                                <span class="badge bg-danger px-2 py-1">En Mora</span>
+                                                <span class="badge bg-danger px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>En Mora</span>
+                                            @elseif($estadoTexto === 'Parcial')
+                                                <span class="badge bg-info text-white px-2 py-1"><i class="fas fa-adjust me-1"></i>Parcial</span>
                                             @else
                                                 <span class="badge bg-warning text-dark px-2 py-1">Pendiente</span>
                                             @endif

@@ -423,18 +423,25 @@ class AbonoController extends Controller
         $abonos = \App\Models\Abono::where('id_venta', $id_venta)
             ->orderBy('fecha_pago', 'asc')->orderBy('id_abono', 'asc')->get();
 
-        // 4. Reaplicar los abonos a las cuotas en orden
-        foreach($abonos as $abono) {
+        // 4. Reaplicar los abonos a las cuotas con la regla:
+        // - Primero liquidar cuotas vencidas (y moras) a la fecha de pago en orden ascendente (1, 2, 3...)
+        // - Si no es prima de capital, cubrir 1 cuota regular del mes actual (la próxima pendiente)
+        // - Todo excedente o abono a capital se amortiza a las ÚLTIMAS CUOTAS en orden descendente (60, 59, 58...)
+        foreach ($abonos as $abono) {
             $montoRestante = (float) $abono->monto_abonado;
+            $fechaAbono = $abono->fecha_pago ? \Carbon\Carbon::parse($abono->fecha_pago)->format('Y-m-d') : now()->format('Y-m-d');
             
-            $cuotasPendientes = \App\Models\Cuota::where('id_venta', $id_venta)
-                ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+            // 4.1. Cubrir cuotas vencidas a la fecha del pago (o con mora) en orden ascendente
+            $cuotasVencidas = \App\Models\Cuota::where('id_venta', $id_venta)
+                ->where('saldo_restante', '>', 0)
+                ->where('fecha_vencimiento', '<=', $fechaAbono)
                 ->orderBy('numero_cuota', 'asc')
                 ->get();
 
-            foreach ($cuotasPendientes as $cuota) {
+            foreach ($cuotasVencidas as $cuota) {
                 if ($montoRestante <= 0) break;
 
+                // Cobro de mora pendiente
                 $moraPendiente = $cuota->mora_pendiente;
                 if ($moraPendiente > 0) {
                     if ($montoRestante >= $moraPendiente) {
@@ -444,10 +451,11 @@ class AbonoController extends Controller
                         $cuota->mora_pagada += $montoRestante;
                         $montoRestante = 0;
                         $cuota->save();
-                        continue; 
+                        continue;
                     }
                 }
 
+                // Cobro del saldo de la cuota vencida
                 if ($montoRestante >= (float) $cuota->saldo_restante) {
                     $montoRestante -= (float) $cuota->saldo_restante;
                     $cuota->saldo_restante = 0;
@@ -458,6 +466,52 @@ class AbonoController extends Controller
                     $montoRestante = 0;
                 }
                 $cuota->save();
+            }
+
+            // 4.2. Si aún queda dinero y NO es una Prima pura de capital, cubrir 1 cuota regular más próxima
+            $esTipoPrima = (stripos($abono->tipo_pago, 'prima') !== false && !stripos($abono->tipo_pago, 'cuota'));
+
+            if ($montoRestante > 0 && !$esTipoPrima) {
+                $proximaCuota = \App\Models\Cuota::where('id_venta', $id_venta)
+                    ->where('saldo_restante', '>', 0)
+                    ->orderBy('numero_cuota', 'asc')
+                    ->first();
+
+                if ($proximaCuota) {
+                    if ($montoRestante >= (float) $proximaCuota->saldo_restante) {
+                        $montoRestante -= (float) $proximaCuota->saldo_restante;
+                        $proximaCuota->saldo_restante = 0;
+                        $proximaCuota->estado = 'Pagada';
+                    } else {
+                        $proximaCuota->saldo_restante = round((float)$proximaCuota->saldo_restante - $montoRestante, 2);
+                        $proximaCuota->estado = 'Parcial';
+                        $montoRestante = 0;
+                    }
+                    $proximaCuota->save();
+                }
+            }
+
+            // 4.3. Todo el EXCEDENTE restante ($montoRestante > 0) se amortiza a las ÚLTIMAS CUOTAS en orden descendente (60, 59, 58...)
+            if ($montoRestante > 0) {
+                $cuotasFinales = \App\Models\Cuota::where('id_venta', $id_venta)
+                    ->where('saldo_restante', '>', 0)
+                    ->orderBy('numero_cuota', 'desc')
+                    ->get();
+
+                foreach ($cuotasFinales as $cuotaFin) {
+                    if ($montoRestante <= 0) break;
+
+                    if ($montoRestante >= (float) $cuotaFin->saldo_restante) {
+                        $montoRestante -= (float) $cuotaFin->saldo_restante;
+                        $cuotaFin->saldo_restante = 0;
+                        $cuotaFin->estado = 'Pagada';
+                    } else {
+                        $cuotaFin->saldo_restante = round((float)$cuotaFin->saldo_restante - $montoRestante, 2);
+                        $cuotaFin->estado = 'Parcial';
+                        $montoRestante = 0;
+                    }
+                    $cuotaFin->save();
+                }
             }
         }
 

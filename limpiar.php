@@ -111,6 +111,17 @@ try {
             // Ignorar si falla
         }
 
+        // 5.5 Recalcular cuotas de todas las ventas existentes para sincronizar amortización desde el final
+        try {
+            $todasVentas = \App\Models\Venta::withoutGlobalScope('lotificacion')->get();
+            foreach ($todasVentas as $v) {
+                \App\Http\Controllers\AbonoController::recalcularCuotas($v->id_venta);
+            }
+            $columnFixes[] = "✔ Cuotas recalculadas y sincronizadas exitosamente para " . $todasVentas->count() . " contratos.";
+        } catch (\Throwable $e) {
+            // Ignorar si falla
+        }
+
         // 6. Verificar tablas críticas
         $tablesToVerify = ['users', 'lotificaciones', 'lotificacion_user', 'clientes', 'ventas', 'cuotas', 'abonos', 'historial_lotes', 'apertura_cajas', 'cierre_cajas', 'salidas', 'configuraciones', 'rescisiones', 'cuentas_bancarias'];
         foreach ($tablesToVerify as $t) {
