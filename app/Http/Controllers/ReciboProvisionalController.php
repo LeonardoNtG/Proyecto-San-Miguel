@@ -103,9 +103,15 @@ class ReciboProvisionalController extends Controller
             $concepto       = $request->filled('concepto') ? trim($request->input('concepto')) : null;
             $valorTotal     = $request->filled('valor_total') ? (float) $request->input('valor_total') : null;
             $totalAbonado   = $request->filled('total_abonado') ? (float) $request->input('total_abonado') : null;
+            $abonosAnteriores = $request->filled('abonos_anteriores') ? (float) $request->input('abonos_anteriores') : null;
+
+            if ($totalAbonado === null && ($abonosAnteriores !== null || $monto !== null)) {
+                $totalAbonado = ($abonosAnteriores ?? 0) + ($monto ?? 0);
+            }
+
             $saldoPendiente = null;
             if ($valorTotal !== null) {
-                $saldoPendiente = max(0, $valorTotal - ($totalAbonado ?? 0));
+                $saldoPendiente = max(0, $valorTotal - ($totalAbonado ?? ($monto ?? 0)));
             }
         }
 

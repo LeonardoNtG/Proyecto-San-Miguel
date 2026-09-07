@@ -227,9 +227,9 @@
                                 <label class="form-label fw-bold text-dark small">Monto Recibido en U$ (Dólares):</label>
                                 <div class="input-group">
                                     <span class="input-group-text fw-bold">$</span>
-                                    <input type="number" step="0.01" min="0" name="monto" id="inputMontoManualIndex" class="form-control" placeholder="0.00 (Opcional)">
+                                    <input type="number" step="0.01" min="0" name="monto" id="inputMontoManualIndex" class="form-control fw-bold" placeholder="0.00 (Opcional)" oninput="calcularSaldoProvisionalIndex()">
                                 </div>
-                                <div class="form-text small">Monto que se imprime en la casilla POR U$.</div>
+                                <div class="form-text small">Monto que el cliente abona hoy (impreso en la casilla POR U$).</div>
                             </div>
 
                             <div class="col-md-7">
@@ -241,37 +241,54 @@
                                 <input type="date" name="fecha" class="form-control" value="{{ date('Y-m-d') }}" required>
                             </div>
 
-                            {{-- Sección de Cálculos: Monto Total, Total Abonado y Saldo Calculado --}}
+                            {{-- Sección de Cálculos: Monto Total, Abonos Anteriores, Abono Actual y Saldo Restante --}}
                             <div class="col-12">
-                                <div class="p-3 bg-light rounded border border-secondary-subtle">
-                                    <div class="fw-bold text-dark small mb-2">
-                                        <i class="fas fa-calculator text-primary me-1"></i> Línea de Estado de Cuenta (Monto / Abonado / Saldo):
+                                <div class="p-3 bg-light rounded border border-warning shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-1">
+                                        <div class="fw-bold text-dark small">
+                                            <i class="fas fa-calculator text-primary me-1"></i> Estado de Cuenta (Monto / Abonado / Saldo):
+                                        </div>
+                                        <span class="badge bg-primary text-white" id="badgeMontoActualInfo">
+                                            <i class="fas fa-money-bill-wave me-1"></i> Abono de hoy: $0.00
+                                        </span>
                                     </div>
                                     <div class="row g-2 align-items-center">
-                                        <div class="col-md-4">
+                                        <div class="col-md-3">
                                             <label class="form-label text-dark small fw-bold mb-1">1. Monto Total (U$):</label>
                                             <div class="input-group input-group-sm">
-                                                <span class="input-group-text">$</span>
-                                                <input type="number" step="0.01" min="0" name="valor_total" id="inputValorTotalIndex" class="form-control" placeholder="Ej: 8500.00" oninput="calcularSaldoProvisionalIndex()">
+                                                <span class="input-group-text fw-bold">$</span>
+                                                <input type="number" step="0.01" min="0" name="valor_total" id="inputValorTotalIndex" class="form-control fw-bold" placeholder="Ej: 9000.00" oninput="calcularSaldoProvisionalIndex()">
                                             </div>
+                                            <div class="form-text small text-muted">Valor total de la venta</div>
                                         </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label text-dark small fw-bold mb-1">2. Total Abonado (U$):</label>
+                                        <div class="col-md-3">
+                                            <label class="form-label text-dark small fw-bold mb-1">2. Abonos Anteriores (U$):</label>
                                             <div class="input-group input-group-sm">
-                                                <span class="input-group-text">$</span>
-                                                <input type="number" step="0.01" min="0" name="total_abonado" id="inputTotalAbonadoIndex" class="form-control" placeholder="Ej: 500.00" oninput="calcularSaldoProvisionalIndex()">
+                                                <span class="input-group-text fw-bold">$</span>
+                                                <input type="number" step="0.01" min="0" name="abonos_anteriores" id="inputAbonosAnterioresIndex" class="form-control" placeholder="0.00 (Opcional)" oninput="calcularSaldoProvisionalIndex()">
                                             </div>
+                                            <div class="form-text small text-muted">Historial antes de hoy</div>
                                         </div>
-                                        <div class="col-md-4">
-                                            <label class="form-label text-dark small fw-bold mb-1">3. Saldo (Calculado):</label>
+                                        <div class="col-md-3">
+                                            <label class="form-label text-dark small fw-bold mb-1">Total Abonado (U$):</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text fw-bold text-success">$</span>
+                                                <input type="number" step="0.01" min="0" name="total_abonado" id="inputTotalAbonadoIndex" class="form-control fw-bold text-success" placeholder="0.00" oninput="calcularDesdeTotalAbonadoIndex()">
+                                            </div>
+                                            <div class="form-text small text-muted">Anteriores + Abono de hoy</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label text-dark small fw-bold mb-1">3. Saldo Restante (U$):</label>
                                             <div class="input-group input-group-sm">
                                                 <span class="input-group-text bg-white fw-bold text-danger">$</span>
                                                 <input type="text" id="previewSaldoPendienteIndex" class="form-control bg-white fw-bold text-danger" placeholder="0.00" readonly>
                                             </div>
+                                            <div class="form-text small text-muted">Monto Total - Total Abonado</div>
                                         </div>
                                     </div>
-                                    <div class="form-text small mt-1">
-                                        Se mostrará en el recibo: <code class="text-dark">Monto: U$ [Monto]. Abonado: U$ [Abonado]. Saldo: U$ [Saldo]</code>
+                                    <div class="mt-2 p-2 bg-white rounded border d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                        <span class="small text-muted fw-bold"><i class="fas fa-eye me-1"></i> Vista previa de la línea en el recibo:</span>
+                                        <code class="fw-bold text-dark fs-6" id="previewLineaReciboTexto">Monto: U$ 0.00. Abonado: U$ 0.00. Saldo: U$ 0.00</code>
                                     </div>
                                 </div>
                             </div>
@@ -302,19 +319,60 @@
 
 <script>
     function calcularSaldoProvisionalIndex() {
+        var montoRecibo = parseFloat(document.getElementById('inputMontoManualIndex').value) || 0;
         var valorTotalStr = document.getElementById('inputValorTotalIndex').value;
-        var totalAbonadoStr = document.getElementById('inputTotalAbonadoIndex').value;
+        var abonosAntStr = document.getElementById('inputAbonosAnterioresIndex').value;
+        
+        // Actualizar badge de abono de hoy
+        var badge = document.getElementById('badgeMontoActualInfo');
+        if (badge) {
+            badge.innerHTML = '<i class="fas fa-money-bill-wave me-1"></i> Abono de hoy: $' + montoRecibo.toFixed(2);
+        }
 
-        if (valorTotalStr === '' && totalAbonadoStr === '') {
+        if (valorTotalStr === '' && abonosAntStr === '' && montoRecibo === 0) {
+            document.getElementById('inputTotalAbonadoIndex').value = '';
             document.getElementById('previewSaldoPendienteIndex').value = '';
+            document.getElementById('previewLineaReciboTexto').innerText = 'Monto: U$ 0.00. Abonado: U$ 0.00. Saldo: U$ 0.00';
             return;
         }
 
         var valorTotal = parseFloat(valorTotalStr) || 0;
-        var totalAbonado = parseFloat(totalAbonadoStr) || 0;
-        var saldo = Math.max(0, valorTotal - totalAbonado);
+        var abonosAnteriores = parseFloat(abonosAntStr) || 0;
+        
+        // Total abonado acumulado = abonos anteriores + lo que abona hoy
+        var totalAbonado = abonosAnteriores + montoRecibo;
+        document.getElementById('inputTotalAbonadoIndex').value = (totalAbonado > 0 || abonosAntStr !== '' || montoRecibo > 0) ? totalAbonado.toFixed(2) : '';
 
+        var saldo = Math.max(0, valorTotal - totalAbonado);
+        document.getElementById('previewSaldoPendienteIndex').value = (valorTotal > 0 || totalAbonado > 0) ? saldo.toFixed(2) : '';
+
+        // Formato para preview
+        var vTotalFormateado = valorTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var tAbonadoFormateado = totalAbonado.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var saldoFormateado = saldo.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        
+        document.getElementById('previewLineaReciboTexto').innerText = 
+            'Monto: U$ ' + vTotalFormateado + '. Abonado: U$ ' + tAbonadoFormateado + '. Saldo: U$ ' + saldoFormateado;
+    }
+
+    function calcularDesdeTotalAbonadoIndex() {
+        var valorTotal = parseFloat(document.getElementById('inputValorTotalIndex').value) || 0;
+        var totalAbonado = parseFloat(document.getElementById('inputTotalAbonadoIndex').value) || 0;
+        var montoRecibo = parseFloat(document.getElementById('inputMontoManualIndex').value) || 0;
+        
+        // Si el usuario edita directamente el total abonado, ajustamos los abonos anteriores
+        var abonosAnteriores = Math.max(0, totalAbonado - montoRecibo);
+        document.getElementById('inputAbonosAnterioresIndex').value = abonosAnteriores > 0 ? abonosAnteriores.toFixed(2) : '';
+
+        var saldo = Math.max(0, valorTotal - totalAbonado);
         document.getElementById('previewSaldoPendienteIndex').value = saldo.toFixed(2);
+
+        var vTotalFormateado = valorTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var tAbonadoFormateado = totalAbonado.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var saldoFormateado = saldo.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        
+        document.getElementById('previewLineaReciboTexto').innerText = 
+            'Monto: U$ ' + vTotalFormateado + '. Abonado: U$ ' + tAbonadoFormateado + '. Saldo: U$ ' + saldoFormateado;
     }
 
     function toggleCamposEnBlancoIndex(enBlanco) {
@@ -323,6 +381,7 @@
             $('#inputMontoManualIndex').val('').prop('disabled', true);
             $('#inputConceptoManualIndex').val('').prop('disabled', true);
             $('#inputValorTotalIndex').val('').prop('disabled', true);
+            $('#inputAbonosAnterioresIndex').val('').prop('disabled', true);
             $('#inputTotalAbonadoIndex').val('').prop('disabled', true);
             $('#previewSaldoPendienteIndex').val('').prop('disabled', true);
         } else {
@@ -330,6 +389,7 @@
             $('#inputMontoManualIndex').prop('disabled', false);
             $('#inputConceptoManualIndex').prop('disabled', false);
             $('#inputValorTotalIndex').prop('disabled', false);
+            $('#inputAbonosAnterioresIndex').prop('disabled', false);
             $('#inputTotalAbonadoIndex').prop('disabled', false);
             $('#previewSaldoPendienteIndex').prop('disabled', false);
             calcularSaldoProvisionalIndex();
