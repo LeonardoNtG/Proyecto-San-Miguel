@@ -58,10 +58,10 @@
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
                     <h3 class="mb-1 fw-bold" style="color: #1e293b !important;">
-                        <i class="fas fa-file-invoice-dollar text-warning me-2"></i> Cierre de Recibos Provisionales
+                        <i class="fas fa-file-invoice-dollar text-warning me-2"></i> Reporte de Cierre Diario
                     </h3>
                     <p class="text-muted small mb-0">
-                        Corte diario de recibos provisionales/manuales del: <strong class="text-dark">{{ \Carbon\Carbon::parse($fecha)->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}</strong>
+                        Corte diario de operaciones del: <strong class="text-dark">{{ \Carbon\Carbon::parse($fecha)->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}</strong>
                     </p>
                 </div>
 

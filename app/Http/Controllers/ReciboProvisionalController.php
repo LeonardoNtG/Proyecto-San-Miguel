@@ -425,11 +425,30 @@ class ReciboProvisionalController extends Controller
         $montoEnLetras = $this->convertirMontoALetras($totalMonto);
 
         $lotificacion = $lotificacionId ? Lotificacion::find($lotificacionId) : null;
+        if (!$lotificacion && session('lotificacion_id')) {
+            $lotificacion = Lotificacion::find(session('lotificacion_id'));
+        }
+
+        $logoBase64 = null;
+        if ($lotificacion && !empty($lotificacion->logo)) {
+            $path = public_path('storage/' . $lotificacion->logo);
+            if (!file_exists($path)) {
+                $path = storage_path('app/public/' . $lotificacion->logo);
+            }
+            if (file_exists($path)) {
+                $type = pathinfo($path, PATHINFO_EXTENSION);
+                $dataImg = @file_get_contents($path);
+                if ($dataImg) {
+                    $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($dataImg);
+                }
+            }
+        }
 
         return view('recibos_provisionales.cierre_pdf', compact(
             'recibos',
             'fecha',
             'lotificacion',
+            'logoBase64',
             'totalRecibos',
             'totalMonto',
             'recibosConMonto',
