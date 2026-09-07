@@ -178,6 +178,28 @@
             font-size: 20px;
         }
 
+        /* ── MODO PROVISIONAL ── */
+        .title-provisional {
+            color: #E65100 !important;  /* naranja fuerte */
+        }
+        .badge-provisional {
+            display: inline-block;
+            background: #E65100;
+            color: white;
+            font-size: 7px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            vertical-align: middle;
+            margin-left: 6px;
+            text-transform: uppercase;
+        }
+        /* Ocultar filas de cálculos en modo provisional */
+        .hide-provisional {
+            display: none !important;
+        }
+
         .amount-boxes-container {
             display: flex;
             align-items: center;
@@ -402,31 +424,33 @@
         </div>
 
         <div class="title-block">
-            <div class="title">RECIBO</div>
+            <div class="title {{ isset($modoProvisional) && $modoProvisional ? 'title-provisional' : '' }}">
+                RECIBO @if(isset($modoProvisional) && $modoProvisional)<span class="badge-provisional">PROVISIONAL</span>@endif
+            </div>
             <div class="amount-boxes-container">
                 <div class="amount-box">
                     POR C$: <div class="amount-input"></div>
                 </div>
                 <div class="amount-box">
-                    POR U$: <div class="amount-input">{{ number_format($pago->monto_abonado, 2) }}</div>
+                    POR U$: <div class="amount-input">{{ isset($modoProvisional) && $modoProvisional ? (isset($montoManual) && $montoManual ? number_format($montoManual, 2) : '') : number_format($pago->monto_abonado, 2) }}</div>
                 </div>
             </div>
         </div>
 
         <div class="row">
             <div class="label">Recibimos de:</div>
-            <div class="value">{{ $cliente->nombres_apellidos ?? 'Cliente Desconocido' }}</div>
+            <div class="value">{{ isset($modoProvisional) && $modoProvisional ? ($nombreManual ?? '') : ($cliente->nombres_apellidos ?? 'Cliente Desconocido') }}</div>
         </div>
 
         <div class="row">
             <div class="label">La suma de:</div>
-            <div class="value">{{ preg_replace('/\b(DÓLARES|DOLARES)\s+(DÓLARES|DOLARES)\b/ui', 'DÓLARES', trim($monto_en_letras . ' ' . $sufijoMoneda)) }}</div>
+            <div class="value">{{ isset($modoProvisional) && $modoProvisional ? ($monto_en_letras ? preg_replace('/\b(DÓLARES|DOLARES)\s+(DÓLARES|DOLARES)\b/ui', 'DÓLARES', trim($monto_en_letras . ' ' . $sufijoMoneda)) : '') : preg_replace('/\b(DÓLARES|DOLARES)\s+(DÓLARES|DOLARES)\b/ui', 'DÓLARES', trim($monto_en_letras . ' ' . $sufijoMoneda)) }}</div>
         </div>
 
         <div class="row">
             <div class="label">En concepto de:</div>
             <div class="value" style="display:flex; justify-content: space-between;">
-                <span>Abono a {{ $venta->lotes->count() > 1 ? 'Lotes' : 'Lote' }} {{ $lotes_texto }}</span>
+                <span>{{ isset($modoProvisional) && $modoProvisional ? ($conceptoManual ?? '') : ('Abono a ' . ($venta->lotes->count() > 1 ? 'Lotes' : 'Lote') . ' ' . $lotes_texto) }}</span>
             </div>
         </div>
 
@@ -438,11 +462,11 @@
         </div>
         @endif
 
-        <div class="details-row">
+        <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
             Total: ${{ number_format($valor_total, 2) }} | Abonado: ${{ number_format($total_abonado, 2) }} | Saldo Actual: ${{ number_format($saldo_pendiente, 2) }}
         </div>
 
-        <div class="details-row">
+        <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
             Cuota: ${{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes | Plazo: {{ $venta->plazo_meses ?? 0 }} Meses | Cuotas Pendientes: {{ $abonos_faltantes }}
         </div>
 
@@ -509,31 +533,33 @@
         </div>
 
         <div class="title-block">
-            <div class="title">RECIBO</div>
+            <div class="title {{ isset($modoProvisional) && $modoProvisional ? 'title-provisional' : '' }}">
+                RECIBO @if(isset($modoProvisional) && $modoProvisional)<span class="badge-provisional">PROVISIONAL</span>@endif
+            </div>
             <div class="amount-boxes-container">
                 <div class="amount-box">
                     C$: <div class="amount-input"></div>
                 </div>
                 <div class="amount-box">
-                    U$: <div class="amount-input">{{ number_format($pago->monto_abonado, 2) }}</div>
+                    U$: <div class="amount-input">{{ isset($modoProvisional) && $modoProvisional ? (isset($montoManual) && $montoManual ? number_format($montoManual, 2) : '') : number_format($pago->monto_abonado, 2) }}</div>
                 </div>
             </div>
         </div>
 
         <div class="row">
             <div class="label">Recibimos de:</div>
-            <div class="value">{{ $cliente->nombres_apellidos ?? 'Cliente Desconocido' }}</div>
+            <div class="value">{{ isset($modoProvisional) && $modoProvisional ? ($nombreManual ?? '') : ($cliente->nombres_apellidos ?? 'Cliente Desconocido') }}</div>
         </div>
 
         <div class="row">
             <div class="label">La suma de:</div>
-            <div class="value">{{ preg_replace('/\b(DÓLARES|DOLARES)\s+(DÓLARES|DOLARES)\b/ui', 'DÓLARES', trim($monto_en_letras . ' ' . $sufijoMoneda)) }}</div>
+            <div class="value">{{ isset($modoProvisional) && $modoProvisional ? ($monto_en_letras ? preg_replace('/\b(DÓLARES|DOLARES)\s+(DÓLARES|DOLARES)\b/ui', 'DÓLARES', trim($monto_en_letras . ' ' . $sufijoMoneda)) : '') : preg_replace('/\b(DÓLARES|DOLARES)\s+(DÓLARES|DOLARES)\b/ui', 'DÓLARES', trim($monto_en_letras . ' ' . $sufijoMoneda)) }}</div>
         </div>
 
         <div class="row">
             <div class="label">En concepto de:</div>
             <div class="value" style="display:flex; justify-content: space-between;">
-                <span>Abono a {{ $venta->lotes->count() > 1 ? 'Lotes' : 'Lote' }} {{ $lotes_texto }}</span>
+                <span>{{ isset($modoProvisional) && $modoProvisional ? ($conceptoManual ?? '') : ('Abono a ' . ($venta->lotes->count() > 1 ? 'Lotes' : 'Lote') . ' ' . $lotes_texto) }}</span>
             </div>
         </div>
 
@@ -545,11 +571,11 @@
         </div>
         @endif
 
-        <div class="details-row">
+        <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
             Total: ${{ number_format($valor_total, 2) }} | Saldo Actual: ${{ number_format($saldo_pendiente, 2) }}
         </div>
 
-        <div class="details-row">
+        <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
             Cuota: ${{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes | Plazo: {{ $venta->plazo_meses ?? 0 }} Meses | Cuotas Pendientes: {{ $abonos_faltantes }}
         </div>
 

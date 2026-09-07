@@ -596,12 +596,16 @@ class AbonoController extends Controller
                               ? $this->convertirMontoALetras($abono->monto_abonado) 
                               : 'CANTIDAD EN PALABRAS N/A';
     
+         $modoProvisional = ($abono->tipo_pago === 'Recibo Provisional');
+
          // Configuración de impresión de recibo del proyecto
          $imprimirDoble = (bool) setting('imprimir_doble_recibo', true, $lotificacion?->id);
          $proporcionDoble = (string) setting('proporcion_recibo_doble', '50_50', $lotificacion?->id);
-         $mostrarQr = (bool) setting('mostrar_qr_recibo', true, $lotificacion?->id);
+         $mostrarQr = $modoProvisional ? false : (bool) setting('mostrar_qr_recibo', true, $lotificacion?->id);
          $sufijoMoneda = (string) setting('sufijo_moneda_letras', 'DÓLARES NETOS', $lotificacion?->id);
-         $leyendaPie = (string) setting('leyenda_pie_recibo', 'Conserve este comprobante como constancia legal de su pago.', $lotificacion?->id);
+         $leyendaPie = $modoProvisional
+             ? '⚠ RECIBO PROVISIONAL — Válido únicamente con sello y firma del cajero autorizado.'
+             : (string) setting('leyenda_pie_recibo', 'Conserve este comprobante como constancia legal de su pago.', $lotificacion?->id);
          $numeroReciboMostrar = $abono->numero_recibo_formateado;
 
          // Calcular anchos porcentuales según la proporción elegida
@@ -627,6 +631,7 @@ class AbonoController extends Controller
 
          return view('abonos.recibo_imprimir', [
             // Configuración
+            'modoProvisional'      => $modoProvisional,
             'imprimirDoble'        => $imprimirDoble,
             'anchoCliente'         => $anchoCliente,
             'anchoEmpresa'         => $anchoEmpresa,
@@ -660,6 +665,94 @@ class AbonoController extends Controller
             'monto_en_letras' => $monto_en_letras,
         ]);
 }
+
+    /**
+     * Genera un recibo provisional (en blanco o con datos manuales) para llenado por la cajera.
+     * Registra un abono de $0 tipo 'Recibo Provisional' en el historial de la venta
+     * para que quede trazabilidad y registro auditable de los recibos emitidos.
+     */
+    public function reciboProvisional(\Illuminate\Http\Request $request, $id_venta)
+    {
+        $venta = \App\Models\Venta::withoutGlobalScope('lotificacion')
+            ->with([
+                'cliente' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                'lotes' => fn($q) => $q->withoutGlobalScope('lotificacion')->with('bloque'),
+                'lotificacion',
+                'abonos',
+            ])
+            ->findOrFail($id_venta);
+
+        $cliente      = $venta->cliente;
+        $lotificacion = $venta->lotificacion;
+
+        // Datos manuales ingresados desde el formulario (o null si se dejó en blanco)
+        $dejarEnBlanco = $request->boolean('dejar_en_blanco');
+        if ($dejarEnBlanco) {
+            $nombreManual   = null;
+            $montoManual    = null;
+            $conceptoManual = null;
+        } else {
+            $nombreManual   = $request->filled('nombre_cliente') ? trim($request->input('nombre_cliente')) : ($cliente->nombres_apellidos ?? '');
+            $montoManual    = $request->filled('monto') ? (float) $request->input('monto') : null;
+            $conceptoManual = $request->filled('concepto') ? trim($request->input('concepto')) : null;
+        }
+        $fechaPago = $request->filled('fecha_pago') ? $request->input('fecha_pago') : now()->format('Y-m-d');
+        $motivo    = $request->filled('motivo') ? trim($request->input('motivo')) : 'Generado manualmente';
+
+        // Generar el siguiente número de recibo consecutivo
+        $reciboData = \App\Models\Abono::generarSiguienteNumeroRecibo($venta->lotificacion_id);
+
+        $comentarioFinal = "PROVISIONAL — " . $motivo;
+        if ($montoManual) $comentarioFinal .= " | Monto: $" . number_format($montoManual, 2);
+        if ($conceptoManual) $comentarioFinal .= " | Concepto: " . $conceptoManual;
+        if ($nombreManual && $nombreManual !== ($cliente->nombres_apellidos ?? '')) $comentarioFinal .= " | Cliente: " . $nombreManual;
+
+        // Guardar en historial como $0 para tener trazabilidad sin alterar saldos financieros
+        $abono = \App\Models\Abono::create([
+            'id_venta'      => $id_venta,
+            'numero_recibo' => $reciboData['numero_recibo'],
+            'codigo_recibo' => $reciboData['codigo_recibo'],
+            'fecha_pago'    => $fechaPago,
+            'monto_abonado' => 0,
+            'tipo_pago'     => 'Recibo Provisional',
+            'metodo_pago'   => 'Efectivo',
+            'referencia'    => $montoManual ? 'Monto manual: $' . number_format($montoManual, 2) : 'Llenado en blanco',
+            'comentario'    => $comentarioFinal,
+            'user_id'       => auth()->id(),
+        ]);
+
+        // Texto de lotes
+        $lotesTexto = $venta->lotes->isNotEmpty()
+            ? $venta->lotes->map(fn($l) => $l->numero_lote)->implode(', ')
+            : 'N/A';
+
+        $sufijoMoneda = (string) setting('sufijo_moneda_letras', 'DÓLARES NETOS', $lotificacion?->id);
+        $montoEnLetras = ($montoManual && $montoManual > 0) ? $this->convertirMontoALetras($montoManual) : '';
+
+        return view('abonos.recibo_imprimir', [
+            'modoProvisional'      => true,
+            'imprimirDoble'        => true,
+            'anchoCliente'         => null,
+            'anchoEmpresa'         => null,
+            'mostrarQr'            => false,
+            'sufijoMoneda'         => $sufijoMoneda,
+            'leyendaPie'           => '⚠ RECIBO PROVISIONAL — Válido únicamente con sello y firma del cajero autorizado.',
+            'numeroReciboMostrar'  => $abono->numero_recibo_formateado ?? $reciboData['codigo_recibo'],
+            'pago'                 => $abono,
+            'cliente'              => $cliente,
+            'venta'                => $venta,
+            'lotes_texto'          => $lotesTexto,
+            'lotificacion'         => $lotificacion,
+            'valor_total'          => 0,
+            'total_abonado'        => 0,
+            'saldo_pendiente'      => 0,
+            'abonos_faltantes'     => 0,
+            'monto_en_letras'      => $montoEnLetras,
+            'nombreManual'         => $nombreManual,
+            'montoManual'          => $montoManual,
+            'conceptoManual'       => $conceptoManual,
+        ]);
+    }
 
 
         /**

@@ -229,10 +229,8 @@
         </div>
     </div>
     
-
-
     {{-- HISTORIAL DE ABONOS - TIPO ACORDEÓN --}}
-    @if($venta && $venta->abonos->count())
+    @if($venta)
         <div class="card shadow mb-4 border-primary">
             <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3"
                  id="headerHistorialAbonos"
@@ -241,7 +239,7 @@
                     <i class="fas fa-receipt fa-lg me-2"></i>
                     <h5 class="m-0 fw-bold">Historial de Pagos (Abonos)</h5>
                 </div>
-                <div class="d-flex align-items-center flex-wrap">
+                <div class="d-flex align-items-center flex-wrap gap-1">
                     <span class="badge bg-light text-primary fw-bold me-2 shadow-sm">{{ $venta->abonos->count() }} Recibos</span>
                     <span class="badge bg-success text-white fw-bold me-2 shadow-sm">
                         Abonado: ${{ number_format($venta->total_abonado, 2) }}
@@ -249,6 +247,9 @@
                     <span class="badge bg-warning text-dark fw-bold me-2 shadow-sm">
                         Deuda: ${{ number_format(max(0, $venta->precio_final - $venta->total_abonado), 2) }}
                     </span>
+                    <button type="button" class="btn btn-sm btn-warning text-dark fw-bold shadow-sm py-1 px-2" data-bs-toggle="modal" data-bs-target="#modalReciboProvisional" onclick="event.stopPropagation();" title="Generar e imprimir un recibo en blanco o con datos manuales (oculta cálculos financieros y QR)">
+                        <i class="fas fa-file-invoice text-dark me-1"></i> Recibo Provisional
+                    </button>
                     <span class="btn btn-sm btn-outline-light ms-2 px-2 py-1">
                         <i class="fas fa-chevron-up" id="chevronAbonos"></i>
                     </span>
@@ -280,15 +281,28 @@
                             </thead>
                             <tbody>
                                 @forelse($venta->abonos as $abono)
-                                <tr>
+                                @php $esProvisional = ($abono->tipo_pago === 'Recibo Provisional'); @endphp
+                                <tr class="{{ $esProvisional ? 'table-warning' : '' }}">
                                     <td>
                                         <span class="fw-bold">{{ \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') }}</span>
                                         @if($abono->fecha_transferencia)
                                             <br><small class="badge bg-primary-subtle text-primary border border-primary-subtle" title="Fecha en que se realizó la transferencia"><i class="fas fa-calendar-check me-1"></i>Transf: {{ \Carbon\Carbon::parse($abono->fecha_transferencia)->format('d/m/Y') }}</small>
                                         @endif
                                     </td>
-                                    <td class="text-success fw-bold">+${{ number_format($abono->monto_abonado, 2) }}</td>
-                                    <td><span class="badge bg-info text-dark">{{ $abono->tipo_pago }}</span></td>
+                                    <td>
+                                        @if($esProvisional)
+                                            <span class="badge bg-warning text-dark border border-warning shadow-sm"><i class="fas fa-file-invoice me-1"></i> $0.00 (Provisional)</span>
+                                        @else
+                                            <span class="text-success fw-bold">+${{ number_format($abono->monto_abonado, 2) }}</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($esProvisional)
+                                            <span class="badge bg-warning text-dark fw-bold"><i class="fas fa-exclamation-circle me-1"></i> Recibo Provisional</span>
+                                        @else
+                                            <span class="badge bg-info text-dark">{{ $abono->tipo_pago }}</span>
+                                        @endif
+                                    </td>
                                     <td>{{ $abono->metodo_pago ?? 'Efectivo' }}</td>
                                     <td>
                                         {{ $abono->referencia ?? '-' }}
@@ -297,8 +311,8 @@
                                         @endif
                                         @if($abono->comentario)
                                             <div class="mt-1">
-                                                <small class="badge bg-light text-dark border">
-                                                    <i class="fas fa-comment-dots text-primary me-1"></i>{{ $abono->comentario }}
+                                                <small class="badge {{ $esProvisional ? 'bg-warning-subtle text-dark border border-warning' : 'bg-light text-dark border' }}">
+                                                    <i class="fas fa-comment-dots {{ $esProvisional ? 'text-warning' : 'text-primary' }} me-1"></i>{{ $abono->comentario }}
                                                 </small>
                                             </div>
                                         @endif
@@ -327,7 +341,7 @@
                                         @endif
                                     </td>
                                     <td class="text-center">
-                                        <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm btn-outline-secondary" title="Imprimir Recibo Original">
+                                        <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm {{ $esProvisional ? 'btn-warning text-dark fw-bold' : 'btn-outline-secondary' }}" title="Imprimir Recibo">
                                             <i class="fas fa-print me-1"></i> Imprimir
                                         </a>
                                     </td>
@@ -342,7 +356,6 @@
                 </div>
             </div>
         </div>
-    </div>
     @endif
 
     {{-- HISTORIAL DE MODIFICACIONES Y CESIONES - TIPO ACORDEÓN --}}
@@ -853,7 +866,88 @@
             var modal = new bootstrap.Modal(document.getElementById('modalSubirFirmaShow'));
             modal.show();
         }
+
+        function toggleCamposEnBlanco(enBlanco) {
+            if (enBlanco) {
+                $('#inputNombreManual').val('').prop('disabled', true);
+                $('#inputMontoManual').val('').prop('disabled', true);
+                $('#inputConceptoManual').val('').prop('disabled', true);
+            } else {
+                $('#inputNombreManual').val("{{ addslashes($cliente->nombres_apellidos) }}").prop('disabled', false);
+                $('#inputMontoManual').val('').prop('disabled', false);
+                $('#inputConceptoManual').val("Abono a {{ $venta ? ($venta->lotes->count() > 1 ? 'Lotes' : 'Lote') . ' ' . $venta->lotes->map(fn($l) => $l->numero_lote)->implode(', ') : '' }}").prop('disabled', false);
+            }
+        }
     </script>
+
+    {{-- Modal para Generar Recibo Provisional Manual --}}
+    @if($venta)
+    <div class="modal fade" id="modalReciboProvisional" tabindex="-1" aria-labelledby="modalReciboProvisionalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content border-warning shadow">
+                <form action="{{ route('abonos.recibo_provisional', $venta->id_venta) }}" method="POST" target="_blank" id="formReciboProvisional">
+                    @csrf
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title fw-bold" id="modalReciboProvisionalLabel">
+                            <i class="fas fa-file-invoice me-2"></i> Emitir Recibo Provisional
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning d-flex align-items-start py-2 small mb-3">
+                            <i class="fas fa-exclamation-triangle fa-lg me-2 mt-1 text-dark"></i>
+                            <div>
+                                <strong>Recibo Provisional:</strong> Oculta los cálculos de deuda/saldo y el código QR. Se le asigna un número oficial correlativo y queda guardado en el historial de esta sección ($0.00) con los datos y notas ingresados para fines de control y auditoría.
+                            </div>
+                        </div>
+
+                        <div class="form-check form-switch mb-3 p-2 bg-light rounded border">
+                            <input class="form-check-input ms-0 me-2" type="checkbox" id="checkDejarEnBlanco" name="dejar_en_blanco" value="1" onchange="toggleCamposEnBlanco(this.checked)">
+                            <label class="form-check-label fw-bold text-dark" for="checkDejarEnBlanco">
+                                <i class="fas fa-eraser me-1 text-danger"></i> Imprimir completamente en blanco (para escribir 100% a mano)
+                            </label>
+                        </div>
+
+                        <div id="contenedorCamposManuales">
+                            <div class="row g-3">
+                                <div class="col-md-7">
+                                    <label class="form-label fw-bold text-dark small">Recibimos de (Cliente):</label>
+                                    <input type="text" name="nombre_cliente" id="inputNombreManual" class="form-control" value="{{ $cliente->nombres_apellidos }}" placeholder="Nombre del cliente o dejar en blanco">
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label fw-bold text-dark small">Monto en U$ (Dólares):</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text fw-bold">$</span>
+                                        <input type="number" step="0.01" min="0" name="monto" id="inputMontoManual" class="form-control" placeholder="0.00 (Opcional)">
+                                    </div>
+                                    <div class="form-text small">Si se deja vacío, la casilla saldrá vacía en el papel.</div>
+                                </div>
+                                <div class="col-md-7">
+                                    <label class="form-label fw-bold text-dark small">En concepto de:</label>
+                                    <input type="text" name="concepto" id="inputConceptoManual" class="form-control" value="Abono a {{ $venta->lotes->count() > 1 ? 'Lotes' : 'Lote' }} {{ $venta->lotes->map(fn($l) => $l->numero_lote)->implode(', ') }}" placeholder="Concepto del recibo">
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label fw-bold text-dark small">Fecha del Recibo:</label>
+                                    <input type="date" name="fecha_pago" class="form-control" value="{{ date('Y-m-d') }}" required>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-bold text-dark small">Motivo / Observación interna (queda guardado en el sistema):</label>
+                                    <input type="text" name="motivo" class="form-control" placeholder="Ej: Recibo provisional por contingencia / cobro en campo manual">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-warning text-dark fw-bold px-4" onclick="setTimeout(function(){ location.reload(); }, 1200);">
+                            <i class="fas fa-print me-1"></i> Generar e Imprimir Recibo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
 
     {{-- Modal para Subir Recibo Firmado --}}
     <div class="modal fade" id="modalSubirFirmaShow" tabindex="-1" aria-labelledby="modalFirmaTituloShow" aria-hidden="true">

@@ -84,6 +84,8 @@ Route::middleware(['auth'])->group(function () {
     // Impresión de Recibos y Documentos
     Route::get('abono/{abono_id}/imprimir', [AbonoController::class, 'imprimirRecibo'])->name('imprimirRecibo');
     Route::get('abonos/{abono_id}/imprimir', [AbonoController::class, 'imprimirRecibo'])->name('abonos.imprimir');
+    // Recibo Provisional: genera un recibo en blanco o con campos manuales para llenado provisional y lo registra en el historial
+    Route::match(['get', 'post'], 'ventas/{id_venta}/recibo-provisional', [AbonoController::class, 'reciboProvisional'])->name('abonos.recibo_provisional');
     Route::post('cuotas/{cuota}/exonerar-mora', [CuotaController::class, 'exonerarMora'])->name('cuotas.exonerarMora');
 
     // Auditoría y Gestión de Recibos Firmados por el Cliente
