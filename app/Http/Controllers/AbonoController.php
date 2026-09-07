@@ -399,10 +399,13 @@ class AbonoController extends Controller
     public static function recalcularCuotas($id_venta) {
         $venta = \App\Models\Venta::findOrFail($id_venta);
         
-        // 1. Si la venta no tiene cuotas generadas, crearlas automáticamente
+        // 1. Si la venta no tiene cuotas generadas, crearlas automáticamente.
+        //    IMPORTANTE: La fecha base del plan siempre es fecha_venta del contrato,
+        //    independientemente del orden en que se ingresen los abonos al sistema.
+        //    Esto permite registrar el abono de hoy primero y luego ingresar
+        //    abonos históricos de meses anteriores sin que el plan quede desfasado.
         if (\App\Models\Cuota::where('id_venta', $id_venta)->count() === 0) {
-            $primerAbono = \App\Models\Abono::where('id_venta', $id_venta)->orderBy('fecha_pago', 'asc')->first();
-            $fechaBase = $primerAbono ? $primerAbono->fecha_pago : ($venta->fecha_venta ?: ($venta->created_at ?: now()));
+            $fechaBase = $venta->fecha_venta ?: ($venta->created_at ? $venta->created_at->format('Y-m-d') : now()->format('Y-m-d'));
             \App\Http\Controllers\ClienteController::generarPlanCuotas($venta, $fechaBase);
         }
 

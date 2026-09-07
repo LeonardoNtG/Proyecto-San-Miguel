@@ -30,11 +30,11 @@ class ImportacionController extends Controller
 
     public function descargarPlantilla()
     {
-        $xml = $this->generarXmlPlantilla();
-        $nombre = "Plantilla_Importacion_Clientes.xls";
-        
-        return response($xml, 200, [
-            "Content-Type"        => "application/vnd.ms-excel; charset=UTF-8",
+        $content = $this->generarXlsxPlantilla();
+        $nombre  = "Plantilla_Importacion_Clientes.xlsx";
+
+        return response($content, 200, [
+            "Content-Type"        => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             "Content-Disposition" => "attachment; filename=\"{$nombre}\"",
             "Pragma"              => "no-cache",
             "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
@@ -42,7 +42,205 @@ class ImportacionController extends Controller
         ]);
     }
 
-    private function generarXmlPlantilla(): string
+    /**
+     * Genera un archivo .xlsx real (OOXML/ZIP) listo para abrir en Excel sin conversión.
+     * Usa inline strings para evitar la necesidad de sharedStrings.xml.
+     */
+    private function generarXlsxPlantilla(): string
+    {
+        $tempFile = tempnam(sys_get_temp_dir(), 'amsa_plantilla_');
+
+        $zip = new \ZipArchive();
+        $zip->open($tempFile, \ZipArchive::OVERWRITE);
+
+        // ── [Content_Types].xml ──────────────────────────────────────────────────
+        $zip->addFromString('[Content_Types].xml',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' .
+              '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' .
+              '<Default Extension="xml" ContentType="application/xml"/>' .
+              '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' .
+              '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' .
+              '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' .
+              '<Override PartName="/xl/worksheets/sheet3.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' .
+              '<Override PartName="/xl/worksheets/sheet4.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' .
+              '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' .
+            '</Types>');
+
+        // ── _rels/.rels ──────────────────────────────────────────────────────────
+        $zip->addFromString('_rels/.rels',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' .
+              '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' .
+            '</Relationships>');
+
+        // ── xl/workbook.xml ──────────────────────────────────────────────────────
+        $zip->addFromString('xl/workbook.xml',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' .
+              '<sheets>' .
+                '<sheet name="CLIENTES_CONTRATOS" sheetId="1" r:id="rId1"/>' .
+                '<sheet name="HISTORIAL_PAGOS"    sheetId="2" r:id="rId2"/>' .
+                '<sheet name="CATALOGO_LOTES"     sheetId="3" r:id="rId3"/>' .
+                '<sheet name="INSTRUCCIONES"      sheetId="4" r:id="rId4"/>' .
+              '</sheets>' .
+            '</workbook>');
+
+        // ── xl/_rels/workbook.xml.rels ────────────────────────────────────────────
+        $zip->addFromString('xl/_rels/workbook.xml.rels',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' .
+              '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' .
+              '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>' .
+              '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet3.xml"/>' .
+              '<Relationship Id="rId4" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet4.xml"/>' .
+              '<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"    Target="styles.xml"/>' .
+            '</Relationships>');
+
+        // ── xl/styles.xml ─────────────────────────────────────────────────────────
+        // Style index: 0=Normal  1=Header(azul oscuro)  2=Requerido(rojo)  3=Opcional(amarillo)  4=Titulo(azul grande)
+        $zip->addFromString('xl/styles.xml',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' .
+              '<fonts count="5">' .
+                '<font><sz val="10"/><color rgb="FF000000"/><name val="Calibri"/></font>' .
+                '<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>' .
+                '<font><b/><sz val="10"/><color rgb="FF000000"/><name val="Calibri"/></font>' .
+                '<font><b/><sz val="14"/><color rgb="FF1A3A6B"/><name val="Calibri"/></font>' .
+                '<font><sz val="10"/><color rgb="FF000000"/><name val="Calibri"/></font>' .
+              '</fonts>' .
+              '<fills count="6">' .
+                '<fill><patternFill patternType="none"/></fill>' .
+                '<fill><patternFill patternType="gray125"/></fill>' .
+                '<fill><patternFill patternType="solid"><fgColor rgb="FF1A3A6B"/></patternFill></fill>' .
+                '<fill><patternFill patternType="solid"><fgColor rgb="FFC0392B"/></patternFill></fill>' .
+                '<fill><patternFill patternType="solid"><fgColor rgb="FFF0E68C"/></patternFill></fill>' .
+                '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/></patternFill></fill>' .
+              '</fills>' .
+              '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' .
+              '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' .
+              '<cellXfs count="5">' .
+                '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' .
+                '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' .
+                '<xf numFmtId="0" fontId="1" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' .
+                '<xf numFmtId="0" fontId="2" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' .
+                '<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>' .
+              '</cellXfs>' .
+            '</styleSheet>');
+
+        // ── Helper: celda de texto inline ─────────────────────────────────────────
+        $s = function(string $ref, string $text, int $style = 0): string {
+            $safe = htmlspecialchars($text, ENT_XML1, 'UTF-8');
+            return "<c r=\"{$ref}\" t=\"inlineStr\" s=\"{$style}\"><is><t>{$safe}</t></is></c>";
+        };
+        $n = function(string $ref, $val, int $style = 0): string {
+            return "<c r=\"{$ref}\" s=\"{$style}\"><v>{$val}</v></c>";
+        };
+
+        // ── Hoja 1: CLIENTES_CONTRATOS ────────────────────────────────────────────
+        $zip->addFromString('xl/worksheets/sheet1.xml',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' .
+            '<sheetData>' .
+              '<row r="1" ht="36" customHeight="1">' .
+                $s('A1', 'HOJA 1 - CLIENTES Y CONTRATOS | Campos en ROJO son obligatorios | Campos en AMARILLO son opcionales', 4) .
+              '</row>' .
+              '<row r="2" ht="28" customHeight="1">' .
+                $s('A2','expediente_num',2)    . $s('B2','nombres_apellidos',2) . $s('C2','identificacion',2) .
+                $s('D2','telefono',3)          . $s('E2','direccion',3)         . $s('F2','estado_civil',3) .
+                $s('G2','oficio',3)            . $s('H2','pv_num',3) .
+                $s('I2','nombre_bloque',2)     . $s('J2','numero_lote',2)       . $s('K2','fecha_venta',2) .
+                $s('L2','precio_final',2)      . $s('M2','plazo_meses',2)       . $s('N2','cuota_mensual',2) .
+                $s('O2','estado_contrato',2)   .
+                $s('P2','prima_pagada',3)      . $s('Q2','fecha_prima',3) .
+                $s('R2','beneficiario_final',3). $s('S2','nota_beneficiario',3) .
+              '</row>' .
+              '<row r="3">' .
+                $s('A3','EXP-0001')            . $s('B3','MARIA KARINA PEREZ LOPEZ') . $s('C3','001-230489-0001X') .
+                $s('D3','89095854')            . $s('E3','DE CLARO 2C AL SUR ESTE')  . $s('F3','SOLTERA') .
+                $s('G3','MAESTRA')             . $s('H3','PV-2024-001') .
+                $s('I3','Bloque A')            . $s('J3','A-01')                     . $s('K3','30/08/2026') .
+                $n('L3', 9000)                 . $n('M3', 60)                         . $n('N3', 150) .
+                $s('O3','Vigente') .
+                $n('P3', 500)                  . $s('Q3','30/08/2026') .
+                $s('R3','')                    . $s('S3','') .
+              '</row>' .
+            '</sheetData>' .
+            '</worksheet>');
+
+        // ── Hoja 2: HISTORIAL_PAGOS ───────────────────────────────────────────────
+        $zip->addFromString('xl/worksheets/sheet2.xml',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' .
+            '<sheetData>' .
+              '<row r="1" ht="36" customHeight="1">' .
+                $s('A1', 'HOJA 2 - HISTORIAL DE PAGOS | Campos en ROJO son obligatorios | Campos en AMARILLO son opcionales', 4) .
+              '</row>' .
+              '<row r="2" ht="28" customHeight="1">' .
+                $s('A2','identificacion_cliente',2) . $s('B2','numero_lote',2)   . $s('C2','nombre_bloque',2) .
+                $s('D2','fecha_pago',2)             . $s('E2','monto_abonado',2) . $s('F2','tipo_pago',2) .
+                $s('G2','metodo_pago',3)            . $s('H2','referencia',3)    . $s('I2','cuenta_destino',3) .
+                $s('J2','numero_recibo_original',3) .
+              '</row>' .
+              '<row r="3">' .
+                $s('A3','001-230489-0001X') . $s('B3','A-01')      . $s('C3','Bloque A') .
+                $s('D3','15/09/2026')       . $n('E3', 150)         . $s('F3','Cuota') .
+                $s('G3','Efectivo')         . $s('H3','')           . $s('I3','') .
+                $s('J3','REC-001') .
+              '</row>' .
+            '</sheetData>' .
+            '</worksheet>');
+
+        // ── Hoja 3: CATALOGO_LOTES ────────────────────────────────────────────────
+        $zip->addFromString('xl/worksheets/sheet3.xml',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' .
+            '<sheetData>' .
+              '<row r="1" ht="36" customHeight="1">' .
+                $s('A1', 'HOJA 3 - CATALOGO DE LOTES (Opcional) | Solo si hay lotes que no existen aun en el sistema', 4) .
+              '</row>' .
+              '<row r="2" ht="28" customHeight="1">' .
+                $s('A2','nombre_bloque',2) . $s('B2','numero_lote',2) . $s('C2','area_metros',2) .
+                $s('D2','precio_base',2)   . $s('E2','estado',2) .
+              '</row>' .
+              '<row r="3">' .
+                $s('A3','Bloque A') . $s('B3','A-01') . $n('C3', 176.25) . $n('D3', 9000) . $s('E3','Vendido') .
+              '</row>' .
+            '</sheetData>' .
+            '</worksheet>');
+
+        // ── Hoja 4: INSTRUCCIONES ─────────────────────────────────────────────────
+        $zip->addFromString('xl/worksheets/sheet4.xml',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' .
+            '<sheetData>' .
+              '<row r="1" ht="36" customHeight="1">' . $s('A1','GUIA DE IMPORTACION MASIVA DE CLIENTES',4) . '</row>' .
+              '<row r="2"><' . 'c r="A2" t="inlineStr" s="0"><is><t></t></is></c></row>' .
+              '<row r="3">' . $s('A3','HOJA',1) . $s('B3','DESCRIPCION',1) . '</row>' .
+              '<row r="4">' . $s('A4','CLIENTES_CONTRATOS') . $s('B4','Una fila por contrato. Si un cliente tiene 2 lotes, son 2 filas con la misma identificacion.') . '</row>' .
+              '<row r="5">' . $s('A5','HISTORIAL_PAGOS')    . $s('B5','Un registro por cada abono o pago realizado historicamente.') . '</row>' .
+              '<row r="6">' . $s('A6','CATALOGO_LOTES')     . $s('B6','Opcional. Solo si los lotes aun no existen en el sistema.') . '</row>' .
+              '<row r="7"><' . 'c r="A7" t="inlineStr" s="0"><is><t></t></is></c></row>' .
+              '<row r="8">'  . $s('A8','CAMPO',1) . $s('B8','VALORES PERMITIDOS',1) . '</row>' .
+              '<row r="9">'  . $s('A9', 'estado_contrato') . $s('B9', 'Vigente | Rescindido | Finalizado') . '</row>' .
+              '<row r="10">' . $s('A10','tipo_pago')        . $s('B10','Prima | Cuota | Abono Extraordinario | Cancelacion') . '</row>' .
+              '<row r="11">' . $s('A11','metodo_pago')      . $s('B11','Efectivo | Transferencia Bancaria | Deposito Bancario | Cheque') . '</row>' .
+              '<row r="12">' . $s('A12','estado (lotes)')   . $s('B12','Disponible | Reservado | Vendido') . '</row>' .
+              '<row r="13">' . $s('A13','fechas')           . $s('B13','Formato DD/MM/AAAA Ejemplo: 30/08/2026') . '</row>' .
+              '<row r="14">' . $s('A14','telefonos')        . $s('B14','Guardar como TEXTO para preservar ceros iniciales. Ejemplo: 08912345') . '</row>' .
+            '</sheetData>' .
+            '</worksheet>');
+
+        $zip->close();
+
+        $content = file_get_contents($tempFile);
+        @unlink($tempFile);
+
+        return $content;
+    }
+
+    /** @deprecated Reemplazado por generarXlsxPlantilla() - Este método ya no se usa */
+    private function generarXmlPlantilla_obsoleto(): string
     {
         return '<?xml version="1.0" encoding="UTF-8"?>' . "\n" .
 '<?mso-application progid="Excel.Sheet"?>' . "\n" .
@@ -200,7 +398,7 @@ class ImportacionController extends Controller
     public function procesar(Request $request)
     {
         $request->validate([
-            "archivo"         => "required|file|mimes:xlsx,xls,ods|max:20480",
+            "archivo"         => "required|file|mimes:xlsx|max:20480",
             "lotificacion_id" => "required|exists:lotificaciones,id",
             "modo"            => "required|in:validar,importar",
         ], [
@@ -549,8 +747,8 @@ class ImportacionController extends Controller
     private function parsearExcel(string $ruta): array
     {
         $ext = strtolower(pathinfo($ruta, PATHINFO_EXTENSION));
-        if ($ext === "xls") {
-            throw new \Exception("El formato .xls (Excel 97-2003) no es compatible. Guarde como .xlsx y reintente.");
+        if ($ext !== 'xlsx') {
+            throw new \Exception("Solo se aceptan archivos .xlsx. El archivo recibido tiene extensión: .{$ext}");
         }
         $zip = new \ZipArchive();
         if ($zip->open($ruta) !== true) {
