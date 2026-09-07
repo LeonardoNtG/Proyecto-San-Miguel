@@ -41,7 +41,7 @@ trait ScopedByLotificacion
                                 $q->where('reservas.lotificacion_id', $activeLotificacionId);
                             });
                         });
-                    } elseif ($table === 'apertura_cajas' || $table === 'cierre_cajas' || $table === 'salidas' || $table === 'reservas') {
+                    } elseif ($table === 'apertura_cajas' || $table === 'cierre_cajas' || $table === 'salidas' || $table === 'reservas' || $table === 'recibos_provisionales') {
                         $builder->where("$table.lotificacion_id", $activeLotificacionId);
                     }
                 }

@@ -9,11 +9,37 @@ use Carbon\Carbon;
 
 class ReciboProvisionalController extends Controller
 {
+    private function ensureTableExists()
+    {
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('recibos_provisionales')) {
+                \Illuminate\Support\Facades\Schema::create('recibos_provisionales', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id('id_recibo_provisional');
+                    $table->unsignedBigInteger('lotificacion_id')->nullable();
+                    $table->unsignedBigInteger('numero_recibo')->nullable();
+                    $table->string('codigo_recibo', 50)->nullable();
+                    $table->string('cliente_nombre')->nullable();
+                    $table->decimal('monto', 12, 2)->nullable();
+                    $table->string('monto_letras')->nullable();
+                    $table->text('concepto')->nullable();
+                    $table->date('fecha');
+                    $table->text('motivo')->nullable();
+                    $table->unsignedBigInteger('user_id')->nullable();
+                    $table->timestamps();
+                });
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::error('Error creating recibos_provisionales table: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Muestra la lista de recibos provisionales generados manualmente y el formulario de emisión.
      */
     public function index(Request $request)
     {
+        $this->ensureTableExists();
+
         $query = ReciboProvisional::withoutGlobalScope('lotificacion')
             ->with(['lotificacion', 'user'])
             ->orderBy('id_recibo_provisional', 'desc');
@@ -44,6 +70,8 @@ class ReciboProvisionalController extends Controller
      */
     public function store(Request $request)
     {
+        $this->ensureTableExists();
+
         $lotificacionId = $request->input('lotificacion_id') ?: Lotificacion::first()?->id;
         $lotificacion = $lotificacionId ? Lotificacion::find($lotificacionId) : null;
 

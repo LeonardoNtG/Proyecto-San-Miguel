@@ -74,19 +74,37 @@ class ReciboProvisional extends Model
         $numeroInicial = (int) setting('numero_inicial_recibo', 1, $lotificacionId);
 
         if ($tipoNumeracion === 'proyecto_correlativo' && $lotificacionId) {
-            $maxAbonos = Abono::withoutGlobalScope('lotificacion')
-                ->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $lotificacionId))
-                ->max('numero_recibo') ?? 0;
+            try {
+                $maxAbonos = Abono::withoutGlobalScope('lotificacion')
+                    ->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $lotificacionId))
+                    ->max('numero_recibo') ?? 0;
+            } catch (\Throwable $e) {
+                $maxAbonos = 0;
+            }
 
-            $maxProvisionales = self::withoutGlobalScope('lotificacion')
-                ->where('lotificacion_id', $lotificacionId)
-                ->max('numero_recibo') ?? 0;
+            try {
+                $maxProvisionales = self::withoutGlobalScope('lotificacion')
+                    ->where('lotificacion_id', $lotificacionId)
+                    ->max('numero_recibo') ?? 0;
+            } catch (\Throwable $e) {
+                $maxProvisionales = 0;
+            }
 
             $maxNumero = max($maxAbonos, $maxProvisionales);
             $siguiente = $maxNumero > 0 ? ($maxNumero + 1) : $numeroInicial;
         } else {
-            $maxAbonos = Abono::withoutGlobalScope('lotificacion')->max('id_abono') ?? 0;
-            $maxProvisionales = self::withoutGlobalScope('lotificacion')->max('id_recibo_provisional') ?? 0;
+            try {
+                $maxAbonos = Abono::withoutGlobalScope('lotificacion')->max('id_abono') ?? 0;
+            } catch (\Throwable $e) {
+                $maxAbonos = 0;
+            }
+
+            try {
+                $maxProvisionales = self::withoutGlobalScope('lotificacion')->max('id_recibo_provisional') ?? 0;
+            } catch (\Throwable $e) {
+                $maxProvisionales = 0;
+            }
+
             $siguiente = max($maxAbonos, $maxProvisionales) + 1;
         }
 
