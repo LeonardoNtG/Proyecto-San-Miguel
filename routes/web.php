@@ -91,6 +91,7 @@ Route::middleware(['auth'])->group(function () {
     // Recibos Provisionales (Módulo Independiente y Manual)
     Route::get('recibos-provisionales', [ReciboProvisionalController::class, 'index'])->name('recibos_provisionales.index');
     Route::post('recibos-provisionales', [ReciboProvisionalController::class, 'store'])->name('recibos_provisionales.store');
+    Route::put('recibos-provisionales/{id}', [ReciboProvisionalController::class, 'update'])->name('recibos_provisionales.update');
     Route::get('recibos-provisionales/{id}/imprimir', [ReciboProvisionalController::class, 'imprimir'])->name('recibos_provisionales.imprimir');
     Route::delete('recibos-provisionales/{id}', [ReciboProvisionalController::class, 'destroy'])->name('recibos_provisionales.destroy');
 

@@ -147,8 +147,11 @@
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
                                         <a href="{{ route('recibos_provisionales.imprimir', $recibo->id_recibo_provisional) }}" target="_blank" class="btn btn-outline-primary" title="Imprimir Recibo">
-                                            <i class="fas fa-print me-1"></i> Imprimir
+                                            <i class="fas fa-print"></i>
                                         </a>
+                                        <button type="button" class="btn btn-outline-warning text-dark" onclick='abrirModalEditarRecibo(@json($recibo))' title="Editar / Corregir Recibo">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
                                         @can('borrar-clientes')
                                         <button type="button" class="btn btn-outline-danger" onclick="confirmarEliminarRecibo({{ $recibo->id_recibo_provisional }}, '{{ $recibo->numero_recibo_formateado }}')" title="Eliminar Registro">
                                             <i class="fas fa-trash"></i>
@@ -311,6 +314,139 @@
     </div>
 </div>
 
+{{-- MODAL EDITAR / CORREGIR RECIBO PROVISIONAL --}}
+<div class="modal fade" id="modalEditarReciboProvisional" tabindex="-1" aria-labelledby="modalEditarReciboProvisionalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content border-primary shadow-lg">
+            <form action="" method="POST" id="formEditarReciboProvisional">
+                @csrf
+                @method('PUT')
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold" id="modalEditarReciboProvisionalLabel">
+                        <i class="fas fa-edit me-2"></i> Editar Recibo Provisional <span id="spanNumeroReciboEdit" class="badge bg-white text-primary fs-6 ms-2"></span>
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info d-flex align-items-center py-2 small mb-3">
+                        <i class="fas fa-info-circle fa-lg me-2 text-primary"></i>
+                        <div>
+                            Puede corregir cualquier dato del recibo. Al guardar, los cambios se actualizarán y podrá imprimirlo nuevamente con los datos corregidos.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold text-dark small">Proyecto / Talonario de Lotificación: <span class="text-danger">*</span></label>
+                        <select name="lotificacion_id" id="selectLotificacionModalEdit" class="form-select" required>
+                            @foreach($lotificaciones as $lot)
+                                <option value="{{ $lot->id }}">
+                                    {{ $lot->nombre }} (RUC: {{ $lot->ruc ?? 'N/A' }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div class="form-check form-switch mb-3 p-2 bg-light rounded border">
+                        <input class="form-check-input ms-0 me-2" type="checkbox" id="checkDejarEnBlancoEdit" name="dejar_en_blanco" value="1" onchange="toggleCamposEnBlancoEdit(this.checked)">
+                        <label class="form-check-label fw-bold text-dark" for="checkDejarEnBlancoEdit">
+                            <i class="fas fa-eraser me-1 text-danger"></i> Recibo completamente en blanco (para llenado manual)
+                        </label>
+                    </div>
+
+                    <div id="contenedorCamposManualesEdit">
+                        <div class="row g-3">
+                            <div class="col-md-7">
+                                <label class="form-label fw-bold text-dark small">Recibimos de (Nombre del Cliente):</label>
+                                <input type="text" name="cliente_nombre" id="inputNombreManualEdit" class="form-control" placeholder="Escriba el nombre o déjelo en blanco">
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label fw-bold text-dark small">Monto Recibido en U$ (Dólares):</label>
+                                <div class="input-group">
+                                    <span class="input-group-text fw-bold">$</span>
+                                    <input type="number" step="0.01" min="0" name="monto" id="inputMontoManualEdit" class="form-control fw-bold" placeholder="0.00 (Opcional)" oninput="calcularSaldoProvisionalEdit()">
+                                </div>
+                                <div class="form-text small">Monto que el cliente abona hoy (impreso en la casilla POR U$).</div>
+                            </div>
+
+                            <div class="col-md-7">
+                                <label class="form-label fw-bold text-dark small">En concepto de:</label>
+                                <input type="text" name="concepto" id="inputConceptoManualEdit" class="form-control" placeholder="Ej: Abono a Lote 15 Bloque B...">
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label fw-bold text-dark small">Fecha del Recibo:</label>
+                                <input type="date" name="fecha" id="inputFechaEdit" class="form-control" required>
+                            </div>
+
+                            {{-- Sección de Cálculos Edit --}}
+                            <div class="col-12">
+                                <div class="p-3 bg-light rounded border border-primary-subtle shadow-sm">
+                                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-1">
+                                        <div class="fw-bold text-dark small">
+                                            <i class="fas fa-calculator text-primary me-1"></i> Estado de Cuenta (Monto / Abonado / Saldo):
+                                        </div>
+                                        <span class="badge bg-primary text-white" id="badgeMontoActualInfoEdit">
+                                            <i class="fas fa-money-bill-wave me-1"></i> Abono de hoy: $0.00
+                                        </span>
+                                    </div>
+                                    <div class="row g-2 align-items-center">
+                                        <div class="col-md-3">
+                                            <label class="form-label text-dark small fw-bold mb-1">1. Monto Total (U$):</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text fw-bold">$</span>
+                                                <input type="number" step="0.01" min="0" name="valor_total" id="inputValorTotalEdit" class="form-control fw-bold" placeholder="Ej: 9000.00" oninput="calcularSaldoProvisionalEdit()">
+                                            </div>
+                                            <div class="form-text small text-muted">Valor total de la venta</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label text-dark small fw-bold mb-1">2. Abonos Anteriores (U$):</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text fw-bold">$</span>
+                                                <input type="number" step="0.01" min="0" name="abonos_anteriores" id="inputAbonosAnterioresEdit" class="form-control" placeholder="0.00 (Opcional)" oninput="calcularSaldoProvisionalEdit()">
+                                            </div>
+                                            <div class="form-text small text-muted">Historial antes de hoy</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label text-dark small fw-bold mb-1">Total Abonado (U$):</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text fw-bold text-success">$</span>
+                                                <input type="number" step="0.01" min="0" name="total_abonado" id="inputTotalAbonadoEdit" class="form-control fw-bold text-success" placeholder="0.00" oninput="calcularDesdeTotalAbonadoEdit()">
+                                            </div>
+                                            <div class="form-text small text-muted">Anteriores + Abono de hoy</div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label class="form-label text-dark small fw-bold mb-1">3. Saldo Restante (U$):</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-white fw-bold text-danger">$</span>
+                                                <input type="text" id="previewSaldoPendienteEdit" class="form-control bg-white fw-bold text-danger" placeholder="0.00" readonly>
+                                            </div>
+                                            <div class="form-text small text-muted">Monto Total - Total Abonado</div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-2 p-2 bg-white rounded border d-flex align-items-center justify-content-between flex-wrap gap-2">
+                                        <span class="small text-muted fw-bold"><i class="fas fa-eye me-1"></i> Vista previa de la línea en el recibo:</span>
+                                        <code class="fw-bold text-dark fs-6" id="previewLineaReciboTextoEdit">Monto: U$ 0.00. Abonado: U$ 0.00. Saldo: U$ 0.00</code>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label class="form-label fw-bold text-dark small">Motivo / Observación interna (para registro y auditoría):</label>
+                                <input type="text" name="motivo" id="inputMotivoEdit" class="form-control" placeholder="Ej: Cobro en campo manual, contingencia de sistema, etc.">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-bold px-4">
+                        <i class="fas fa-save me-1"></i> Guardar Cambios e Imprimir
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {{-- Formulario para Eliminar Recibo --}}
 <form id="formEliminarRecibo" action="" method="POST" style="display: none;">
     @csrf
@@ -394,6 +530,123 @@
             $('#previewSaldoPendienteIndex').prop('disabled', false);
             calcularSaldoProvisionalIndex();
         }
+    }
+
+    /* Funciones para Modal de Edición */
+    function calcularSaldoProvisionalEdit() {
+        var montoRecibo = parseFloat(document.getElementById('inputMontoManualEdit').value) || 0;
+        var valorTotalStr = document.getElementById('inputValorTotalEdit').value;
+        var abonosAntStr = document.getElementById('inputAbonosAnterioresEdit').value;
+        
+        var badge = document.getElementById('badgeMontoActualInfoEdit');
+        if (badge) {
+            badge.innerHTML = '<i class="fas fa-money-bill-wave me-1"></i> Abono de hoy: $' + montoRecibo.toFixed(2);
+        }
+
+        if (valorTotalStr === '' && abonosAntStr === '' && montoRecibo === 0) {
+            document.getElementById('inputTotalAbonadoEdit').value = '';
+            document.getElementById('previewSaldoPendienteEdit').value = '';
+            document.getElementById('previewLineaReciboTextoEdit').innerText = 'Monto: U$ 0.00. Abonado: U$ 0.00. Saldo: U$ 0.00';
+            return;
+        }
+
+        var valorTotal = parseFloat(valorTotalStr) || 0;
+        var abonosAnteriores = parseFloat(abonosAntStr) || 0;
+        
+        var totalAbonado = abonosAnteriores + montoRecibo;
+        document.getElementById('inputTotalAbonadoEdit').value = (totalAbonado > 0 || abonosAntStr !== '' || montoRecibo > 0) ? totalAbonado.toFixed(2) : '';
+
+        var saldo = Math.max(0, valorTotal - totalAbonado);
+        document.getElementById('previewSaldoPendienteEdit').value = (valorTotal > 0 || totalAbonado > 0) ? saldo.toFixed(2) : '';
+
+        var vTotalFormateado = valorTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var tAbonadoFormateado = totalAbonado.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var saldoFormateado = saldo.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        
+        document.getElementById('previewLineaReciboTextoEdit').innerText = 
+            'Monto: U$ ' + vTotalFormateado + '. Abonado: U$ ' + tAbonadoFormateado + '. Saldo: U$ ' + saldoFormateado;
+    }
+
+    function calcularDesdeTotalAbonadoEdit() {
+        var valorTotal = parseFloat(document.getElementById('inputValorTotalEdit').value) || 0;
+        var totalAbonado = parseFloat(document.getElementById('inputTotalAbonadoEdit').value) || 0;
+        var montoRecibo = parseFloat(document.getElementById('inputMontoManualEdit').value) || 0;
+        
+        var abonosAnteriores = Math.max(0, totalAbonado - montoRecibo);
+        document.getElementById('inputAbonosAnterioresEdit').value = abonosAnteriores > 0 ? abonosAnteriores.toFixed(2) : '';
+
+        var saldo = Math.max(0, valorTotal - totalAbonado);
+        document.getElementById('previewSaldoPendienteEdit').value = saldo.toFixed(2);
+
+        var vTotalFormateado = valorTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var tAbonadoFormateado = totalAbonado.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        var saldoFormateado = saldo.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        
+        document.getElementById('previewLineaReciboTextoEdit').innerText = 
+            'Monto: U$ ' + vTotalFormateado + '. Abonado: U$ ' + tAbonadoFormateado + '. Saldo: U$ ' + saldoFormateado;
+    }
+
+    function toggleCamposEnBlancoEdit(enBlanco) {
+        if (enBlanco) {
+            $('#inputNombreManualEdit').val('').prop('disabled', true);
+            $('#inputMontoManualEdit').val('').prop('disabled', true);
+            $('#inputConceptoManualEdit').val('').prop('disabled', true);
+            $('#inputValorTotalEdit').val('').prop('disabled', true);
+            $('#inputAbonosAnterioresEdit').val('').prop('disabled', true);
+            $('#inputTotalAbonadoEdit').val('').prop('disabled', true);
+            $('#previewSaldoPendienteEdit').val('').prop('disabled', true);
+        } else {
+            $('#inputNombreManualEdit').prop('disabled', false);
+            $('#inputMontoManualEdit').prop('disabled', false);
+            $('#inputConceptoManualEdit').prop('disabled', false);
+            $('#inputValorTotalEdit').prop('disabled', false);
+            $('#inputAbonosAnterioresEdit').prop('disabled', false);
+            $('#inputTotalAbonadoEdit').prop('disabled', false);
+            $('#previewSaldoPendienteEdit').prop('disabled', false);
+            calcularSaldoProvisionalEdit();
+        }
+    }
+
+    function abrirModalEditarRecibo(recibo) {
+        var form = document.getElementById('formEditarReciboProvisional');
+        form.action = "{{ url('recibos-provisionales') }}/" + recibo.id_recibo_provisional;
+
+        document.getElementById('spanNumeroReciboEdit').innerText = 'N° ' + (recibo.numero_recibo_formateado || recibo.codigo_recibo || recibo.numero_recibo);
+
+        if (recibo.lotificacion_id) {
+            $('#selectLotificacionModalEdit').val(recibo.lotificacion_id);
+        }
+
+        var esEnBlanco = !recibo.cliente_nombre && (!recibo.monto || recibo.monto == 0) && !recibo.concepto && !recibo.valor_total;
+        $('#checkDejarEnBlancoEdit').prop('checked', esEnBlanco);
+
+        $('#inputNombreManualEdit').val(recibo.cliente_nombre || '');
+        $('#inputMontoManualEdit').val(recibo.monto ? parseFloat(recibo.monto).toFixed(2) : '');
+        $('#inputConceptoManualEdit').val(recibo.concepto || '');
+        
+        // Fecha
+        var fechaStr = '';
+        if (recibo.fecha) {
+            fechaStr = recibo.fecha.substring(0, 10);
+        }
+        $('#inputFechaEdit').val(fechaStr || "{{ date('Y-m-d') }}");
+
+        $('#inputValorTotalEdit').val(recibo.valor_total ? parseFloat(recibo.valor_total).toFixed(2) : '');
+        $('#inputTotalAbonadoEdit').val(recibo.total_abonado ? parseFloat(recibo.total_abonado).toFixed(2) : '');
+        
+        // Calcular abonos anteriores si existen
+        var montoRecibo = parseFloat(recibo.monto) || 0;
+        var totalAbonado = parseFloat(recibo.total_abonado) || 0;
+        var abonosAnt = Math.max(0, totalAbonado - montoRecibo);
+        $('#inputAbonosAnterioresEdit').val(abonosAnt > 0 ? abonosAnt.toFixed(2) : '');
+
+        $('#inputMotivoEdit').val(recibo.motivo || '');
+
+        toggleCamposEnBlancoEdit(esEnBlanco);
+        calcularSaldoProvisionalEdit();
+
+        var modal = new bootstrap.Modal(document.getElementById('modalEditarReciboProvisional'));
+        modal.show();
     }
 
     function confirmarEliminarRecibo(id, numero) {

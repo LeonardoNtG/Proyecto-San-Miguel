@@ -151,6 +151,77 @@ class ReciboProvisionalController extends Controller
     }
 
     /**
+     * Actualiza un recibo provisional existente para corregir errores.
+     */
+    public function update(Request $request, $id)
+    {
+        $this->ensureTableExists();
+
+        $recibo = ReciboProvisional::withoutGlobalScope('lotificacion')->findOrFail($id);
+
+        $dejarEnBlanco = $request->boolean('dejar_en_blanco');
+
+        if ($dejarEnBlanco) {
+            $clienteNombre  = null;
+            $monto          = null;
+            $montoLetras    = null;
+            $concepto       = null;
+            $valorTotal     = null;
+            $totalAbonado   = null;
+            $saldoPendiente = null;
+        } else {
+            $clienteNombre  = $request->filled('cliente_nombre') ? trim($request->input('cliente_nombre')) : null;
+            $monto          = $request->filled('monto') ? (float) $request->input('monto') : null;
+            $montoLetras    = ($monto && $monto > 0) ? $this->convertirMontoALetras($monto) : null;
+            $concepto       = $request->filled('concepto') ? trim($request->input('concepto')) : null;
+            $valorTotal     = $request->filled('valor_total') ? (float) $request->input('valor_total') : null;
+            $totalAbonado   = $request->filled('total_abonado') ? (float) $request->input('total_abonado') : null;
+            $abonosAnteriores = $request->filled('abonos_anteriores') ? (float) $request->input('abonos_anteriores') : null;
+
+            if ($totalAbonado === null && ($abonosAnteriores !== null || $monto !== null)) {
+                $totalAbonado = ($abonosAnteriores ?? 0) + ($monto ?? 0);
+            }
+
+            $saldoPendiente = null;
+            if ($valorTotal !== null) {
+                $saldoPendiente = max(0, $valorTotal - ($totalAbonado ?? ($monto ?? 0)));
+            }
+        }
+
+        $fecha  = $request->filled('fecha') ? $request->input('fecha') : $recibo->fecha;
+        $motivo = $request->filled('motivo') ? trim($request->input('motivo')) : null;
+
+        if ($request->filled('lotificacion_id')) {
+            $recibo->lotificacion_id = $request->input('lotificacion_id');
+        }
+
+        $recibo->update([
+            'lotificacion_id' => $recibo->lotificacion_id,
+            'cliente_nombre'  => $clienteNombre,
+            'monto'           => $monto,
+            'monto_letras'    => $montoLetras,
+            'concepto'        => $concepto,
+            'valor_total'     => $valorTotal,
+            'total_abonado'   => $totalAbonado,
+            'saldo_pendiente' => $saldoPendiente,
+            'fecha'           => $fecha,
+            'motivo'          => $motivo,
+        ]);
+
+        if ($request->wantsJson()) {
+            return response()->json([
+                'success'      => true,
+                'recibo'       => $recibo,
+                'imprimir_url' => route('recibos_provisionales.imprimir', $recibo->id_recibo_provisional),
+            ]);
+        }
+
+        return redirect()->route('recibos_provisionales.index')
+            ->with('success', "Recibo Provisional N° {$recibo->numero_recibo_formateado} actualizado correctamente.")
+            ->with('imprimir_provisional_id', $recibo->id_recibo_provisional);
+    }
+
+    /**
      * Muestra la vista de impresión del recibo provisional (oculta cálculos y QR).
      */
     public function imprimir($id)
