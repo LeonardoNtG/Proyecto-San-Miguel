@@ -28,14 +28,13 @@
         }
         
         .page-container {
-            width: 100%;
-            max-width: 10.2in;
-            margin: 6mm auto 0 auto;
+            width: 10.4in;
+            margin: 5mm auto 0 auto;
             height: auto;
             display: flex;
             justify-content: center;
             align-items: flex-start;
-            gap: 8px;
+            gap: 6px;
             padding: 0;
             background-color: white;
         }
@@ -51,12 +50,14 @@
         }
 
         @if($imprimirDoble)
-            /* FORMATO DOBLE VÍA (CONFIGURABLE POR PROYECTO) */
+            /* FORMATO DOBLE VÍA — cada mitad ocupa ~50% del ancho landscape */
             .receipt-card-left {
-                width: {{ $anchoCliente ?? 'calc(50% - 4px)' }};
+                flex: 1 1 0;
+                min-width: 0;
             }
             .receipt-card-right {
-                width: {{ $anchoEmpresa ?? 'calc(50% - 4px)' }};
+                flex: 1 1 0;
+                min-width: 0;
             }
         @else
             /* FORMATO RECIBO ÚNICO (100% DEL ESPACIO) */
@@ -356,12 +357,19 @@
                 align-items: center;
             }
             .page-container {
-                margin: 6mm auto 0 auto;
                 width: 100%;
+                margin: 4mm auto 0 auto;
                 max-width: 100%;
                 justify-content: center;
                 align-items: flex-start;
                 height: auto;
+                gap: 4px;
+            }
+            .receipt-card-left,
+            .receipt-card-right {
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
+                width: auto !important;
             }
             .receipt-card {
                 border: 2px solid #1A237E !important;
