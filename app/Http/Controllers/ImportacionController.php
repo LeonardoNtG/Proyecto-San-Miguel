@@ -398,12 +398,11 @@ class ImportacionController extends Controller
     public function procesar(Request $request)
     {
         $request->validate([
-            "archivo"         => "required|file|mimes:xlsx|max:20480",
+            "archivo"         => "required|file|max:20480",
             "lotificacion_id" => "required|exists:lotificaciones,id",
             "modo"            => "required|in:validar,importar",
         ], [
             "archivo.required"         => "Debe seleccionar un archivo Excel.",
-            "archivo.mimes"            => "El archivo debe ser formato Excel (.xlsx o .xls).",
             "archivo.max"              => "El archivo no debe superar los 20 MB.",
             "lotificacion_id.required" => "Debe seleccionar el proyecto destino.",
         ]);
@@ -413,7 +412,7 @@ class ImportacionController extends Controller
         $archivo      = $request->file("archivo");
 
         try {
-            $datos = $this->parsearExcel($archivo->getPathname());
+            $datos = $this->parsearExcel($archivo->getPathname(), $archivo->getClientOriginalName());
         } catch (\Exception $e) {
             return back()->with("error", "No se pudo leer el archivo Excel: " . $e->getMessage());
         }
@@ -754,15 +753,11 @@ class ImportacionController extends Controller
         }
     }
 
-    private function parsearExcel(string $ruta): array
+    private function parsearExcel(string $ruta, ?string $originalName = null): array
     {
-        $ext = strtolower(pathinfo($ruta, PATHINFO_EXTENSION));
-        if ($ext !== 'xlsx') {
-            throw new \Exception("Solo se aceptan archivos .xlsx. El archivo recibido tiene extensión: .{$ext}");
-        }
         $zip = new \ZipArchive();
         if ($zip->open($ruta) !== true) {
-            throw new \Exception("No se pudo abrir el archivo XLSX. Verifique que no esté dañado.");
+            throw new \Exception("No se pudo abrir el archivo XLSX. Asegúrese de que sea un archivo de Excel válido (.xlsx) y no esté dañado.");
         }
 
         // Shared strings
@@ -770,37 +765,51 @@ class ImportacionController extends Controller
         $ssXml = $zip->getFromName("xl/sharedStrings.xml");
         if ($ssXml) {
             $ss = simplexml_load_string($ssXml);
-            foreach ($ss->si as $si) {
-                $txt = "";
-                foreach ($si->r as $r) { $txt .= (string)$r->t; }
-                if ($txt === "") { $txt = (string)$si->t; }
-                $sharedStrings[] = $txt;
+            if ($ss && isset($ss->si)) {
+                foreach ($ss->si as $si) {
+                    $txt = "";
+                    if (isset($si->r)) {
+                        foreach ($si->r as $r) { $txt .= (string)($r->t ?? ""); }
+                    }
+                    if ($txt === "" && isset($si->t)) {
+                        $txt = (string)$si->t;
+                    }
+                    $sharedStrings[] = $txt;
+                }
             }
         }
 
         // Workbook + rels
-        $wbXml   = $zip->getFromName("xl/workbook.xml");
+        $wbXml = $zip->getFromName("xl/workbook.xml");
+        if (!$wbXml) {
+            $zip->close();
+            throw new \Exception("Estructura de Excel inválida (falta xl/workbook.xml). Guarde el archivo como Libro de Excel (.xlsx).");
+        }
         $wb      = simplexml_load_string($wbXml);
         $relsXml = $zip->getFromName("xl/_rels/workbook.xml.rels");
-        $rels    = simplexml_load_string($relsXml);
+        $rels    = $relsXml ? simplexml_load_string($relsXml) : null;
         $sheetRels = [];
-        foreach ($rels->Relationship as $rel) {
-            $sheetRels[(string)$rel["Id"]] = (string)$rel["Target"];
+        if ($rels && isset($rels->Relationship)) {
+            foreach ($rels->Relationship as $rel) {
+                $sheetRels[(string)$rel["Id"]] = (string)$rel["Target"];
+            }
         }
 
         $stylesXml    = $zip->getFromName("xl/styles.xml");
-        $dateStyleIds = $this->obtenerEstilosFecha($stylesXml);
+        $dateStyleIds = $this->obtenerEstilosFecha($stylesXml ?: null);
 
         $resultado = [];
-        foreach ($wb->sheets->sheet as $sheet) {
-            $nombre = (string)$sheet["name"];
-            $rId    = (string)$sheet->attributes("http://schemas.openxmlformats.org/officeDocument/2006/relationships")["id"];
-            $target = $sheetRels[$rId] ?? null;
-            if (!$target) continue;
-            $sheetPath = "xl/" . ltrim($target, "/");
-            $sheetXml  = $zip->getFromName($sheetPath);
-            if (!$sheetXml) continue;
-            $resultado[$nombre] = $this->parsearHoja($sheetXml, $sharedStrings, $dateStyleIds);
+        if ($wb && isset($wb->sheets->sheet)) {
+            foreach ($wb->sheets->sheet as $sheet) {
+                $nombre = trim((string)$sheet["name"]);
+                $rId    = (string)$sheet->attributes("http://schemas.openxmlformats.org/officeDocument/2006/relationships")["id"];
+                $target = $sheetRels[$rId] ?? null;
+                if (!$target) continue;
+                $sheetPath = "xl/" . ltrim($target, "/");
+                $sheetXml  = $zip->getFromName($sheetPath);
+                if (!$sheetXml) continue;
+                $resultado[$nombre] = $this->parsearHoja($sheetXml, $sharedStrings, $dateStyleIds);
+            }
         }
         $zip->close();
         return $resultado;
@@ -809,7 +818,11 @@ class ImportacionController extends Controller
     private function parsearHoja(string $xml, array $sharedStrings, array $dateStyleIds): array
     {
         $sheet  = simplexml_load_string($xml);
-        $filas  = []; $header = []; $rowIdx = 0;
+        $filas  = []; $header = [];
+        if (!$sheet || !isset($sheet->sheetData->row)) {
+            return [];
+        }
+
         foreach ($sheet->sheetData->row as $row) {
             $rowData = [];
             foreach ($row->c as $cell) {
@@ -817,8 +830,14 @@ class ImportacionController extends Controller
                 $type     = (string)$cell["t"];
                 $styleId  = (int)($cell["s"] ?? -1);
                 $raw      = (string)($cell->v ?? "");
+
                 if ($type === "s") {
                     $valor = $sharedStrings[(int)$raw] ?? "";
+                } elseif ($type === "inlineStr") {
+                    $valor = (string)($cell->is->t ?? "");
+                    if ($valor === "" && isset($cell->is->r)) {
+                        foreach ($cell->is->r as $r) { $valor .= (string)($r->t ?? ""); }
+                    }
                 } elseif ($type === "b") {
                     $valor = $raw === "1" ? "true" : "false";
                 } elseif (in_array($styleId, $dateStyleIds) && is_numeric($raw) && $raw !== "") {
@@ -826,20 +845,31 @@ class ImportacionController extends Controller
                 } else {
                     $valor = $raw;
                 }
-                $rowData[$col] = $valor;
+                $rowData[$col] = trim($valor);
             }
-            if ($rowIdx === 0) {
+
+            // Ignorar filas completamente vacías
+            if (empty(array_filter($rowData, fn($v) => $v !== ""))) {
+                continue;
+            }
+
+            // Si aún no se han detectado los encabezados de columna:
+            if (empty($header)) {
+                $primeraCelda = strtolower(reset($rowData) ?: '');
+                // Si es la fila de título/banner explicativo, la saltamos
+                if (count($rowData) <= 2 || str_starts_with($primeraCelda, 'hoja') || str_starts_with($primeraCelda, 'guia')) {
+                    continue;
+                }
                 foreach ($rowData as $col => $enc) {
                     $header[$col] = strtolower(str_replace([" ", "-"], "_", trim($enc)));
                 }
             } else {
-                if (!empty(array_filter($rowData, fn($v) => $v !== ""))) {
-                    $filaMapeada = [];
-                    foreach ($header as $col => $campo) { $filaMapeada[$campo] = $rowData[$col] ?? ""; }
-                    $filas[] = $filaMapeada;
+                $filaMapeada = [];
+                foreach ($header as $col => $campo) {
+                    $filaMapeada[$campo] = $rowData[$col] ?? "";
                 }
+                $filas[] = $filaMapeada;
             }
-            $rowIdx++;
         }
         return $filas;
     }
