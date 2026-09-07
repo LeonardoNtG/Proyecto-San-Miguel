@@ -188,11 +188,13 @@
         <div class="modal-content border-warning shadow-lg">
             <form action="{{ route('recibos_provisionales.store') }}" method="POST" id="formNuevoReciboProvisional">
                 @csrf
-                <div class="modal-header bg-warning text-dark">
+                <div class="modal-header bg-warning text-dark d-flex justify-content-between align-items-center">
                     <h5 class="modal-title fw-bold" id="modalNuevoReciboProvisionalLabel">
                         <i class="fas fa-file-invoice me-2"></i> Emitir Nuevo Recibo Provisional
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="close text-dark" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close" onclick="cerrarModalNuevoRecibo()" style="border: none; background: transparent; font-size: 1.6rem; line-height: 1; cursor: pointer; opacity: 0.8;">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
                 <div class="modal-body">
                     <div class="alert alert-warning d-flex align-items-start py-2 small mb-3">
@@ -304,7 +306,7 @@
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-secondary px-4 fw-bold" data-dismiss="modal" data-bs-dismiss="modal" onclick="cerrarModalNuevoRecibo()">Cancelar</button>
                     <button type="submit" class="btn btn-warning text-dark fw-bold px-4">
                         <i class="fas fa-print me-1"></i> Guardar e Imprimir Recibo
                     </button>
@@ -321,11 +323,13 @@
             <form action="" method="POST" id="formEditarReciboProvisional">
                 @csrf
                 @method('PUT')
-                <div class="modal-header bg-primary text-white">
+                <div class="modal-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="modal-title fw-bold" id="modalEditarReciboProvisionalLabel">
                         <i class="fas fa-edit me-2"></i> Editar Recibo Provisional <span id="spanNumeroReciboEdit" class="badge bg-white text-primary fs-6 ms-2"></span>
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="close text-white" data-dismiss="modal" data-bs-dismiss="modal" aria-label="Close" onclick="cerrarModalEditarRecibo()" style="border: none; background: transparent; font-size: 1.6rem; line-height: 1; cursor: pointer; opacity: 0.9;">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
                 <div class="modal-body">
                     <div class="alert alert-info d-flex align-items-center py-2 small mb-3">
@@ -437,7 +441,7 @@
                     </div>
                 </div>
                 <div class="modal-footer bg-light">
-                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-secondary px-4 fw-bold" data-dismiss="modal" data-bs-dismiss="modal" onclick="cerrarModalEditarRecibo()">Cancelar</button>
                     <button type="submit" class="btn btn-primary fw-bold px-4">
                         <i class="fas fa-save me-1"></i> Guardar Cambios e Imprimir
                     </button>
@@ -454,6 +458,36 @@
 </form>
 
 <script>
+    function cerrarModalNuevoRecibo() {
+        var modalEl = document.getElementById('modalNuevoReciboProvisional');
+        if (window.bootstrap && bootstrap.Modal) {
+            var modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+        }
+        if (window.jQuery) {
+            $('#modalNuevoReciboProvisional').modal('hide');
+        }
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open').css('padding-right', '');
+    }
+
+    function cerrarModalEditarRecibo() {
+        var modalEl = document.getElementById('modalEditarReciboProvisional');
+        if (window.bootstrap && bootstrap.Modal) {
+            var modalInstance = bootstrap.Modal.getInstance(modalEl);
+            if (modalInstance) {
+                modalInstance.hide();
+            }
+        }
+        if (window.jQuery) {
+            $('#modalEditarReciboProvisional').modal('hide');
+        }
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open').css('padding-right', '');
+    }
+
     function calcularSaldoProvisionalIndex() {
         var montoRecibo = parseFloat(document.getElementById('inputMontoManualIndex').value) || 0;
         var valorTotalStr = document.getElementById('inputValorTotalIndex').value;
@@ -645,8 +679,13 @@
         toggleCamposEnBlancoEdit(esEnBlanco);
         calcularSaldoProvisionalEdit();
 
-        var modal = new bootstrap.Modal(document.getElementById('modalEditarReciboProvisional'));
-        modal.show();
+        if (window.jQuery) {
+            $('#modalEditarReciboProvisional').modal('show');
+        } else if (window.bootstrap && bootstrap.Modal) {
+            var modalEl = document.getElementById('modalEditarReciboProvisional');
+            var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+            modal.show();
+        }
     }
 
     function confirmarEliminarRecibo(id, numero) {
