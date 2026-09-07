@@ -216,10 +216,15 @@ class ClienteController extends Controller
 
                 $extensionTotal = Lote::whereIn('id_lote', $lotesIds)->sum('area_metros');
 
+                // Usar la fecha del primer pago como fecha_venta del contrato.
+                // Esto es crítico: permite registrar el abono del día primero y
+                // luego ingresar abonos históricos sin que el plan de cuotas quede desfasado.
+                $fechaInicioContrato = $request->fecha_ultimo_abono ?? now()->format('Y-m-d');
+
                 $venta = Venta::create([
                     'id_cliente'        => $cliente->id_cliente,
                     'lotificacion_id'   => $lotificacionId,
-                    'fecha_venta'       => now(),
+                    'fecha_venta'       => $fechaInicioContrato,
                     'precio_final'      => $request->precio_final,
                     'plazo_meses'       => $request->plazo_meses,
                     'estado_contrato'   => 'Vigente',
@@ -248,7 +253,7 @@ class ClienteController extends Controller
                     'id_venta'      => $venta->id_venta,
                     'numero_recibo' => $datosRecibo['numero_recibo'],
                     'codigo_recibo' => $datosRecibo['codigo_recibo'],
-                    'fecha_pago'    => $request->fecha_ultimo_abono ?? now(),
+                    'fecha_pago'    => $fechaInicioContrato,
                     'fecha_transferencia' => $request->fecha_transferencia_prima ?? null,
                     'monto_abonado' => $request->primer_abono,
                     'tipo_pago'     => 'Prima/Primer Abono',
@@ -259,7 +264,7 @@ class ClienteController extends Controller
                     'user_id'       => auth()->id()
                 ]);
 
-                $this->generarPlanCuotas($venta, $abonoInicial->fecha_pago);
+                $this->generarPlanCuotas($venta, $fechaInicioContrato);
                 \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
 
             // ─── MODO INDIVIDUAL (un contrato/plan por lote) ────────────────────
@@ -275,11 +280,14 @@ class ClienteController extends Controller
                 $primerAbonoTotal = (float)$request->primer_abono;
                 $abonosPorLote = $totalLotes > 0 ? round($primerAbonoTotal / $totalLotes, 2) : $primerAbonoTotal;
 
+                // Usar la fecha del primer pago como fecha_venta (igual que modo unificado)
+                $fechaInicioContrato = $request->fecha_ultimo_abono ?? now()->format('Y-m-d');
+
                 foreach ($lotes as $index => $lote) {
                     $venta = Venta::create([
                         'id_cliente'        => $cliente->id_cliente,
                         'lotificacion_id'   => $lotificacionId,
-                        'fecha_venta'       => now(),
+                        'fecha_venta'       => $fechaInicioContrato,
                         'precio_final'      => $precioPorLote,
                         'plazo_meses'       => $request->plazo_meses,
                         'estado_contrato'   => 'Vigente',
@@ -305,7 +313,7 @@ class ClienteController extends Controller
                         'id_venta'      => $venta->id_venta,
                         'numero_recibo' => $datosReciboLote['numero_recibo'],
                         'codigo_recibo' => $datosReciboLote['codigo_recibo'],
-                        'fecha_pago'    => $request->fecha_ultimo_abono ?? now(),
+                        'fecha_pago'    => $fechaInicioContrato,
                         'fecha_transferencia' => $request->fecha_transferencia_prima ?? null,
                         'monto_abonado' => $abonosPorLote,
                         'tipo_pago'     => 'Prima/Primer Abono',
@@ -316,7 +324,7 @@ class ClienteController extends Controller
                         'user_id'       => auth()->id()
                     ]);
 
-                    $this->generarPlanCuotas($venta, $abonoInicial->fecha_pago);
+                    $this->generarPlanCuotas($venta, $fechaInicioContrato);
                     \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
                 }
             }
