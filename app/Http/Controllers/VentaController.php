@@ -133,36 +133,10 @@ class VentaController extends Controller
                     $montoTransferido = $proporcionAbonosRescindidos;
                     $montoDevuelto = 0;
                 } elseif ($request->destino_abonos === 'devolucion_efectivo') {
-                    // El dinero del lote desistido se devuelve en efectivo
+                    // El dinero del lote desistido se registra como compromiso contable a liquidar por Contabilidad durante el mes (no sale de caja diaria)
                     $montoADevolver = $request->monto_decision ? (float)$request->monto_decision : $proporcionAbonosRescindidos;
                     $montoDevuelto = $montoADevolver;
                     $montoTransferido = 0;
-
-                    // Ajustar abonos de la venta con un registro de liquidación negativa
-                    if ($montoADevolver > 0) {
-                        $reciboData = Abono::generarSiguienteNumeroRecibo($lotificacionId);
-                        Abono::create([
-                            'id_venta'       => $venta->id_venta,
-                            'numero_recibo'  => $reciboData['numero_recibo'],
-                            'codigo_recibo'  => $reciboData['codigo_recibo'],
-                            'fecha_pago'     => now(),
-                            'monto_abonado'  => -$montoADevolver,
-                            'tipo_pago'      => 'Devolución/Liquidación',
-                            'metodo_pago'    => 'Efectivo',
-                            'referencia'     => "Liquidación por desistimiento de {$lotesRescindidosNombres}",
-                            'user_id'        => Auth::id(),
-                        ]);
-
-                        // Registrar Salida en Caja
-                        Salida::create([
-                            'monto'          => $montoADevolver,
-                            'descripcion'    => "Devolución por desistimiento de {$lotesRescindidosNombres} - Cliente: {$cliente->nombres_apellidos}",
-                            'metodo_pago'    => 'Efectivo',
-                            'fecha'          => now(),
-                            'user_id'        => Auth::id(),
-                            'lotificacion_id'=> $lotificacionId
-                        ]);
-                    }
                 }
 
                 // Regenerar plan de cuotas y recalcular
@@ -232,21 +206,10 @@ class VentaController extends Controller
                         }
                     }
                 } elseif ($request->destino_abonos === 'devolucion_efectivo') {
-                    // Devolver en efectivo
+                    // La devolución se registra como compromiso contable a ser pagado por Contabilidad durante el mes (no sale de caja diaria)
                     $montoADevolver = $request->monto_decision ? (float)$request->monto_decision : $totalAbonadoVenta;
                     $montoDevuelto = $montoADevolver;
                     $montoTransferido = 0;
-
-                    if ($montoADevolver > 0) {
-                        Salida::create([
-                            'monto'          => $montoADevolver,
-                            'descripcion'    => "Devolución en efectivo por rescisión total de {$lotesOriginalesNombres} - Cliente: {$cliente->nombres_apellidos}",
-                            'metodo_pago'    => 'Efectivo',
-                            'fecha'          => now(),
-                            'user_id'        => Auth::id(),
-                            'lotificacion_id'=> $lotificacionId
-                        ]);
-                    }
                 } else {
                     // Sin devolución por cláusula/penalización
                     $montoDevuelto = 0;

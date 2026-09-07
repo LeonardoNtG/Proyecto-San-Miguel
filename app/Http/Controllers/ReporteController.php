@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Abono;
 use App\Models\Salida;
 use App\Models\CierreCaja;
+use App\Models\Rescision;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -263,6 +264,61 @@ class ReporteController extends Controller
             ];
         })->values();
 
+        // 4. Rescisiones y Devoluciones Contables del Periodo
+        $rescisionesQuery = Rescision::withoutGlobalScope('lotificacion')
+            ->with([
+                'cliente' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                'user',
+                'lotificacion'
+            ]);
+
+        if (!$esGlobal && $targetLotificacionId) {
+            $rescisionesQuery->where('lotificacion_id', $targetLotificacionId);
+        }
+
+        $rescisiones = $rescisionesQuery
+            ->whereBetween('created_at', [$inicio->format('Y-m-d 00:00:00'), $fin->format('Y-m-d 23:59:59')])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $totalDevolucionesRescisiones = (float) $rescisiones->where('destino_abonos', 'devolucion_efectivo')->sum('monto_devuelto');
+        $totalRescisionesTransferidas = (float) $rescisiones->where('destino_abonos', 'acreditar_otro_lote')->sum('monto_transferido');
+        $cantidadRescisiones = $rescisiones->count();
+        $recaudacionNeta = $totalRecaudado - $totalDevolucionesRescisiones;
+
+        $filasRescisiones = $rescisiones->map(function ($r) {
+            $cliente = $r->cliente;
+            $usuario = $r->user;
+            $proy = $r->lotificacion;
+
+            $destinoLabel = match($r->destino_abonos) {
+                'devolucion_efectivo' => 'Devolución Contable a Cliente',
+                'acreditar_otro_lote' => 'Acreditado a Lote Conservado / Otro Contrato',
+                'sin_devolucion' => 'Sin Devolución (Retenido por Cláusula)',
+                default => $r->destino_abonos
+            };
+
+            return [
+                'id_rescision' => $r->id_rescision,
+                'codigo' => 'RESC-' . str_pad($r->id_rescision, 4, '0', STR_PAD_LEFT),
+                'fecha' => Carbon::parse($r->created_at)->format('d/m/Y'),
+                'hora' => Carbon::parse($r->created_at)->format('h:i A'),
+                'cliente' => $cliente ? $cliente->nombres_apellidos : 'Cliente Desconocido',
+                'identificacion' => $cliente ? ($cliente->identificacion ?: 'S/C') : '-',
+                'expediente' => $cliente ? ($cliente->expediente_num ?: ($cliente->pv_num ?: '-')) : '-',
+                'tipo' => $r->tipo, // Parcial o Total
+                'lotes_afectados' => $r->lotes_afectados ?: 'N/A',
+                'lotes_conservados' => $r->lotes_conservados ?: '-',
+                'destino_abonos_raw' => $r->destino_abonos,
+                'destino_label' => $destinoLabel,
+                'monto_devuelto' => (float) $r->monto_devuelto,
+                'monto_transferido' => (float) $r->monto_transferido,
+                'comentario' => $r->comentario ?: 'Sin observaciones',
+                'cajero' => $usuario ? $usuario->name : 'Sistema',
+                'proyecto' => $proy ? $proy->nombre : 'N/A',
+            ];
+        })->values();
+
         return [
             'periodo' => $periodo,
             'anio' => $anio,
@@ -290,6 +346,12 @@ class ReporteController extends Controller
             'desgloseMetodos' => $desgloseMetodos,
             'desgloseProyectos' => $desgloseProyectos,
             'filasAbonos' => $filasAbonos,
+            'rescisiones' => $rescisiones,
+            'filasRescisiones' => $filasRescisiones,
+            'cantidadRescisiones' => $cantidadRescisiones,
+            'totalDevolucionesRescisiones' => $totalDevolucionesRescisiones,
+            'totalRescisionesTransferidas' => $totalRescisionesTransferidas,
+            'recaudacionNeta' => $recaudacionNeta,
             'aniosDisponibles' => $this->aniosDisponibles(),
             'rangoArchivo' => $inicio->format('Ymd') . '-' . $fin->format('Ymd'),
             'generadoEl' => now()->locale('es')->translatedFormat('d/m/Y h:i A'),

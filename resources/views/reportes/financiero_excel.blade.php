@@ -10,10 +10,12 @@
     .rfx-titulo { font-size: 15px; font-weight: bold; color: #1a56db; }
     .rfx-subtitulo { color: #555555; font-size: 11px; }
     .rfx-seccion { background: #e5edff; font-weight: bold; font-size: 12px; color: #1a56db; }
+    .rfx-seccion-danger { background: #fee2e2; font-weight: bold; font-size: 12px; color: #b91c1c; }
     .rfx-label { background: #f3f4f6; font-weight: bold; }
     .rfx-num { mso-number-format: "#,##0.00"; text-align: right; }
     .rfx-center { text-align: center; }
     .rfx-success { color: #059669; font-weight: bold; }
+    .rfx-danger { color: #dc2626; font-weight: bold; }
 </style>
 </head>
 <body>
@@ -24,17 +26,17 @@
     <tr><td colspan="{{ $esGlobal ? '12' : '11' }}">&nbsp;</td></tr>
 
     <!-- Resumen Ejecutivo -->
-    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '12' : '11' }}">1. RESUMEN EJECUTIVO DE AUDITOR&Iacute;A</td></tr>
+    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '12' : '11' }}">1. RESUMEN EJECUTIVO DE AUDITOR&Iacute;A Y FLUJO NETO</td></tr>
     <tr>
-        <td class="rfx-label">Total Recaudado Auditado</td>
+        <td class="rfx-label">Ingresos Brutos Recaudados</td>
         <td class="rfx-num rfx-success">{{ number_format($totalRecaudado, 2, '.', '') }}</td>
+        <td class="rfx-label">Devoluciones por Rescisi&oacute;n</td>
+        <td class="rfx-num rfx-danger">-{{ number_format($totalDevolucionesRescisiones, 2, '.', '') }}</td>
+        <td class="rfx-label">Recaudaci&oacute;n Neta Real</td>
+        <td class="rfx-num rfx-success">{{ number_format($recaudacionNeta, 2, '.', '') }}</td>
         <td class="rfx-label">Recibos Emitidos</td>
         <td class="rfx-center">{{ $cantidadAbonos }}</td>
-        <td class="rfx-label">Clientes Aportantes</td>
-        <td class="rfx-center">{{ $clientesUnicos }}</td>
-        <td class="rfx-label">Ticket Promedio</td>
-        <td class="rfx-num">{{ number_format($ticketPromedio, 2, '.', '') }}</td>
-        <td class="rfx-label">Canal Bancarizado</td>
+        <td class="rfx-label">Bancarizaci&oacute;n</td>
         <td colspan="{{ $esGlobal ? '3' : '2' }}">{{ $porcentajeBancarizado }}% Bancos ({{ number_format($totalBancos, 2, '.', '') }}) / {{ $porcentajeEfectivo }}% Caja ({{ number_format($totalEfectivo, 2, '.', '') }})</td>
     </tr>
     <tr><td colspan="{{ $esGlobal ? '12' : '11' }}">&nbsp;</td></tr>
@@ -83,8 +85,52 @@
     </tr>
     <tr><td colspan="{{ $esGlobal ? '12' : '11' }}">&nbsp;</td></tr>
 
+    @if(count($filasRescisiones) > 0)
+    <!-- Cédula de Rescisiones y Devoluciones -->
+    <tr><td class="rfx-seccion-danger" colspan="{{ $esGlobal ? '12' : '11' }}">3. C&Eacute;DULA DE RESCISIONES Y COMPROMISOS DE DEVOLUCI&Oacute;N CONTABLE (NO AFECTAN CAJA OPERATIVA)</td></tr>
+    <tr>
+        <th style="background: #b91c1c;">C&oacute;digo</th>
+        <th style="background: #b91c1c;">Fecha</th>
+        <th style="background: #b91c1c;">Hora</th>
+        @if($esGlobal)
+            <th style="background: #b91c1c;">Proyecto</th>
+        @endif
+        <th style="background: #b91c1c;">Cliente</th>
+        <th style="background: #b91c1c;">Identificaci&oacute;n</th>
+        <th style="background: #b91c1c;">Tipo</th>
+        <th style="background: #b91c1c;">Lotes Desistidos</th>
+        <th style="background: #b91c1c;">Tratamiento Contable</th>
+        <th style="background: #b91c1c;">Motivo</th>
+        <th style="background: #b91c1c;">Registrado por</th>
+        <th class="rfx-num" style="background: #b91c1c;">Monto Devoluci&oacute;n ($)</th>
+    </tr>
+    @foreach($filasRescisiones as $fr)
+    <tr>
+        <td class="rfx-center"><strong>{{ $fr['codigo'] }}</strong></td>
+        <td class="rfx-center">{{ $fr['fecha'] }}</td>
+        <td class="rfx-center">{{ $fr['hora'] }}</td>
+        @if($esGlobal)
+            <td>{{ $fr['proyecto'] }}</td>
+        @endif
+        <td><strong>{{ $fr['cliente'] }}</strong></td>
+        <td>{{ $fr['identificacion'] }}</td>
+        <td>{{ $fr['tipo'] }}</td>
+        <td>{{ $fr['lotes_afectados'] }}</td>
+        <td>{{ $fr['destino_label'] }}</td>
+        <td>{{ $fr['comentario'] }}</td>
+        <td>{{ $fr['cajero'] }}</td>
+        <td class="rfx-num rfx-danger">{{ $fr['monto_devuelto'] > 0 ? '-' . number_format($fr['monto_devuelto'], 2, '.', '') : '0.00' }}</td>
+    </tr>
+    @endforeach
+    <tr>
+        <td class="rfx-label" colspan="{{ $esGlobal ? '11' : '10' }}">TOTAL OBLIGACI&Oacute;N DE DEVOLUCI&Oacute;N CONTABLE POR RESCISI&Oacute;N</td>
+        <td class="rfx-label rfx-num rfx-danger">-{{ number_format($totalDevolucionesRescisiones, 2, '.', '') }}</td>
+    </tr>
+    <tr><td colspan="{{ $esGlobal ? '12' : '11' }}">&nbsp;</td></tr>
+    @endif
+
     <!-- Detalle de Transacciones -->
-    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '12' : '11' }}">3. PLANILLA DE DETALLE DE RECAUDACI&Oacute;N Y COBRANZAS</td></tr>
+    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '12' : '11' }}">{{ count($filasRescisiones) > 0 ? '4' : '3' }}. PLANILLA DE DETALLE DE RECAUDACI&Oacute;N Y COBRANZAS</td></tr>
     <tr>
         <th>N&deg; Recibo</th>
         <th>Fecha</th>

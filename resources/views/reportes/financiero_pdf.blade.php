@@ -186,20 +186,20 @@
 <table class="kpi-table">
     <tr>
         <td>
-            <span class="kpi-label">Total Recaudado Auditado</span>
+            <span class="kpi-label">Ingresos Brutos Recaudados</span>
             <span class="kpi-val success">${{ number_format($totalRecaudado, 2) }}</span>
         </td>
         <td>
-            <span class="kpi-label">Transacciones Procesadas</span>
-            <span class="kpi-val primary">{{ number_format($cantidadAbonos) }} Recibos</span>
+            <span class="kpi-label">Devoluciones por Rescisión</span>
+            <span class="kpi-val" style="color: #dc2626;">-${{ number_format($totalDevolucionesRescisiones, 2) }}</span>
         </td>
         <td>
-            <span class="kpi-label">Clientes Aportantes</span>
-            <span class="kpi-val">{{ number_format($clientesUnicos) }} Clientes</span>
+            <span class="kpi-label">Recaudación Neta Contable</span>
+            <span class="kpi-val primary">${{ number_format($recaudacionNeta, 2) }}</span>
         </td>
         <td>
-            <span class="kpi-label">Canal Bancarizado</span>
-            <span class="kpi-val">{{ $porcentajeBancarizado }}% Bancos</span>
+            <span class="kpi-label">Canal Bancarizado vs Caja</span>
+            <span class="kpi-val" style="font-size: 10px;">{{ $porcentajeBancarizado }}% Bancos / {{ $porcentajeEfectivo }}% Caja</span>
         </td>
     </tr>
 </table>
@@ -297,10 +297,58 @@
         @endforeach
     </tbody>
 </table>
+@if(count($filasRescisiones) > 0)
+<div class="section-title" style="border-left-color: #dc2626; color: #dc2626;">
+    {{ $esGlobal ? '4' : '3' }}. Cédula de Rescisiones y Devoluciones Contables
+</div>
+<table class="detail-table" style="margin-bottom: 12px;">
+    <thead>
+        <tr style="background-color: #b91c1c;">
+            <th class="text-center" style="background-color: #b91c1c; width: 45px;">Código</th>
+            <th style="background-color: #b91c1c;">Fecha / Hora</th>
+            @if($esGlobal)
+                <th style="background-color: #b91c1c;">Proyecto</th>
+            @endif
+            <th style="background-color: #b91c1c;">Cliente</th>
+            <th style="background-color: #b91c1c;">Identificación</th>
+            <th style="background-color: #b91c1c;">Tipo</th>
+            <th style="background-color: #b91c1c;">Lotes Desistidos</th>
+            <th style="background-color: #b91c1c;">Tratamiento Contable</th>
+            <th style="background-color: #b91c1c;">Motivo</th>
+            <th class="text-end" style="background-color: #b91c1c;">Monto Devolución ($)</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach($filasRescisiones as $index => $fr)
+        <tr class="{{ $index % 2 == 1 ? 'even' : '' }}">
+            <td class="text-center fw-bold" style="color: #b91c1c;">{{ $fr['codigo'] }}</td>
+            <td>{{ $fr['fecha'] }} <small style="color: #6b7280;">{{ $fr['hora'] }}</small></td>
+            @if($esGlobal)
+                <td><strong>{{ $fr['proyecto'] }}</strong></td>
+            @endif
+            <td><strong>{{ $fr['cliente'] }}</strong></td>
+            <td>{{ $fr['identificacion'] }}</td>
+            <td>{{ $fr['tipo'] }}</td>
+            <td><strong style="color: #b91c1c;">{{ $fr['lotes_afectados'] }}</strong></td>
+            <td>{{ $fr['destino_label'] }}</td>
+            <td><small>{{ $fr['comentario'] }}</small></td>
+            <td class="text-end fw-bold" style="color: {{ $fr['monto_devuelto'] > 0 ? '#b91c1c' : '#4b5563' }};">
+                {{ $fr['monto_devuelto'] > 0 ? '-$' . number_format($fr['monto_devuelto'], 2) : '$0.00' }}
+            </td>
+        </tr>
+        @endforeach
+    </tbody>
+    <tfoot>
+        <tr style="background-color: #fee2e2; font-weight: bold;">
+            <td colspan="{{ $esGlobal ? '9' : '8' }}" class="text-end" style="color: #b91c1c;">TOTAL COMPROMISO DE DEVOLUCIÓN POR RESCISIÓN:</td>
+            <td class="text-end" style="color: #b91c1c;">-${{ number_format($totalDevolucionesRescisiones, 2) }}</td>
+        </tr>
+    </tfoot>
+</table>
 @endif
 
 <!-- Detalle Completo de Transacciones -->
-<div class="section-title">{{ $esGlobal ? '4' : '3' }}. Planilla de Detalle de Recaudación y Cobranzas</div>
+<div class="section-title">{{ ($esGlobal ? (count($filasRescisiones) > 0 ? '5' : '4') : (count($filasRescisiones) > 0 ? '4' : '3')) }}. Planilla de Detalle de Recaudación y Cobranzas</div>
 <table class="detail-table">
     <thead>
         <tr>

@@ -152,7 +152,7 @@
 </div>
 
 {{-- ================================================= --}}
-{{-- KPIS DE CONTROL DE AUDITORÍA --}}
+{{-- KPIS DE CONTROL DE AUDITORÍA Y FLUJO NETO --}}
 {{-- ================================================= --}}
 <div class="row g-3 mb-4">
     <!-- Total Recaudado -->
@@ -160,40 +160,42 @@
         <div class="audit-kpi-card" style="border-left-color: #1cc88a;">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
-                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Ingresos Auditados</div>
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Ingresos Brutos Recaudados</div>
                     <div class="h4 mb-0 font-weight-bold text-gray-800">${{ number_format($totalRecaudado, 2) }}</div>
                 </div>
                 <div class="text-success opacity-50"><i class="fas fa-dollar-sign fa-2x"></i></div>
             </div>
-            <div class="mt-2 text-muted small"><i class="fas fa-check-circle text-success me-1"></i> Fondos 100% verificados</div>
+            <div class="mt-2 text-muted small"><i class="fas fa-receipt text-success me-1"></i> {{ number_format($cantidadAbonos) }} recibos procesados</div>
         </div>
     </div>
 
-    <!-- Transacciones -->
+    <!-- Devoluciones por Rescisión (Compromiso Contable) -->
+    <div class="col-xl-3 col-md-6">
+        <div class="audit-kpi-card" style="border-left-color: #e74a3b;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Devoluciones por Rescisión</div>
+                    <div class="h4 mb-0 font-weight-bold text-danger">${{ number_format($totalDevolucionesRescisiones, 2) }}</div>
+                </div>
+                <div class="text-danger opacity-50"><i class="fas fa-undo-alt fa-2x"></i></div>
+            </div>
+            <div class="mt-2 text-muted small">
+                <i class="fas fa-file-contract text-danger me-1"></i> {{ $cantidadRescisiones }} {{ $cantidadRescisiones == 1 ? 'rescisión' : 'rescisiones' }} en el periodo
+            </div>
+        </div>
+    </div>
+
+    <!-- Recaudación Neta Real -->
     <div class="col-xl-3 col-md-6">
         <div class="audit-kpi-card" style="border-left-color: #4e73df;">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
-                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Recibos / Operaciones</div>
-                    <div class="h4 mb-0 font-weight-bold text-gray-800">{{ number_format($cantidadAbonos) }}</div>
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Recaudación Neta Contable</div>
+                    <div class="h4 mb-0 font-weight-bold text-gray-800">${{ number_format($recaudacionNeta, 2) }}</div>
                 </div>
-                <div class="text-primary opacity-50"><i class="fas fa-receipt fa-2x"></i></div>
+                <div class="text-primary opacity-50"><i class="fas fa-balance-scale fa-2x"></i></div>
             </div>
-            <div class="mt-2 text-muted small"><i class="fas fa-tag text-primary me-1"></i> Promedio: ${{ number_format($ticketPromedio, 2) }} / recibo</div>
-        </div>
-    </div>
-
-    <!-- Clientes Únicos -->
-    <div class="col-xl-3 col-md-6">
-        <div class="audit-kpi-card" style="border-left-color: #36b9cc;">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Clientes Aportantes</div>
-                    <div class="h4 mb-0 font-weight-bold text-gray-800">{{ number_format($clientesUnicos) }}</div>
-                </div>
-                <div class="text-info opacity-50"><i class="fas fa-users fa-2x"></i></div>
-            </div>
-            <div class="mt-2 text-muted small"><i class="fas fa-user-check text-info me-1"></i> Contratos con recaudación activa</div>
+            <div class="mt-2 text-muted small"><i class="fas fa-check-double text-primary me-1"></i> Ingresos menos devoluciones</div>
         </div>
     </div>
 
@@ -389,6 +391,126 @@
     </div>
 </div>
 @endif
+
+{{-- ================================================= --}}
+{{-- CÉDULA DE RESCISIONES Y OBLIGACIONES CONTABLES --}}
+{{-- ================================================= --}}
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-header py-3 bg-white d-flex flex-wrap justify-content-between align-items-center border-bottom gap-2">
+        <div>
+            <h5 class="m-0 font-weight-bold text-danger">
+                <i class="fas fa-undo-alt me-2"></i> Cédula de Rescisiones y Compromisos de Devolución Contable ({{ $etiquetaPeriodo }})
+            </h5>
+            <small class="text-muted">
+                Registro de contratos rescindidos, lotes liberados a inventario y obligaciones contables de reintegro.
+            </small>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-danger fs-6 px-3 py-2">
+                Devoluciones: ${{ number_format($totalDevolucionesRescisiones, 2) }}
+            </span>
+            <a href="{{ route('rescisiones.index') }}" class="btn btn-sm btn-outline-primary" target="_blank">
+                <i class="fas fa-external-link-alt me-1"></i> Ver Historial
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="alert alert-light border-0 border-start border-4 border-warning m-3 mb-2 p-2 small text-dark bg-light">
+            <i class="fas fa-info-circle text-warning me-1"></i> <strong>Nota Contable / Auditoría:</strong> Las devoluciones por rescisión no se liquidan de la caja operativa diaria de las recepciones. Constituyen pasivos/compromisos a ser ejecutados y conciliados por el departamento de Contabilidad/Tesorería durante el mes fiscal.
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered table-audit mb-0">
+                <thead>
+                    <tr>
+                        <th class="text-center" style="width: 80px;"># Rescisión</th>
+                        <th>Fecha & Hora</th>
+                        @if($esGlobal)
+                            <th>Proyecto</th>
+                        @endif
+                        <th>Cliente / Identificación</th>
+                        <th>Expediente</th>
+                        <th>Tipo</th>
+                        <th>Lotes Desistidos (Disponibles)</th>
+                        <th>Destino Contable</th>
+                        <th>Motivo / Justificación</th>
+                        <th>Registrado por</th>
+                        <th class="text-end">Monto Devolución ($ USD)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($filasRescisiones as $fr)
+                    <tr>
+                        <td class="text-center fw-bold text-danger text-mono">
+                            {{ $fr['codigo'] }}
+                        </td>
+                        <td>
+                            <span class="d-block fw-semibold text-dark">{{ $fr['fecha'] }}</span>
+                            <small class="text-muted text-mono">{{ $fr['hora'] }}</small>
+                        </td>
+                        @if($esGlobal)
+                            <td><span class="badge bg-dark text-white">{{ $fr['proyecto'] }}</span></td>
+                        @endif
+                        <td>
+                            <strong class="text-dark d-block">{{ $fr['cliente'] }}</strong>
+                            <small class="text-muted"><i class="fas fa-id-card me-1"></i> {{ $fr['identificacion'] }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border text-mono px-2 py-1">{{ $fr['expediente'] }}</span>
+                        </td>
+                        <td>
+                            <span class="badge {{ $fr['tipo'] === 'Total' ? 'bg-danger text-white' : 'bg-warning text-dark' }} px-2 py-1">
+                                {{ $fr['tipo'] }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="fw-bold text-danger">{{ $fr['lotes_afectados'] }}</span>
+                            @if($fr['lotes_conservados'] && $fr['lotes_conservados'] !== '-')
+                                <div class="small text-muted mt-1">Conserva: <span class="text-success fw-bold">{{ $fr['lotes_conservados'] }}</span></div>
+                            @endif
+                        </td>
+                        <td>
+                            @if($fr['destino_abonos_raw'] === 'devolucion_efectivo')
+                                <span class="badge bg-danger text-white px-2 py-1"><i class="fas fa-hand-holding-usd me-1"></i> Devolución Contable</span>
+                            @elseif($fr['destino_abonos_raw'] === 'acreditar_otro_lote')
+                                <span class="badge bg-success text-white px-2 py-1"><i class="fas fa-sync-alt me-1"></i> Acreditado a Contrato</span>
+                            @else
+                                <span class="badge bg-secondary text-white px-2 py-1"><i class="fas fa-ban me-1"></i> Sin Devolución</span>
+                            @endif
+                        </td>
+                        <td class="small text-muted" style="max-width: 200px;">
+                            {{ $fr['comentario'] }}
+                        </td>
+                        <td>
+                            <small class="text-muted"><i class="fas fa-user-edit me-1"></i> {{ $fr['cajero'] }}</small>
+                        </td>
+                        <td class="text-end font-weight-bold fs-6 text-mono {{ $fr['monto_devuelto'] > 0 ? 'text-danger' : 'text-muted' }}">
+                            {{ $fr['monto_devuelto'] > 0 ? '-$' . number_format($fr['monto_devuelto'], 2) : '$0.00' }}
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="{{ $esGlobal ? '11' : '10' }}" class="text-center py-3 text-muted">
+                            <i class="fas fa-check-circle text-success me-1"></i> No se registraron rescisiones ni desistimientos en este periodo.
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+                @if(count($filasRescisiones) > 0)
+                <tfoot class="table-light fw-bold border-top">
+                    <tr>
+                        <td colspan="{{ $esGlobal ? '10' : '9' }}" class="text-end text-uppercase text-secondary">
+                            TOTAL OBLIGACIÓN DE DEVOLUCIÓN POR RESCISIÓN ({{ count($filasRescisiones) }} CASOS):
+                        </td>
+                        <td class="text-end text-danger fs-5 text-mono">
+                            -${{ number_format($totalDevolucionesRescisiones, 2) }}
+                        </td>
+                    </tr>
+                </tfoot>
+                @endif
+            </table>
+        </div>
+    </div>
+</div>
 
 {{-- ================================================= --}}
 {{-- LIBRO MAYOR DE AUDITORÍA / DETALLE DE TRANSACCIONES --}}
