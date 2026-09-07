@@ -98,6 +98,9 @@
                         <h6 class="collapse-header mt-2">Caja y Reportes:</h6>
                         <a class="collapse-item" href="{{ route('reportes.index') }}">Apertura y Egresos</a>
                         <a class="collapse-item" href="{{ route('reportes.cierre_caja') }}">Reporte Diario</a>
+                        <a class="collapse-item {{ request()->routeIs('recibos_provisionales.*') ? 'active' : '' }}" href="{{ route('recibos_provisionales.index') }}">
+                            <i class="fas fa-file-invoice text-warning me-1"></i> Recibo Provisional
+                        </a>
                         <a class="collapse-item {{ request()->routeIs('abonos.auditoria') ? 'active' : '' }}" href="{{ route('abonos.auditoria') }}">
                             <i class="fas fa-file-signature text-success me-1"></i> Recibos Firmados
                         </a>

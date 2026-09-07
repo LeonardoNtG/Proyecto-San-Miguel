@@ -18,6 +18,7 @@ use App\Http\Controllers\UsuarioController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\RescisionController;
 use App\Http\Controllers\CuentaBancariaController;
+use App\Http\Controllers\ReciboProvisionalController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -84,9 +85,14 @@ Route::middleware(['auth'])->group(function () {
     // Impresión de Recibos y Documentos
     Route::get('abono/{abono_id}/imprimir', [AbonoController::class, 'imprimirRecibo'])->name('imprimirRecibo');
     Route::get('abonos/{abono_id}/imprimir', [AbonoController::class, 'imprimirRecibo'])->name('abonos.imprimir');
-    // Recibo Provisional: genera un recibo en blanco o con campos manuales para llenado provisional y lo registra en el historial
     Route::match(['get', 'post'], 'ventas/{id_venta}/recibo-provisional', [AbonoController::class, 'reciboProvisional'])->name('abonos.recibo_provisional');
     Route::post('cuotas/{cuota}/exonerar-mora', [CuotaController::class, 'exonerarMora'])->name('cuotas.exonerarMora');
+
+    // Recibos Provisionales (Módulo Independiente y Manual)
+    Route::get('recibos-provisionales', [ReciboProvisionalController::class, 'index'])->name('recibos_provisionales.index');
+    Route::post('recibos-provisionales', [ReciboProvisionalController::class, 'store'])->name('recibos_provisionales.store');
+    Route::get('recibos-provisionales/{id}/imprimir', [ReciboProvisionalController::class, 'imprimir'])->name('recibos_provisionales.imprimir');
+    Route::delete('recibos-provisionales/{id}', [ReciboProvisionalController::class, 'destroy'])->name('recibos_provisionales.destroy');
 
     // Auditoría y Gestión de Recibos Firmados por el Cliente
     Route::get('recibos-firmados', [AbonoController::class, 'auditoriaRecibos'])->name('abonos.auditoria');
