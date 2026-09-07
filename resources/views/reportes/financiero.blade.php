@@ -126,6 +126,48 @@
     .table-audit tbody tr:hover {
         background-color: #f8fafc;
     }
+    .badge-header-danger {
+        background-color: #fee2e2 !important;
+        color: #991b1b !important;
+        border: 1px solid #fca5a5 !important;
+        font-weight: 800 !important;
+        font-size: 0.92rem !important;
+        padding: 0.4rem 0.85rem !important;
+        border-radius: 6px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+    .badge-header-success {
+        background-color: #dcfce7 !important;
+        color: #166534 !important;
+        border: 1px solid #86efac !important;
+        font-weight: 800 !important;
+        font-size: 0.92rem !important;
+        padding: 0.4rem 0.85rem !important;
+        border-radius: 6px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+    .btn-danger-contrast {
+        background-color: #dc2626 !important;
+        border-color: #b91c1c !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+    .btn-danger-contrast:hover {
+        background-color: #b91c1c !important;
+        color: #ffffff !important;
+    }
+    .btn-success-contrast {
+        background-color: #16a34a !important;
+        border-color: #15803d !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+    }
+    .btn-success-contrast:hover {
+        background-color: #15803d !important;
+        color: #ffffff !important;
+    }
     .text-mono {
         font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
     }
@@ -150,12 +192,12 @@
     <div class="rf-acciones-exportar d-flex gap-2">
         <a href="{{ route('reportes.financiero.pdf', request()->query()) }}"
            data-rf-exportar data-rf-base="{{ route('reportes.financiero.pdf') }}"
-           class="btn btn-danger shadow-sm px-3" target="_blank">
+           class="btn btn-danger-contrast shadow-sm px-3" target="_blank">
             <i class="fas fa-file-pdf me-1"></i> Exportar Informe PDF
         </a>
         <a href="{{ route('reportes.financiero.excel', request()->query()) }}"
            data-rf-exportar data-rf-base="{{ route('reportes.financiero.excel') }}"
-           class="btn btn-success shadow-sm px-3">
+           class="btn btn-success-contrast shadow-sm px-3">
             <i class="fas fa-file-excel me-1"></i> Exportar Excel
         </a>
     </div>
@@ -486,8 +528,8 @@
             </small>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-danger fs-6 px-3 py-2">
-                Devoluciones: ${{ number_format($totalDevolucionesRescisiones, 2) }}
+            <span class="badge-header-danger">
+                <i class="fas fa-undo-alt me-1"></i> Devoluciones: ${{ number_format($totalDevolucionesRescisiones, 2) }}
             </span>
             <a href="{{ route('rescisiones.index') }}" class="btn btn-sm btn-outline-primary" target="_blank">
                 <i class="fas fa-external-link-alt me-1"></i> Ver Historial
@@ -615,8 +657,8 @@
                 <span class="input-group-text bg-light"><i class="fas fa-search text-muted"></i></span>
                 <input type="text" id="rf-buscador" class="form-control" placeholder="Buscar cliente, recibo, ref, lote...">
             </div>
-            <span class="badge bg-success fs-6 px-3 py-2">
-                Total: ${{ number_format($totalRecaudado, 2) }}
+            <span class="badge-header-success">
+                <i class="fas fa-dollar-sign me-1"></i> Total: ${{ number_format($totalRecaudado, 2) }}
             </span>
         </div>
     </div>
