@@ -120,7 +120,14 @@
                                         <div class="alert alert-danger d-flex align-items-center mb-0 p-2 shadow-sm" role="alert">
                                             <div class="small fw-bold">Cuenta Cerrada / Rescindido</div>
                                         </div>
-                                    @else
+                                        @php
+                                            $vActual = $cliente->ventas->firstWhere('estado_contrato', 'Vigente') ?? $cliente->ventas->first();
+                                        @endphp
+                                        @if($vActual)
+                                            <a href="{{ route('ventas.edit_completo', $vActual->id_venta) }}" class="btn btn-sm btn-warning text-dark" title="Editar Contrato y Pagos">
+                                                <i class="fas fa-edit"></i> Editar
+                                            </a>
+                                        @endif
                                         <a href="{{ route('abono.create', ['cliente' => $cliente->id_cliente]) }}" class="btn btn-sm btn-success" title="Registrar Abono">
                                             <i class="fas fa-hand-holding-usd"></i> Abonar
                                         </a>

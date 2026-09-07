@@ -260,4 +260,249 @@ class VentaController extends Controller
             return redirect()->back()->with('error', 'Error al rescindir la venta: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Muestra el formulario de Edición Integral ("Editar Todo") para una venta,
+     * permitiendo modificar datos del cliente, contrato, lote y abonos históricos.
+     */
+    public function editCompleto($id_venta)
+    {
+        $venta = Venta::withoutGlobalScope('lotificacion')->with([
+            'cliente',
+            'lotificacion',
+            'lotes' => function($q) {
+                $q->withoutGlobalScope('lotificacion')->with('bloque');
+            },
+            'abonos' => function($q) {
+                $q->orderBy('fecha_pago', 'asc')->orderBy('id_abono', 'asc');
+            },
+            'cuotas'
+        ])->findOrFail($id_venta);
+
+        $cliente = $venta->cliente;
+        $loteActual = $venta->lotes->first();
+
+        $lotificaciones = \App\Models\Lotificacion::orderBy('nombre')->get();
+        $bloques = \App\Models\Bloque::where('lotificacion_id', $venta->lotificacion_id)->orderBy('nombre')->get();
+        
+        $lotesDisponibles = \App\Models\Lote::where(function($q) use ($loteActual) {
+            $q->where('estado', 'Disponible');
+            if ($loteActual) {
+                $q->orWhere('id_lote', $loteActual->id_lote);
+            }
+        })->whereIn('id_bloque', $bloques->pluck('id_bloque'))
+          ->orderBy('numero_lote')
+          ->get();
+
+        $cuentasBancarias = \App\Models\CuentaBancaria::where('estado', 'Activa')->orderBy('banco')->get();
+
+        return view('ventas.edit_completo', compact(
+            'venta',
+            'cliente',
+            'loteActual',
+            'lotificaciones',
+            'bloques',
+            'lotesDisponibles',
+            'cuentasBancarias'
+        ));
+    }
+
+    /**
+     * Procesa la actualización integral del contrato, cliente y abonos.
+     */
+    public function updateCompleto(Request $request, $id_venta)
+    {
+        $request->validate([
+            'nombres_apellidos'   => 'required|string|max:255',
+            'identificacion'      => 'required|string|max:50',
+            'telefono'            => 'nullable|string|max:50',
+            'direccion'           => 'nullable|string|max:500',
+            'expediente_num'      => 'nullable|string|max:50',
+            'pv_num'              => 'nullable|string|max:50',
+            'id_lote'             => 'required|integer|exists:lotes,id_lote',
+            'fecha_venta'         => 'required|date',
+            'precio_final'        => 'required|numeric|min:0.01',
+            'plazo_meses'         => 'required|integer|min:1',
+            'cuota_mensual'       => 'required|numeric|min:0.01',
+            'beneficiario_final'  => 'nullable|string|max:255',
+            'nota_beneficiario'   => 'nullable|string|max:500',
+            'motivo_modificacion' => 'required|string|min:3|max:1000',
+            'abonos'              => 'nullable|array',
+        ], [
+            'nombres_apellidos.required'   => 'El nombre del cliente es obligatorio.',
+            'identificacion.required'      => 'La cédula o identificación es obligatoria.',
+            'id_lote.required'             => 'Debe seleccionar un lote asignado.',
+            'fecha_venta.required'         => 'La fecha del contrato es obligatoria.',
+            'precio_final.required'        => 'El precio final es obligatorio.',
+            'plazo_meses.required'         => 'El plazo en meses es obligatorio.',
+            'cuota_mensual.required'       => 'La cuota mensual es obligatoria.',
+            'motivo_modificacion.required' => 'Debe ingresar el motivo de la modificación para la bitácora de auditoría.',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $venta = Venta::withoutGlobalScope('lotificacion')->with(['cliente', 'lotes.bloque', 'abonos'])->findOrFail($id_venta);
+            $cliente = $venta->cliente;
+            $cambios = [];
+
+            // 1. Actualizar Datos del Cliente
+            $datosCliente = [
+                'nombres_apellidos' => mb_strtoupper(trim($request->nombres_apellidos), 'UTF-8'),
+                'identificacion'    => mb_strtoupper(trim($request->identificacion), 'UTF-8'),
+                'telefono'          => trim((string)$request->telefono),
+                'direccion'         => $request->direccion ? mb_strtoupper(trim($request->direccion), 'UTF-8') : null,
+                'expediente_num'    => $request->expediente_num ? mb_strtoupper(trim($request->expediente_num), 'UTF-8') : $cliente->expediente_num,
+                'pv_num'            => $request->pv_num ? mb_strtoupper(trim($request->pv_num), 'UTF-8') : $cliente->pv_num,
+            ];
+
+            foreach ($datosCliente as $key => $val) {
+                $oldVal = trim((string)$cliente->{$key});
+                if ($oldVal !== (string)$val) {
+                    $cambios[] = "• <strong>Cliente {$key}:</strong> '{$oldVal}' ➔ '{$val}'";
+                }
+            }
+            $cliente->update($datosCliente);
+
+            // 2. Reasignación de Lote si cambió
+            $loteAnterior = $venta->lotes->first();
+            $nuevoLoteId = (int)$request->id_lote;
+            
+            if (!$loteAnterior || $loteAnterior->id_lote !== $nuevoLoteId) {
+                $nuevoLote = Lote::with('bloque')->findOrFail($nuevoLoteId);
+                
+                if ($loteAnterior) {
+                    $loteAnterior->estado = 'Disponible';
+                    $loteAnterior->save();
+                    HistorialLote::where('id_venta', $venta->id_venta)
+                        ->where('id_lote', $loteAnterior->id_lote)
+                        ->update(['estado' => 'Reasignado', 'fecha_liberacion' => now()]);
+                    $cambios[] = "• <strong>Lote cambiado:</strong> de '{$loteAnterior->numero_lote}' (Bloque {$loteAnterior->bloque?->nombre}) a '{$nuevoLote->numero_lote}' (Bloque {$nuevoLote->bloque?->nombre})";
+                } else {
+                    $cambios[] = "• <strong>Lote asignado:</strong> '{$nuevoLote->numero_lote}' (Bloque {$nuevoLote->bloque?->nombre})";
+                }
+
+                $nuevoLote->estado = 'Vendido';
+                $nuevoLote->save();
+
+                HistorialLote::create([
+                    'id_lote'          => $nuevoLote->id_lote,
+                    'id_venta'         => $venta->id_venta,
+                    'estado'           => 'Activo',
+                    'fecha_asignacion' => now(),
+                ]);
+
+                $venta->lotificacion_id = $nuevoLote->bloque->lotificacion_id;
+                $venta->extension_lote = (float)$nuevoLote->area_metros;
+            }
+
+            // 3. Actualizar Parámetros Financieros del Contrato
+            $camposFinancieros = [
+                'fecha_venta'        => \Carbon\Carbon::parse($request->fecha_venta)->format('Y-m-d'),
+                'precio_final'       => (float)$request->precio_final,
+                'plazo_meses'        => (int)$request->plazo_meses,
+                'cuota_mensual'      => (float)$request->cuota_mensual,
+                'beneficiario_final' => $request->beneficiario_final ? mb_strtoupper(trim($request->beneficiario_final), 'UTF-8') : null,
+                'nota_beneficiario'  => $request->nota_beneficiario ? trim($request->nota_beneficiario) : null,
+            ];
+
+            foreach ($camposFinancieros as $key => $val) {
+                $oldVal = is_float($val) || is_int($val) ? (float)$venta->{$key} : trim((string)$venta->{$key});
+                if ($oldVal != $val) {
+                    $cambios[] = "• <strong>Contrato {$key}:</strong> '{$oldVal}' ➔ '{$val}'";
+                }
+            }
+            $venta->update($camposFinancieros);
+
+            // 4. Procesar Abonos (Actualizar, Crear o Eliminar)
+            $abonosInput = $request->input('abonos', []);
+
+            foreach ($abonosInput as $item) {
+                $idAbono = !empty($item['id_abono']) ? (int)$item['id_abono'] : null;
+                $eliminar = !empty($item['eliminar']) && ($item['eliminar'] == '1' || $item['eliminar'] === true);
+
+                if ($idAbono) {
+                    $abonoExistente = Abono::where('id_venta', $venta->id_venta)->where('id_abono', $idAbono)->first();
+                    if ($abonoExistente) {
+                        if ($eliminar) {
+                            $cambios[] = "• <strong>Abono Eliminado:</strong> Recibo #{$abonoExistente->numero_recibo} por \${$abonoExistente->monto_abonado} ({$abonoExistente->fecha_pago})";
+                            $abonoExistente->delete();
+                            continue;
+                        }
+
+                        $montoNuevo = (float)($item['monto_abonado'] ?? 0);
+                        $fechaNueva = !empty($item['fecha_pago']) ? \Carbon\Carbon::parse($item['fecha_pago'])->format('Y-m-d') : $abonoExistente->fecha_pago;
+                        $reciboNuevo = !empty($item['numero_recibo']) ? (int)$item['numero_recibo'] : $abonoExistente->numero_recibo;
+                        $metodoNuevo = $item['metodo_pago'] ?? $abonoExistente->metodo_pago;
+                        $tipoNuevo = $item['tipo_pago'] ?? $abonoExistente->tipo_pago;
+                        $refNueva = $item['referencia'] ?? $abonoExistente->referencia;
+                        $cuentaNueva = $item['cuenta_destino'] ?? $abonoExistente->cuenta_destino;
+                        $comentNuevo = $item['comentario'] ?? $abonoExistente->comentario;
+
+                        if ($abonoExistente->monto_abonado != $montoNuevo || $abonoExistente->fecha_pago != $fechaNueva || $abonoExistente->numero_recibo != $reciboNuevo) {
+                            $cambios[] = "• <strong>Abono Modificado (ID {$idAbono}):</strong> Recibo #{$reciboNuevo}, Monto \${$montoNuevo}, Fecha {$fechaNueva}";
+                        }
+
+                        $abonoExistente->update([
+                            'numero_recibo'  => $reciboNuevo,
+                            'codigo_recibo'  => (string)$reciboNuevo,
+                            'fecha_pago'     => $fechaNueva,
+                            'monto_abonado'  => $montoNuevo,
+                            'tipo_pago'      => $tipoNuevo,
+                            'metodo_pago'    => $metodoNuevo,
+                            'referencia'     => $refNueva,
+                            'cuenta_destino' => $cuentaNueva,
+                            'comentario'     => $comentNuevo,
+                        ]);
+                    }
+                } else {
+                    // Nuevo abono agregado desde el formulario
+                    $montoNuevo = (float)($item['monto_abonado'] ?? 0);
+                    if ($montoNuevo > 0 && !empty($item['fecha_pago']) && !$eliminar) {
+                        $fechaNueva = \Carbon\Carbon::parse($item['fecha_pago'])->format('Y-m-d');
+                        $reciboData = !empty($item['numero_recibo']) 
+                            ? ['numero_recibo' => (int)$item['numero_recibo'], 'codigo_recibo' => (string)$item['numero_recibo']]
+                            : Abono::generarSiguienteNumeroRecibo($venta->lotificacion_id);
+
+                        $nuevoAbono = Abono::create([
+                            'id_venta'       => $venta->id_venta,
+                            'numero_recibo'  => $reciboData['numero_recibo'],
+                            'codigo_recibo'  => $reciboData['codigo_recibo'],
+                            'fecha_pago'     => $fechaNueva,
+                            'monto_abonado'  => $montoNuevo,
+                            'tipo_pago'      => $item['tipo_pago'] ?? 'Cuota',
+                            'metodo_pago'    => $item['metodo_pago'] ?? 'Efectivo',
+                            'referencia'     => $item['referencia'] ?? null,
+                            'cuenta_destino' => $item['cuenta_destino'] ?? null,
+                            'comentario'     => $item['comentario'] ?? null,
+                            'user_id'        => Auth::id() ?? 1,
+                        ]);
+                        $cambios[] = "• <strong>Nuevo Abono Agregado:</strong> Recibo #{$nuevoAbono->numero_recibo} por \${$nuevoAbono->monto_abonado} ({$nuevoAbono->fecha_pago})";
+                    }
+                }
+            }
+
+            // 5. Reconstruir Plan de Cuotas y Recalcular
+            Cuota::where('id_venta', $venta->id_venta)->delete();
+            $fechaBase = $venta->fecha_venta ?: now()->format('Y-m-d');
+            \App\Http\Controllers\ClienteController::generarPlanCuotas($venta, $fechaBase);
+            \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
+
+            // 6. Registrar Auditoría
+            $motivo = $request->input('motivo_modificacion');
+            $detalles = "<strong>Modificación Integral de Contrato y Pagos:</strong><br>" .
+                        (!empty($cambios) ? implode('<br>', $cambios) : 'Sin cambios en valores principales.') .
+                        "<br><br><strong>Motivo / Justificación:</strong> " . e($motivo);
+
+            Auditoria::log('Edición Integral de Contrato y Pagos', 'Venta', $venta->id_venta, $detalles);
+
+            DB::commit();
+
+            return redirect()->route('registro.show', ['cliente' => $cliente->id_cliente, 'venta_id' => $venta->id_venta])
+                ->with('success', '¡El contrato, cliente y abonos se actualizaron y recalcularon exitosamente!');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withInput()->with('error', 'Error al actualizar el contrato: ' . $e->getMessage());
+        }
+    }
 }

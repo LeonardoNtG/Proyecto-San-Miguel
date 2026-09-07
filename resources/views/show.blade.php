@@ -37,13 +37,19 @@
     @endphp
 
     <div class="row mb-4">
-        <div class="col-12 d-flex justify-content-between align-items-center">
-            <h2 class="text-primary">Exp. N°: {{ $cliente->expediente_num }}</h2>
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h2 class="text-primary mb-0">Exp. N°: {{ $cliente->expediente_num ?: 'N/D' }}</h2>
             
             <div class="btn-group" role="group">
-                <a href="{{ route('registro.edit', $cliente->id_cliente) }}" class="btn btn-warning">
-                <i class="fas fa-edit"></i> Editar Cliente
+                @if($venta)
+                <a href="{{ route('ventas.edit_completo', $venta->id_venta) }}" class="btn btn-warning text-dark fw-bold shadow-sm" title="Editar contrato, lote asignado, cliente y abonos">
+                    <i class="fas fa-edit me-1"></i> Editar Todo (Contrato y Pagos)
                 </a>
+                @else
+                <a href="{{ route('registro.edit', $cliente->id_cliente) }}" class="btn btn-warning">
+                    <i class="fas fa-edit"></i> Editar Cliente
+                </a>
+                @endif
                 
                 <a href="{{ route('abonos.auditoria', ['search' => $cliente->expediente_num]) }}" class="btn btn-outline-success" title="Ver todos los recibos firmados de este cliente">
                     <i class="fas fa-file-signature"></i> Recibos Firmados
@@ -158,6 +164,9 @@
                     </h5>
                     <div class="d-flex align-items-center gap-2">
                         @if($venta)
+                            <a href="{{ route('ventas.edit_completo', $venta->id_venta) }}" class="btn btn-sm btn-warning text-dark fw-bold shadow-sm" title="Editar contrato, lote y abonos">
+                                <i class="fas fa-edit me-1"></i> Editar Contrato / Lote / Pagos
+                            </a>
                             <a href="{{ route('reportes.promesa_venta.imprimir', $venta->id_venta) }}" target="_blank" class="btn btn-sm btn-light text-success fw-bold shadow-sm" title="Imprimir Ficha Técnica para Notario / Abogado">
                                 <i class="fas fa-file-contract me-1"></i> Ficha Promesa de Venta
                             </a>

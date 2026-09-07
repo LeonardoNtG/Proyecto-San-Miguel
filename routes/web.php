@@ -48,9 +48,11 @@ Route::get('/mi-estado/{token}/recibo/{abono_id}', [PortalClienteController::cla
 // =========================================================================
 Route::middleware(['auth'])->group(function () {
 
-    // Proyecto Activo y Rescisión
+    // Proyecto Activo, Rescisión y Edición Integral de Contrato
     Route::post('/lotificacion/{id}/activa', [LotificacionController::class, 'setLotificacionActiva'])->name('lotificacion.setActiva');
     Route::post('/ventas/{id}/rescindir', [VentaController::class, 'rescindir'])->name('ventas.rescindir');
+    Route::get('/ventas/{id}/editar-completo', [VentaController::class, 'editCompleto'])->name('ventas.edit_completo');
+    Route::put('/ventas/{id}/actualizar-completo', [VentaController::class, 'updateCompleto'])->name('ventas.update_completo');
 
     // Inicio / Dashboard Operativo y Gerencial
     Route::get('/inicio', [\App\Http\Controllers\HomeController::class, 'index'])->name('inicio');
