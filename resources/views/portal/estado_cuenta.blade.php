@@ -136,6 +136,27 @@
             <div class="alert alert-warning">
                 No tienes ventas activas registradas en el sistema.
             </div>
+        @elseif($venta->estado_contrato === 'Rescindido')
+            <!-- Aviso de Contrato Rescindido Limpio (Sin datos financieros) -->
+            <div class="card card-custom border-0 shadow-sm">
+                <div class="card-body p-5 text-center">
+                    <div class="mb-3">
+                        <i class="fas fa-ban fa-4x text-danger opacity-75"></i>
+                    </div>
+                    <h4 class="fw-bold text-danger mb-2">Contrato Rescindido</h4>
+                    <p class="text-muted fs-6 mb-4">
+                        Este contrato se encuentra actualmente en estado <strong>Rescindido</strong>.
+                    </p>
+                    <div class="alert alert-secondary text-start p-3 px-4 rounded-3 d-inline-block border-0 shadow-sm" style="max-width: 650px;">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-info-circle text-primary fs-4 me-3"></i>
+                            <span class="small text-muted">
+                                La información financiera, saldos y plan de cuotas no se encuentran disponibles debido a la rescisión o cancelación del contrato. Para más información o aclaraciones, por favor comunícate con la administración de <strong>Proyecto San Miguel</strong>.
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
         @else
         <div class="row">
             <!-- Detalles de la Venta -->
@@ -147,7 +168,7 @@
                     <div class="card-body">
                         <div class="mb-3">
                             <div class="info-label">Estado</div>
-                            <span class="badge {{ $venta->estado_contrato === 'Rescindido' ? 'bg-danger' : 'bg-success' }} status-badge">{{ $venta->estado_contrato }}</span>
+                            <span class="badge bg-success status-badge">{{ $venta->estado_contrato }}</span>
                         </div>
                         <div class="mb-3">
                             <div class="info-label">Lotes Adquiridos</div>
@@ -204,44 +225,18 @@
                             </div>
                         </div>
                         
-                        @if($venta->estado_contrato !== 'Rescindido')
                         <hr>
                         <div class="d-grid gap-2">
                             <button class="btn btn-outline-primary" onclick="alert('Funcionalidad de Promesa de Venta en PDF próximamente')">
                                 <i class="fas fa-file-pdf"></i> Descargar Promesa de Venta
                             </button>
                         </div>
-                        @endif
                     </div>
                 </div>
             </div>
 
             <!-- Tablas y Detalles -->
             <div class="col-lg-8">
-                
-                @if($venta->estado_contrato === 'Rescindido')
-                <!-- Aviso de Contrato Rescindido -->
-                <div class="card card-custom border-0 shadow-sm">
-                    <div class="card-body p-5 text-center">
-                        <div class="mb-3">
-                            <i class="fas fa-ban fa-4x text-danger opacity-75"></i>
-                        </div>
-                        <h4 class="fw-bold text-danger mb-2">Contrato Rescindido</h4>
-                        <p class="text-muted fs-6 mb-4">
-                            Este contrato se encuentra actualmente en estado <strong>Rescindido</strong>.
-                        </p>
-                        <div class="alert alert-secondary text-start p-3 px-4 rounded-3 d-inline-block border-0 shadow-sm">
-                            <div class="d-flex align-items-center">
-                                <i class="fas fa-info-circle text-primary fs-4 me-3"></i>
-                                <span class="small text-muted">
-                                    El plan de cuotas y pagos no está disponible debido a la rescisión o cancelación del contrato. Para más detalles o aclaraciones, por favor contacta a la administración de <strong>Proyecto San Miguel</strong>.
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                @else
-                
                 <!-- Plan de Cuotas y Pagos Unificado -->
                 <div class="card card-custom shadow-sm border-0">
                     <div class="card-custom-header d-flex justify-content-between align-items-center bg-white border-bottom py-3">
