@@ -141,7 +141,7 @@ class ReciboProvisionalController extends Controller
             'numeroReciboMostrar' => $recibo->numero_recibo_formateado,
             'sufijoMoneda'        => $sufijoMoneda,
             'imprimirDoble'       => $imprimirDoble,
-            'leyendaPie'          => '⚠ RECIBO PROVISIONAL — Válido únicamente con sello y firma del cajero autorizado.',
+            'leyendaPie'          => (string) setting('leyenda_pie_recibo', 'Conserve este comprobante como constancia legal de su pago.', $lotificacion?->id),
         ]);
     }
 

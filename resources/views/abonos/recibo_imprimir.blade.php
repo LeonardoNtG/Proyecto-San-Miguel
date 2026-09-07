@@ -178,23 +178,6 @@
             font-size: 20px;
         }
 
-        /* ── MODO PROVISIONAL ── */
-        .title-provisional {
-            color: #E65100 !important;  /* naranja fuerte */
-        }
-        .badge-provisional {
-            display: inline-block;
-            background: #E65100;
-            color: white;
-            font-size: 7px;
-            font-weight: 900;
-            letter-spacing: 1px;
-            padding: 2px 6px;
-            border-radius: 3px;
-            vertical-align: middle;
-            margin-left: 6px;
-            text-transform: uppercase;
-        }
         /* Ocultar filas de cálculos en modo provisional */
         .hide-provisional {
             display: none !important;
@@ -424,8 +407,8 @@
         </div>
 
         <div class="title-block">
-            <div class="title {{ isset($modoProvisional) && $modoProvisional ? 'title-provisional' : '' }}">
-                RECIBO @if(isset($modoProvisional) && $modoProvisional)<span class="badge-provisional">PROVISIONAL</span>@endif
+            <div class="title">
+                RECIBO
             </div>
             <div class="amount-boxes-container">
                 <div class="amount-box">
@@ -533,8 +516,8 @@
         </div>
 
         <div class="title-block">
-            <div class="title {{ isset($modoProvisional) && $modoProvisional ? 'title-provisional' : '' }}">
-                RECIBO @if(isset($modoProvisional) && $modoProvisional)<span class="badge-provisional">PROVISIONAL</span>@endif
+            <div class="title">
+                RECIBO
             </div>
             <div class="amount-boxes-container">
                 <div class="amount-box">

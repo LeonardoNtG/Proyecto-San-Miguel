@@ -109,24 +109,10 @@
         }
 
         .title {
-            color: #E65100;
+            color: #1A237E;
             font-size: 20px;
             font-weight: 900;
             letter-spacing: 1px;
-        }
-
-        .badge-provisional {
-            display: inline-block;
-            background: #E65100;
-            color: white;
-            font-size: 8px;
-            font-weight: 900;
-            letter-spacing: 1px;
-            padding: 2px 6px;
-            border-radius: 3px;
-            vertical-align: middle;
-            margin-left: 6px;
-            text-transform: uppercase;
         }
 
         .amount-boxes-container {
@@ -297,7 +283,7 @@
 
         <div class="title-block">
             <div class="title">
-                RECIBO <span class="badge-provisional">PROVISIONAL</span>
+                RECIBO
             </div>
             <div class="amount-boxes-container">
                 <div class="amount-box">
@@ -374,7 +360,7 @@
 
         <div class="title-block">
             <div class="title">
-                RECIBO <span class="badge-provisional">PROVISIONAL</span>
+                RECIBO
             </div>
             <div class="amount-boxes-container">
                 <div class="amount-box">

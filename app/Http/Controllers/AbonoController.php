@@ -603,9 +603,7 @@ class AbonoController extends Controller
          $proporcionDoble = (string) setting('proporcion_recibo_doble', '50_50', $lotificacion?->id);
          $mostrarQr = $modoProvisional ? false : (bool) setting('mostrar_qr_recibo', true, $lotificacion?->id);
          $sufijoMoneda = (string) setting('sufijo_moneda_letras', 'DÓLARES NETOS', $lotificacion?->id);
-         $leyendaPie = $modoProvisional
-             ? '⚠ RECIBO PROVISIONAL — Válido únicamente con sello y firma del cajero autorizado.'
-             : (string) setting('leyenda_pie_recibo', 'Conserve este comprobante como constancia legal de su pago.', $lotificacion?->id);
+         $leyendaPie = (string) setting('leyenda_pie_recibo', 'Conserve este comprobante como constancia legal de su pago.', $lotificacion?->id);
          $numeroReciboMostrar = $abono->numero_recibo_formateado;
 
          // Calcular anchos porcentuales según la proporción elegida
@@ -736,7 +734,7 @@ class AbonoController extends Controller
             'anchoEmpresa'         => null,
             'mostrarQr'            => false,
             'sufijoMoneda'         => $sufijoMoneda,
-            'leyendaPie'           => '⚠ RECIBO PROVISIONAL — Válido únicamente con sello y firma del cajero autorizado.',
+            'leyendaPie'           => (string) setting('leyenda_pie_recibo', 'Conserve este comprobante como constancia legal de su pago.', $lotificacion?->id),
             'numeroReciboMostrar'  => $abono->numero_recibo_formateado ?? $reciboData['codigo_recibo'],
             'pago'                 => $abono,
             'cliente'              => $cliente,
