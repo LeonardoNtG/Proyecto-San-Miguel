@@ -867,7 +867,8 @@ class AbonoController extends Controller
                                     ->where(function($cq2) use ($search) {
                                         $cq2->where('clientes.nombres_apellidos', 'like', "%{$search}%")
                                             ->orWhere('clientes.expediente_num', 'like', "%{$search}%")
-                                            ->orWhere('clientes.dni_num', 'like', "%{$search}%");
+                                            ->orWhere('clientes.pv_num', 'like', "%{$search}%")
+                                            ->orWhere('clientes.identificacion', 'like', "%{$search}%");
                                     });
                              })->orWhereHas('lotes', function($lq) use ($search) {
                                  $lq->withoutGlobalScope('lotificacion')

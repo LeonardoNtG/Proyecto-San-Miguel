@@ -215,8 +215,8 @@
                                     </a>
                                     <div class="text-muted small">
                                         Exp: <strong>{{ $abono->venta->cliente->expediente_num ?: 'N/A' }}</strong>
-                                        @if($abono->venta->cliente->dni_num)
-                                            | DNI: {{ $abono->venta->cliente->dni_num }}
+                                        @if($abono->venta->cliente->identificacion)
+                                            | Ident: {{ $abono->venta->cliente->identificacion }}
                                         @endif
                                     </div>
                                 @else
