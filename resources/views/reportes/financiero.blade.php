@@ -152,7 +152,7 @@
 </div>
 
 {{-- ================================================= --}}
-{{-- KPIS DE CONTROL DE AUDITORÍA Y FLUJO NETO --}}
+{{-- KPIS DE CONTROL DE RECAUDACIÓN REAL --}}
 {{-- ================================================= --}}
 <div class="row g-3 mb-4">
     <!-- Total Recaudado -->
@@ -160,42 +160,40 @@
         <div class="audit-kpi-card" style="border-left-color: #1cc88a;">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
-                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Ingresos Brutos Recaudados</div>
+                    <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Total Ingresos Recaudados</div>
                     <div class="h4 mb-0 font-weight-bold text-gray-800">${{ number_format($totalRecaudado, 2) }}</div>
                 </div>
                 <div class="text-success opacity-50"><i class="fas fa-dollar-sign fa-2x"></i></div>
             </div>
-            <div class="mt-2 text-muted small"><i class="fas fa-receipt text-success me-1"></i> {{ number_format($cantidadAbonos) }} recibos procesados</div>
+            <div class="mt-2 text-muted small"><i class="fas fa-check-circle text-success me-1"></i> Fondos reales en bancos y caja</div>
         </div>
     </div>
 
-    <!-- Devoluciones por Rescisión (Compromiso Contable) -->
-    <div class="col-xl-3 col-md-6">
-        <div class="audit-kpi-card" style="border-left-color: #e74a3b;">
-            <div class="d-flex align-items-center justify-content-between">
-                <div>
-                    <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">Devoluciones por Rescisión</div>
-                    <div class="h4 mb-0 font-weight-bold text-danger">${{ number_format($totalDevolucionesRescisiones, 2) }}</div>
-                </div>
-                <div class="text-danger opacity-50"><i class="fas fa-undo-alt fa-2x"></i></div>
-            </div>
-            <div class="mt-2 text-muted small">
-                <i class="fas fa-file-contract text-danger me-1"></i> {{ $cantidadRescisiones }} {{ $cantidadRescisiones == 1 ? 'rescisión' : 'rescisiones' }} en el periodo
-            </div>
-        </div>
-    </div>
-
-    <!-- Recaudación Neta Real -->
+    <!-- Transacciones / Recibos -->
     <div class="col-xl-3 col-md-6">
         <div class="audit-kpi-card" style="border-left-color: #4e73df;">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
-                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Recaudación Neta Contable</div>
-                    <div class="h4 mb-0 font-weight-bold text-gray-800">${{ number_format($recaudacionNeta, 2) }}</div>
+                    <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Recibos / Operaciones</div>
+                    <div class="h4 mb-0 font-weight-bold text-gray-800">{{ number_format($cantidadAbonos) }}</div>
                 </div>
-                <div class="text-primary opacity-50"><i class="fas fa-balance-scale fa-2x"></i></div>
+                <div class="text-primary opacity-50"><i class="fas fa-receipt fa-2x"></i></div>
             </div>
-            <div class="mt-2 text-muted small"><i class="fas fa-check-double text-primary me-1"></i> Ingresos menos devoluciones</div>
+            <div class="mt-2 text-muted small"><i class="fas fa-tag text-primary me-1"></i> Promedio: ${{ number_format($ticketPromedio, 2) }} / recibo</div>
+        </div>
+    </div>
+
+    <!-- Clientes Únicos -->
+    <div class="col-xl-3 col-md-6">
+        <div class="audit-kpi-card" style="border-left-color: #36b9cc;">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <div class="text-xs font-weight-bold text-info text-uppercase mb-1">Clientes Aportantes</div>
+                    <div class="h4 mb-0 font-weight-bold text-gray-800">{{ number_format($clientesUnicos) }}</div>
+                </div>
+                <div class="text-info opacity-50"><i class="fas fa-users fa-2x"></i></div>
+            </div>
+            <div class="mt-2 text-muted small"><i class="fas fa-user-check text-info me-1"></i> Contratos con recaudación activa</div>
         </div>
     </div>
 

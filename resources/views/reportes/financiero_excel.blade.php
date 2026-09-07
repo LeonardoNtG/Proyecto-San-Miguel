@@ -26,19 +26,11 @@
     <tr><td class="rfx-subtitulo">Proyecto: {{ $etiquetaProyecto }} | Periodo: {{ $etiquetaPeriodo }} | Emisi&oacute;n: {{ $generadoEl }} | Auditor: {{ $generadoPor }}</td></tr>
     <tr><td></td></tr>
 
-    <!-- 1. Resumen Financiero y Flujo Neto -->
-    <tr><td class="rfx-seccion">1. RESUMEN FINANCIERO Y FLUJO NETO</td><td class="rfx-seccion">VALOR</td></tr>
+    <!-- 1. Resumen de Recaudación -->
+    <tr><td class="rfx-seccion">1. RESUMEN DE RECAUDACI&Oacute;N Y FONDOS</td><td class="rfx-seccion">VALOR</td></tr>
     <tr>
-        <td class="rfx-label">Ingresos Brutos Recaudados</td>
+        <td class="rfx-label">Total Ingresos Recaudados</td>
         <td class="rfx-num rfx-success">{{ number_format($totalRecaudado, 2, '.', '') }}</td>
-    </tr>
-    <tr>
-        <td class="rfx-label">Devoluciones por Rescisi&oacute;n</td>
-        <td class="rfx-num rfx-danger">-{{ number_format($totalDevolucionesRescisiones, 2, '.', '') }}</td>
-    </tr>
-    <tr>
-        <td class="rfx-label">Recaudaci&oacute;n Neta Real</td>
-        <td class="rfx-num rfx-success">{{ number_format($recaudacionNeta, 2, '.', '') }}</td>
     </tr>
     <tr>
         <td class="rfx-label">Recibos Emitidos</td>

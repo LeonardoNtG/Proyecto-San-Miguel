@@ -186,16 +186,16 @@
 <table class="kpi-table">
     <tr>
         <td>
-            <span class="kpi-label">Ingresos Brutos Recaudados</span>
+            <span class="kpi-label">Total Ingresos Recaudados</span>
             <span class="kpi-val success">${{ number_format($totalRecaudado, 2) }}</span>
         </td>
         <td>
-            <span class="kpi-label">Devoluciones por Rescisión</span>
-            <span class="kpi-val" style="color: #dc2626;">-${{ number_format($totalDevolucionesRescisiones, 2) }}</span>
+            <span class="kpi-label">Transacciones Procesadas</span>
+            <span class="kpi-val primary">{{ number_format($cantidadAbonos) }} Recibos</span>
         </td>
         <td>
-            <span class="kpi-label">Recaudación Neta Contable</span>
-            <span class="kpi-val primary">${{ number_format($recaudacionNeta, 2) }}</span>
+            <span class="kpi-label">Clientes Aportantes</span>
+            <span class="kpi-val">{{ number_format($clientesUnicos) }} Clientes</span>
         </td>
         <td>
             <span class="kpi-label">Canal Bancarizado vs Caja</span>
