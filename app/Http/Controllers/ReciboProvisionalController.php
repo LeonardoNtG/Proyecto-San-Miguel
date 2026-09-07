@@ -332,4 +332,109 @@ class ReciboProvisionalController extends Controller
 
         return (string) $numero;
     }
+
+    /**
+     * Muestra la vista interactiva de Cierre Diario de Recibos Provisionales.
+     */
+    public function cierre(Request $request)
+    {
+        $this->ensureTableExists();
+
+        $fecha = $request->input('fecha', Carbon::today()->format('Y-m-d'));
+        $lotificacionId = $request->input('lotificacion_id');
+
+        $query = ReciboProvisional::withoutGlobalScope('lotificacion')
+            ->with(['lotificacion', 'user'])
+            ->where(function ($q) use ($fecha) {
+                $q->whereDate('fecha', $fecha)
+                  ->orWhereDate('created_at', $fecha);
+            });
+
+        if ($lotificacionId) {
+            $query->where('lotificacion_id', $lotificacionId);
+        }
+
+        $recibos = $query->orderBy('numero_recibo', 'asc')->get();
+
+        $totalRecibos = $recibos->count();
+        $totalMonto = (float) $recibos->sum('monto');
+        $recibosConMonto = $recibos->filter(fn($r) => !is_null($r->monto) && (float)$r->monto > 0)->count();
+        $recibosEnBlanco = $totalRecibos - $recibosConMonto;
+
+        // Desglose por proyecto / lotificación
+        $porProyecto = $recibos->groupBy(fn($r) => $r->lotificacion?->nombre ?? 'Sin Proyecto')->map(function ($items, $key) {
+            return [
+                'nombre'   => $key,
+                'cantidad' => $items->count(),
+                'total'    => (float) $items->sum('monto'),
+            ];
+        });
+
+        // Desglose por cajero / usuario
+        $porUsuario = $recibos->groupBy(fn($r) => $r->user?->name ?? 'Usuario Sistema')->map(function ($items, $key) {
+            return [
+                'nombre'   => $key,
+                'cantidad' => $items->count(),
+                'total'    => (float) $items->sum('monto'),
+            ];
+        });
+
+        $lotificaciones = Lotificacion::all();
+
+        return view('recibos_provisionales.cierre', compact(
+            'recibos',
+            'fecha',
+            'lotificacionId',
+            'lotificaciones',
+            'totalRecibos',
+            'totalMonto',
+            'recibosConMonto',
+            'recibosEnBlanco',
+            'porProyecto',
+            'porUsuario'
+        ));
+    }
+
+    /**
+     * Muestra la versión imprimible / PDF del Cierre Diario de Recibos Provisionales.
+     */
+    public function imprimirCierrePdf(Request $request)
+    {
+        $this->ensureTableExists();
+
+        $fecha = $request->input('fecha', Carbon::today()->format('Y-m-d'));
+        $lotificacionId = $request->input('lotificacion_id');
+
+        $query = ReciboProvisional::withoutGlobalScope('lotificacion')
+            ->with(['lotificacion', 'user'])
+            ->where(function ($q) use ($fecha) {
+                $q->whereDate('fecha', $fecha)
+                  ->orWhereDate('created_at', $fecha);
+            });
+
+        if ($lotificacionId) {
+            $query->where('lotificacion_id', $lotificacionId);
+        }
+
+        $recibos = $query->orderBy('numero_recibo', 'asc')->get();
+
+        $totalRecibos = $recibos->count();
+        $totalMonto = (float) $recibos->sum('monto');
+        $recibosConMonto = $recibos->filter(fn($r) => !is_null($r->monto) && (float)$r->monto > 0)->count();
+        $recibosEnBlanco = $totalRecibos - $recibosConMonto;
+        $montoEnLetras = $this->convertirMontoALetras($totalMonto);
+
+        $lotificacion = $lotificacionId ? Lotificacion::find($lotificacionId) : null;
+
+        return view('recibos_provisionales.cierre_pdf', compact(
+            'recibos',
+            'fecha',
+            'lotificacion',
+            'totalRecibos',
+            'totalMonto',
+            'recibosConMonto',
+            'recibosEnBlanco',
+            'montoEnLetras'
+        ));
+    }
 }

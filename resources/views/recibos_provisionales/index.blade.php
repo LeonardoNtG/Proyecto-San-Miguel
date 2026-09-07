@@ -15,7 +15,10 @@
                 Módulo para emitir e imprimir recibos en blanco o rellenados manualmente de forma independiente, sin cálculos financieros ni QR.
             </p>
         </div>
-        <div>
+        <div class="d-flex gap-2">
+            <a href="{{ route('recibos_provisionales.cierre') }}" class="btn btn-outline-dark fw-bold shadow-sm px-3 py-2">
+                <i class="fas fa-calculator text-warning me-1"></i> Cierre Diario / Reporte
+            </a>
             <button type="button" class="btn btn-warning text-dark fw-bold shadow-sm px-3 py-2" data-bs-toggle="modal" data-bs-target="#modalNuevoReciboProvisional">
                 <i class="fas fa-plus-circle me-1"></i> Emitir Recibo Provisional
             </button>
