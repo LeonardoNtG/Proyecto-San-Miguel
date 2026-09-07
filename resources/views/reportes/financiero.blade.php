@@ -18,38 +18,119 @@
     .audit-kpi-card:hover {
         transform: translateY(-2px);
     }
-    .badge-metodo-efectivo { background-color: #1cc88a; color: #fff; }
-    .badge-metodo-transferencia { background-color: #4e73df; color: #fff; }
-    .badge-metodo-deposito { background-color: #36b9cc; color: #fff; }
-    .badge-metodo-cheque { background-color: #f6c23e; color: #333; }
+
+    /* Badges de Alta Legibilidad y Contraste */
+    .badge-metodo {
+        font-size: 0.82rem;
+        font-weight: 700;
+        padding: 0.35rem 0.65rem;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+    }
+    .badge-metodo-efectivo {
+        background-color: #dcfce7 !important;
+        color: #15803d !important;
+        border: 1px solid #86efac !important;
+    }
+    .badge-metodo-transferencia {
+        background-color: #dbeafe !important;
+        color: #1e40af !important;
+        border: 1px solid #93c5fd !important;
+    }
+    .badge-metodo-deposito {
+        background-color: #ccfbf1 !important;
+        color: #0f766e !important;
+        border: 1px solid #5eead4 !important;
+    }
+    .badge-metodo-cheque {
+        background-color: #fef3c7 !important;
+        color: #92400e !important;
+        border: 1px solid #fcd34d !important;
+    }
+    .badge-metodo-default {
+        background-color: #f1f5f9 !important;
+        color: #1e293b !important;
+        border: 1px solid #cbd5e1 !important;
+    }
+
+    .badge-concepto {
+        font-size: 0.82rem;
+        font-weight: 700;
+        padding: 0.35rem 0.65rem;
+        border-radius: 6px;
+        display: inline-block;
+        white-space: nowrap;
+        background-color: #f1f5f9;
+        color: #1e293b;
+        border: 1px solid #cbd5e1;
+    }
+    .badge-concepto-cuota {
+        background-color: #f0f9ff !important;
+        color: #0369a1 !important;
+        border: 1px solid #7dd3fc !important;
+    }
+    .badge-concepto-prima {
+        background-color: #faf5ff !important;
+        color: #6b21a8 !important;
+        border: 1px solid #d8b4fe !important;
+    }
+    .badge-concepto-extra {
+        background-color: #fff7ed !important;
+        color: #c2410c !important;
+        border: 1px solid #fdba74 !important;
+    }
+
+    .badge-expediente {
+        font-size: 0.82rem;
+        font-weight: 700;
+        padding: 0.25rem 0.5rem;
+        border-radius: 5px;
+        background-color: #f8fafc !important;
+        color: #0f172a !important;
+        border: 1px solid #94a3b8 !important;
+    }
+
     .matrix-card {
         background: #fff;
         border-radius: 8px;
-        border: 1px solid #e3e6f0;
+        border: 1px solid #cbd5e1;
         box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.06);
     }
     .matrix-header {
-        background-color: #f8f9fc;
-        border-bottom: 1px solid #e3e6f0;
+        background-color: #f8fafc;
+        border-bottom: 1px solid #cbd5e1;
         padding: 0.75rem 1.25rem;
         font-weight: 700;
         font-size: 0.95rem;
     }
     .table-audit th {
-        font-size: 0.78rem;
+        font-size: 0.8rem;
         text-transform: uppercase;
         letter-spacing: 0.03em;
-        background-color: #f8f9fc;
-        color: #4e73df;
-        font-weight: 700;
+        background-color: #f1f5f9 !important;
+        color: #0f172a !important;
+        font-weight: 800 !important;
         vertical-align: middle;
+        border-bottom: 2px solid #cbd5e1 !important;
     }
     .table-audit td {
         font-size: 0.88rem;
+        color: #0f172a !important;
         vertical-align: middle;
+        border-color: #e2e8f0;
+    }
+    .table-audit tbody tr:hover {
+        background-color: #f8fafc;
     }
     .text-mono {
         font-family: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    .text-muted-dark {
+        color: #334155 !important;
     }
 </style>
 
@@ -293,32 +374,33 @@
                             <td>
                                 @php
                                     $metodoStr = strtolower($dm['metodo']);
-                                    $icono = 'fa-money-bill';
-                                    $badgeClass = 'bg-secondary';
+                                    $icono = 'fa-money-bill-wave';
+                                    $bClass = 'badge-metodo-default';
                                     if (str_contains($metodoStr, 'efectivo')) {
-                                        $icono = 'fa-money-bill-wave text-success';
-                                        $badgeClass = 'badge-metodo-efectivo';
+                                        $icono = 'fa-money-bill-wave';
+                                        $bClass = 'badge-metodo-efectivo';
                                     } elseif (str_contains($metodoStr, 'transferencia')) {
-                                        $icono = 'fa-exchange-alt text-primary';
-                                        $badgeClass = 'badge-metodo-transferencia';
+                                        $icono = 'fa-exchange-alt';
+                                        $bClass = 'badge-metodo-transferencia';
                                     } elseif (str_contains($metodoStr, 'depósito') || str_contains($metodoStr, 'deposito')) {
-                                        $icono = 'fa-university text-info';
-                                        $badgeClass = 'badge-metodo-deposito';
+                                        $icono = 'fa-university';
+                                        $bClass = 'badge-metodo-deposito';
                                     } elseif (str_contains($metodoStr, 'cheque')) {
-                                        $icono = 'fa-money-check text-warning';
-                                        $badgeClass = 'badge-metodo-cheque';
+                                        $icono = 'fa-money-check';
+                                        $bClass = 'badge-metodo-cheque';
                                     }
                                 @endphp
-                                <i class="fas {{ $icono }} me-1"></i>
-                                <span class="fw-semibold">{{ $dm['metodo'] }}</span>
+                                <span class="badge-metodo {{ $bClass }}">
+                                    <i class="fas {{ $icono }}"></i> {{ $dm['metodo'] }}
+                                </span>
                             </td>
-                            <td class="text-center"><span class="badge bg-light text-dark border">{{ $dm['cantidad'] }}</span></td>
-                            <td class="text-end font-weight-bold text-primary">${{ number_format($dm['monto'], 2) }}</td>
+                            <td class="text-center"><span class="badge-expediente">{{ $dm['cantidad'] }}</span></td>
+                            <td class="text-end font-weight-bold" style="color: #047857 !important; font-size: 0.92rem;">${{ number_format($dm['monto'], 2) }}</td>
                             <td class="text-end">
                                 <div class="d-flex align-items-center justify-content-end">
-                                    <span class="me-2 small fw-bold">{{ $dm['porcentaje'] }}%</span>
+                                    <span class="me-2 small fw-bold text-dark">{{ $dm['porcentaje'] }}%</span>
                                     <div class="progress" style="width: 55px; height: 6px;">
-                                        <div class="progress-bar bg-info" role="progressbar" style="width: {{ $dm['porcentaje'] }}%"></div>
+                                        <div class="progress-bar bg-primary" role="progressbar" style="width: {{ $dm['porcentaje'] }}%"></div>
                                     </div>
                                 </div>
                             </td>
@@ -442,44 +524,44 @@
                             {{ $fr['codigo'] }}
                         </td>
                         <td>
-                            <span class="d-block fw-semibold text-dark">{{ $fr['fecha'] }}</span>
-                            <small class="text-muted text-mono">{{ $fr['hora'] }}</small>
+                            <span class="d-block fw-bold text-dark">{{ $fr['fecha'] }}</span>
+                            <small class="text-muted-dark text-mono fw-bold">{{ $fr['hora'] }}</small>
                         </td>
                         @if($esGlobal)
-                            <td><span class="badge bg-dark text-white">{{ $fr['proyecto'] }}</span></td>
+                            <td><span class="badge bg-dark text-white fw-bold px-2 py-1">{{ $fr['proyecto'] }}</span></td>
                         @endif
                         <td>
-                            <strong class="text-dark d-block">{{ $fr['cliente'] }}</strong>
-                            <small class="text-muted"><i class="fas fa-id-card me-1"></i> {{ $fr['identificacion'] }}</small>
+                            <strong class="text-dark d-block fw-bold">{{ $fr['cliente'] }}</strong>
+                            <small class="text-muted-dark"><i class="fas fa-id-card me-1 text-primary"></i> <strong>{{ $fr['identificacion'] }}</strong></small>
                         </td>
                         <td>
-                            <span class="badge bg-light text-dark border text-mono px-2 py-1">{{ $fr['expediente'] }}</span>
+                            <span class="badge-expediente text-mono">{{ $fr['expediente'] }}</span>
                         </td>
                         <td>
-                            <span class="badge {{ $fr['tipo'] === 'Total' ? 'bg-danger text-white' : 'bg-warning text-dark' }} px-2 py-1">
+                            <span class="badge {{ $fr['tipo'] === 'Total' ? 'badge-metodo-efectivo' : 'badge-metodo-cheque' }}" style="{{ $fr['tipo'] === 'Total' ? 'background-color: #fee2e2 !important; color: #991b1b !important; border: 1px solid #fca5a5 !important;' : 'background-color: #fef3c7 !important; color: #92400e !important; border: 1px solid #fcd34d !important;' }}">
                                 {{ $fr['tipo'] }}
                             </span>
                         </td>
                         <td>
                             <span class="fw-bold text-danger">{{ $fr['lotes_afectados'] }}</span>
                             @if($fr['lotes_conservados'] && $fr['lotes_conservados'] !== '-')
-                                <div class="small text-muted mt-1">Conserva: <span class="text-success fw-bold">{{ $fr['lotes_conservados'] }}</span></div>
+                                <div class="small text-muted-dark mt-1">Conserva: <span class="text-success fw-bold">{{ $fr['lotes_conservados'] }}</span></div>
                             @endif
                         </td>
                         <td>
                             @if($fr['destino_abonos_raw'] === 'devolucion_efectivo')
-                                <span class="badge bg-danger text-white px-2 py-1"><i class="fas fa-hand-holding-usd me-1"></i> Devolución Contable</span>
+                                <span class="badge-metodo" style="background-color: #fee2e2 !important; color: #991b1b !important; border: 1px solid #fca5a5 !important;"><i class="fas fa-hand-holding-usd me-1"></i> Devolución Contable</span>
                             @elseif($fr['destino_abonos_raw'] === 'acreditar_otro_lote')
-                                <span class="badge bg-success text-white px-2 py-1"><i class="fas fa-sync-alt me-1"></i> Acreditado a Contrato</span>
+                                <span class="badge-metodo badge-metodo-efectivo"><i class="fas fa-sync-alt me-1"></i> Acreditado a Contrato</span>
                             @else
-                                <span class="badge bg-secondary text-white px-2 py-1"><i class="fas fa-ban me-1"></i> Sin Devolución</span>
+                                <span class="badge-metodo badge-metodo-default"><i class="fas fa-ban me-1"></i> Sin Devolución</span>
                             @endif
                         </td>
-                        <td class="small text-muted" style="max-width: 200px;">
+                        <td class="small text-dark fw-semibold" style="max-width: 220px;">
                             {{ $fr['comentario'] }}
                         </td>
                         <td>
-                            <small class="text-muted"><i class="fas fa-user-edit me-1"></i> {{ $fr['cajero'] }}</small>
+                            <small class="text-muted-dark fw-bold"><i class="fas fa-user-edit me-1 text-secondary"></i> {{ $fr['cajero'] }}</small>
                         </td>
                         <td class="text-end font-weight-bold fs-6 text-mono {{ $fr['monto_devuelto'] > 0 ? 'text-danger' : 'text-muted' }}">
                             {{ $fr['monto_devuelto'] > 0 ? '-$' . number_format($fr['monto_devuelto'], 2) : '$0.00' }}
@@ -564,44 +646,67 @@
                             {{ $fila['recibo_codigo'] }}
                         </td>
                         <td>
-                            <span class="d-block fw-semibold text-dark">{{ $fila['fecha'] }}</span>
-                            <small class="text-muted text-mono">{{ $fila['hora'] }}</small>
+                            <span class="d-block fw-bold text-dark">{{ $fila['fecha'] }}</span>
+                            <small class="text-muted-dark text-mono fw-bold">{{ $fila['hora'] }}</small>
                         </td>
                         @if($esGlobal)
-                            <td><span class="badge bg-dark text-white">{{ $fila['proyecto'] }}</span></td>
+                            <td><span class="badge bg-dark text-white fw-bold px-2 py-1">{{ $fila['proyecto'] }}</span></td>
                         @endif
                         <td>
-                            <strong class="text-dark d-block">{{ $fila['cliente'] }}</strong>
-                            <small class="text-muted"><i class="fas fa-id-card me-1"></i> {{ $fila['identificacion'] }}</small>
+                            <strong class="text-dark d-block fw-bold">{{ $fila['cliente'] }}</strong>
+                            <small class="text-muted-dark"><i class="fas fa-id-card me-1 text-primary"></i> <strong>{{ $fila['identificacion'] }}</strong></small>
                         </td>
                         <td>
-                            <span class="badge bg-light text-dark border text-mono px-2 py-1">{{ $fila['expediente'] }}</span>
+                            <span class="badge-expediente text-mono">{{ $fila['expediente'] }}</span>
                         </td>
                         <td>
-                            <span class="d-block small text-muted">Blq: <strong>{{ $fila['bloques'] }}</strong></span>
+                            <span class="d-block small text-muted-dark">Blq: <strong class="text-dark">{{ $fila['bloques'] }}</strong></span>
                             <span class="fw-bold text-dark">{{ $fila['lotes'] }}</span>
                         </td>
                         <td>
-                            <span class="badge bg-info text-white px-2 py-1">{{ $fila['tipo'] }}</span>
+                            @php
+                                $tipoStr = strtolower($fila['tipo']);
+                                $bConcepto = 'badge-concepto';
+                                if (str_contains($tipoStr, 'mensualidad') || str_contains($tipoStr, 'cuota')) {
+                                    $bConcepto .= ' badge-concepto-cuota';
+                                } elseif (str_contains($tipoStr, 'prima') || str_contains($tipoStr, 'enganche')) {
+                                    $bConcepto .= ' badge-concepto-prima';
+                                } elseif (str_contains($tipoStr, 'extraordinario') || str_contains($tipoStr, 'reserva')) {
+                                    $bConcepto .= ' badge-concepto-extra';
+                                }
+                            @endphp
+                            <span class="{{ $bConcepto }}">{{ $fila['tipo'] }}</span>
                         </td>
                         <td>
                             @php
                                 $mStr = strtolower($fila['metodo']);
-                                $bgBdg = 'bg-secondary';
-                                if (str_contains($mStr, 'efectivo')) $bgBdg = 'bg-success';
-                                elseif (str_contains($mStr, 'transferencia')) $bgBdg = 'bg-primary';
-                                elseif (str_contains($mStr, 'depósito') || str_contains($mStr, 'deposito')) $bgBdg = 'bg-info';
-                                elseif (str_contains($mStr, 'cheque')) $bgBdg = 'bg-warning text-dark';
+                                $bMetodo = 'badge-metodo-default';
+                                $icono = 'fa-money-bill-wave';
+                                if (str_contains($mStr, 'efectivo')) {
+                                    $bMetodo = 'badge-metodo-efectivo';
+                                    $icono = 'fa-money-bill-wave';
+                                } elseif (str_contains($mStr, 'transferencia')) {
+                                    $bMetodo = 'badge-metodo-transferencia';
+                                    $icono = 'fa-exchange-alt';
+                                } elseif (str_contains($mStr, 'depósito') || str_contains($mStr, 'deposito')) {
+                                    $bMetodo = 'badge-metodo-deposito';
+                                    $icono = 'fa-university';
+                                } elseif (str_contains($mStr, 'cheque')) {
+                                    $bMetodo = 'badge-metodo-cheque';
+                                    $icono = 'fa-money-check';
+                                }
                             @endphp
-                            <span class="badge {{ $bgBdg }} px-2 py-1">{{ $fila['metodo'] }}</span>
+                            <span class="badge-metodo {{ $bMetodo }}">
+                                <i class="fas {{ $icono }}"></i> {{ $fila['metodo'] }}
+                            </span>
                         </td>
                         <td>
-                            <span class="text-mono small text-secondary">{{ $fila['referencia'] }}</span>
+                            <span class="text-mono small text-dark fw-bold">{{ $fila['referencia'] }}</span>
                         </td>
                         <td>
-                            <small class="text-muted"><i class="fas fa-user-edit me-1"></i> {{ $fila['cajero'] }}</small>
+                            <small class="text-muted-dark fw-bold"><i class="fas fa-user-edit me-1 text-secondary"></i> {{ $fila['cajero'] }}</small>
                         </td>
-                        <td class="text-end font-weight-bold text-success fs-6 text-mono">
+                        <td class="text-end font-weight-bold fs-6 text-mono" style="color: #047857 !important;">
                             ${{ number_format($fila['monto'], 2) }}
                         </td>
                     </tr>
