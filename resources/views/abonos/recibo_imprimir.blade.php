@@ -8,10 +8,11 @@
         /* CSS Reset for Printing */
         @page {
             size: landscape;
-            margin: 8mm 10mm 6mm 10mm;
+            margin: 0;
         }
         html, body {
             width: 100%;
+            height: 100%;
             margin: 0;
             padding: 0;
             font-family: Arial, sans-serif;
@@ -22,7 +23,13 @@
         }
         
         body {
-            padding: 8mm 10mm 6mm 10mm;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 0 12mm;
+            box-sizing: border-box;
         }
 
         .page-container {
@@ -33,16 +40,18 @@
             align-items: stretch;
             gap: 8px;
             background-color: transparent;
+            margin: auto 0;
         }
 
         .receipt-card {
             border: 2px solid #1A237E; /* Deep Blue border */
             position: relative;
-            padding: 15px 12px;
+            padding: 16px 14px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             background-color: white;
+            min-height: 380px;
         }
 
         @if($imprimirDoble)
@@ -349,15 +358,23 @@
         @media print {
             html, body {
                 background: none !important;
-                width: 100%;
-                margin: 0;
-                padding: 0;
+                width: 100% !important;
+                height: 100% !important;
+                min-height: 100vh !important;
+                margin: 0 !important;
+                padding: 0 10mm !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
+                box-sizing: border-box !important;
             }
             .page-container {
                 width: 100% !important;
                 padding: 0 !important;
-                gap: 4px !important;
+                gap: 8px !important;
                 justify-content: center !important;
+                margin: auto 0 !important;
             }
             .receipt-card-left,
             .receipt-card-right {
