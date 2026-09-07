@@ -484,12 +484,22 @@ class ImportacionController extends Controller
             if (!in_array($estado, self::ESTADOS_LOTE)) { $errores[] = "[Lotes F{$numFila}] estado inválido: {$estado}"; continue; }
 
             $bloque = Bloque::withoutGlobalScope("lotificacion")->where("nombre", $nombreBloque)->where("lotificacion_id", $lotificacion->id)->first();
-            if (!$bloque) { $errores[] = "[Lotes F{$numFila}] Bloque '{$nombreBloque}' no encontrado."; continue; }
-
-            $existe = Lote::withoutGlobalScope("lotificacion")->where("id_bloque", $bloque->id_bloque)->where("numero_lote", $numeroLote)->exists();
-            if ($existe) { $advertencias[] = "[Lotes F{$numFila}] Lote {$numeroLote}/{$nombreBloque} ya existe. Omitido."; continue; }
+            if (!$bloque) {
+                if ($modo === "importar") {
+                    $bloque = Bloque::create([
+                        "nombre"          => $nombreBloque,
+                        "lotificacion_id" => $lotificacion->id,
+                        "prefijo"         => $nombreBloque,
+                    ]);
+                } else {
+                    $bloque = (object)["id_bloque" => "SIM_BLOQUE_{$nombreBloque}"];
+                }
+            }
 
             if ($modo === "importar") {
+                $existe = Lote::withoutGlobalScope("lotificacion")->where("id_bloque", $bloque->id_bloque)->where("numero_lote", $numeroLote)->exists();
+                if ($existe) { $advertencias[] = "[Lotes F{$numFila}] Lote {$numeroLote}/{$nombreBloque} ya existe en '{$lotificacion->nombre}'. Omitido."; continue; }
+
                 Lote::create(["id_bloque" => $bloque->id_bloque, "numero_lote" => $numeroLote, "area_metros" => (float)$areaMetros, "precio_base" => (float)$precioBase, "estado" => $estado]);
             }
             $creados++;
