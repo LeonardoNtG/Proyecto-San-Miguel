@@ -246,21 +246,13 @@
         <div class="kpi-container">
             <table class="kpi-table">
                 <tr>
-                    <td class="kpi-cell" style="background-color: #ecfdf5; border: 1px solid #a7f3d0; width: 25%;">
+                    <td class="kpi-cell" style="background-color: #ecfdf5; border: 1px solid #a7f3d0; width: 50%;">
                         <div class="kpi-title" style="color: #065f46;">Total Recaudado</div>
                         <div class="kpi-value" style="color: #059669;">${{ number_format($totalMonto, 2) }}</div>
                     </td>
-                    <td class="kpi-cell" style="background-color: #f0f9ff; border: 1px solid #bae6fd; width: 25%;">
-                        <div class="kpi-title" style="color: #0369a1;">Recibos Emitidos</div>
+                    <td class="kpi-cell" style="background-color: #f0f9ff; border: 1px solid #bae6fd; width: 50%;">
+                        <div class="kpi-title" style="color: #0369a1;">Total Recibos Emitidos</div>
                         <div class="kpi-value" style="color: #0284c7;">{{ $totalRecibos }}</div>
-                    </td>
-                    <td class="kpi-cell" style="background-color: #f8fafc; border: 1px solid #cbd5e1; width: 25%;">
-                        <div class="kpi-title" style="color: #334155;">Con Monto / Abono</div>
-                        <div class="kpi-value" style="color: #0f172a;">{{ $recibosConMonto }}</div>
-                    </td>
-                    <td class="kpi-cell" style="background-color: #f8fafc; border: 1px solid #cbd5e1; width: 25%;">
-                        <div class="kpi-title" style="color: #475569;">En Blanco / Manuales</div>
-                        <div class="kpi-value" style="color: #64748b;">{{ $recibosEnBlanco }}</div>
                     </td>
                 </tr>
             </table>
@@ -276,14 +268,14 @@
         <table class="data-table">
             <thead>
                 <tr>
-                    <th class="text-center" style="width: 75px;">N° Recibo</th>
-                    <th class="text-center" style="width: 65px;">Hora</th>
+                    <th class="text-center" style="width: 80px;">N° Recibo</th>
+                    <th class="text-center" style="width: 70px;">Hora</th>
                     <th>Proyecto</th>
                     <th>Recibimos de (Cliente)</th>
                     <th>Concepto / Detalle</th>
                     <th>Motivo / Observación</th>
                     <th>Cajero</th>
-                    <th class="text-end" style="width: 85px;">Monto ($)</th>
+                    <th class="text-end" style="width: 95px;">Monto ($)</th>
                 </tr>
             </thead>
             <tbody>
@@ -302,7 +294,7 @@
                             @if($recibo->cliente_nombre)
                                 <strong>{{ $recibo->cliente_nombre }}</strong>
                             @else
-                                <span class="badge-blanco">En Blanco</span>
+                                <span style="color: #94a3b8;">—</span>
                             @endif
                         </td>
                         <td>
@@ -325,7 +317,7 @@
                             @if(!is_null($recibo->monto) && (float)$recibo->monto > 0)
                                 ${{ number_format($recibo->monto, 2) }}
                             @else
-                                <span class="badge-blanco">En Blanco</span>
+                                $0.00
                             @endif
                         </td>
                     </tr>

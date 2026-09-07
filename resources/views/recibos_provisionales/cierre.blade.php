@@ -106,14 +106,14 @@
     {{-- TARJETAS KPI RESUMEN --}}
     <div class="row g-3 mb-4">
         {{-- Total Recaudado --}}
-        <div class="col-xl-3 col-md-6">
+        <div class="col-md-6">
             <div class="card kpi-card shadow-sm text-white" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
                             <div class="text-white-50 small fw-bold text-uppercase">Total Recaudado</div>
                             <h2 class="fw-bold mb-0 mt-1">${{ number_format($totalMonto, 2) }}</h2>
-                            <span class="small text-white-50">{{ $recibosConMonto }} recibos con monto</span>
+                            <span class="small text-white-50">{{ $recibosConMonto }} recibos con movimiento</span>
                         </div>
                         <div class="kpi-icon-badge">
                             <i class="fas fa-dollar-sign"></i>
@@ -124,53 +124,17 @@
         </div>
 
         {{-- Total Recibos Emitidos --}}
-        <div class="col-xl-3 col-md-6">
+        <div class="col-md-6">
             <div class="card kpi-card shadow-sm text-white" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);">
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <div>
-                            <div class="text-white-50 small fw-bold text-uppercase">Recibos Emitidos</div>
+                            <div class="text-white-50 small fw-bold text-uppercase">Total Recibos Emitidos</div>
                             <h2 class="fw-bold mb-0 mt-1">{{ $totalRecibos }}</h2>
                             <span class="small text-white-50">Corte del día</span>
                         </div>
                         <div class="kpi-icon-badge">
                             <i class="fas fa-receipt"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Recibos Completados con Monto --}}
-        <div class="col-xl-3 col-md-6">
-            <div class="card kpi-card shadow-sm text-white" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
-                <div class="card-body p-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="text-white-50 small fw-bold text-uppercase">Con Monto / Abono</div>
-                            <h2 class="fw-bold mb-0 mt-1">{{ $recibosConMonto }}</h2>
-                            <span class="small text-white-50">Amparados con dinero</span>
-                        </div>
-                        <div class="kpi-icon-badge">
-                            <i class="fas fa-check-circle"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        {{-- Recibos Emitidos en Blanco --}}
-        <div class="col-xl-3 col-md-6">
-            <div class="card kpi-card shadow-sm text-white" style="background: linear-gradient(135deg, #64748b 0%, #475569 100%);">
-                <div class="card-body p-3">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="text-white-50 small fw-bold text-uppercase">En Blanco / Manuales</div>
-                            <h2 class="fw-bold mb-0 mt-1">{{ $recibosEnBlanco }}</h2>
-                            <span class="small text-white-50">Para llenado a mano</span>
-                        </div>
-                        <div class="kpi-icon-badge">
-                            <i class="fas fa-file-alt"></i>
                         </div>
                     </div>
                 </div>
@@ -226,7 +190,7 @@
                                     @if($recibo->cliente_nombre)
                                         <strong class="text-dark">{{ $recibo->cliente_nombre }}</strong>
                                     @else
-                                        <span class="badge-en-blanco"><i class="fas fa-pen me-1"></i>En Blanco</span>
+                                        <span class="text-muted">—</span>
                                     @endif
                                 </td>
                                 <td>
@@ -257,7 +221,7 @@
                                             ${{ number_format($recibo->monto, 2) }}
                                         </span>
                                     @else
-                                        <span class="badge-en-blanco">En Blanco</span>
+                                        <span class="fw-bold text-muted">$0.00</span>
                                     @endif
                                 </td>
                                 <td class="text-center no-print">
