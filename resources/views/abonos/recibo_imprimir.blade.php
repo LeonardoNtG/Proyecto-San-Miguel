@@ -12,14 +12,16 @@
         }
         body, html {
             margin: 0;
-            padding: 5mm 8mm;
+            padding: 0;
             width: 100%;
+            height: 100%;
             font-family: Arial, sans-serif;
             box-sizing: border-box;
             background-color: #f8fafc;
             display: flex;
-            justify-content: center;
-            align-items: flex-start;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
         }
         * {
             box-sizing: inherit;
@@ -27,12 +29,12 @@
         
         .page-container {
             width: 100%;
-            max-width: 10.5in;  /* ancho útil en landscape letter */
-            margin: 0 auto;
-            min-height: 3.2in;
+            max-width: 10.2in;
+            margin: 6mm auto 0 auto;
+            height: auto;
             display: flex;
             justify-content: center;
-            align-items: stretch;
+            align-items: flex-start;
             gap: 8px;
             padding: 0;
             background-color: white;
@@ -349,15 +351,17 @@
                 padding: 0;
                 margin: 0;
                 display: flex;
-                justify-content: center;
-                align-items: flex-start;
+                flex-direction: column;
+                justify-content: flex-start;
+                align-items: center;
             }
             .page-container {
-                padding: 0;
-                margin: 0 auto;
+                margin: 6mm auto 0 auto;
                 width: 100%;
                 max-width: 100%;
                 justify-content: center;
+                align-items: flex-start;
+                height: auto;
             }
             .receipt-card {
                 border: 2px solid #1A237E !important;
