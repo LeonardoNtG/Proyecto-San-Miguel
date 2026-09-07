@@ -557,11 +557,9 @@
 
                         {{-- Destino del dinero abonado --}}
                         @php
-                            $otrosContratosActivos = $cliente->ventas->where('id_venta', '!=', $venta->id_venta)->where('estado_contrato', 'Vigente');
-                            $tieneOtrosContratos = $otrosContratosActivos->count() > 0;
                             $totalLotesEnVenta = $venta->lotes->count();
-                            // ¿Puede acreditar a otro lote inicialmente? Solo si este contrato tiene más de 1 lote (rescisión parcial) O si el cliente tiene otro contrato activo vigente!
-                            $puedeAcreditarInicial = ($totalLotesEnVenta > 1) || $tieneOtrosContratos;
+                            // ¿Puede acreditar a otro lote? Solo si este contrato tiene más de 1 lote (rescisión parcial de varios lotes)
+                            $puedeAcreditarInicial = ($totalLotesEnVenta > 1);
                         @endphp
                         <div class="card bg-light border p-3 mb-3">
                             <h6 class="fw-bold text-dark mb-2">
@@ -569,31 +567,17 @@
                             </h6>
                             <p class="small text-muted mb-2">El total abonado a este contrato asciende a: <strong>${{ number_format($venta->abonos()->where('monto_abonado', '>', 0)->sum('monto_abonado'), 2) }}</strong></p>
                             
-                            {{-- Opción: Acreditar a lote conservado (solo si conserva algún lote o tiene otro contrato) --}}
+                            {{-- Opción: Acreditar a lote conservado (SOLO si este contrato tiene más de 1 lote y conserva alguno) --}}
                             <div class="form-check mb-2 p-2 bg-white rounded border" id="contenedor_opcion_acreditar" style="{{ $puedeAcreditarInicial ? '' : 'display: none !important;' }}">
                                 <input class="form-check-input destino-abonos-radio ms-1 me-2" type="radio" name="destino_abonos" id="dest_acreditar" value="acreditar_otro_lote" {{ $puedeAcreditarInicial ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold text-success" for="dest_acreditar">
-                                    <i class="fas fa-arrow-circle-right me-1"></i> Acreditar al lote / contrato que conserva
+                                    <i class="fas fa-arrow-circle-right me-1"></i> Acreditar al lote que conserva
                                 </label>
                                 <div class="small text-muted ps-4">El dinero pagado por el lote desistido reduce la deuda pendiente del lote que el cliente mantiene.</div>
                             </div>
 
-                            @if($tieneOtrosContratos)
-                            <div id="selector_contrato_destino" class="ps-4 mb-2 p-2 bg-white rounded border border-primary" style="display:none;">
-                                <label class="small fw-bold text-primary"><i class="fas fa-link me-1"></i> En caso de rescisión total, transferir crédito a:</label>
-                                <select name="id_venta_destino" class="form-select form-select-sm mt-1">
-                                    @foreach($otrosContratosActivos as $otraVenta)
-                                        @php
-                                            $lotesOtra = $otraVenta->lotes->map(fn($l) => $l->nombre_completo)->implode(', ');
-                                        @endphp
-                                        <option value="{{ $otraVenta->id_venta }}">Contrato #{{ $otraVenta->id_venta }} ({{ $lotesOtra ?: 'Sin lotes' }}) — Saldo actual: ${{ number_format(max(0, $otraVenta->precio_final - $otraVenta->abonos()->sum('monto_abonado')), 2) }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                            @endif
-
                             <div class="form-check mb-2 p-2 bg-white rounded border" id="contenedor_opcion_efectivo">
-                                <input class="form-check-input destino-abonos-radio ms-1 me-2" type="radio" name="destino_abonos" id="dest_efectivo" value="devolucion_efectivo" {{ !$puedeAcreditarInicial ? 'checked' : '' }}>
+                                <input class="form-check-input destino-abonos-radio ms-1 me-2" type="radio" name="destino_abonos" id="dest_efectivo" value="devolucion_efectivo">
                                 <label class="form-check-label fw-bold text-danger" for="dest_efectivo">
                                     <i class="fas fa-hand-holding-usd me-1"></i> Liquidar y devolver en efectivo al cliente
                                 </label>
@@ -601,7 +585,7 @@
                             </div>
 
                             <div class="form-check p-2 bg-white rounded border">
-                                <input class="form-check-input destino-abonos-radio ms-1 me-2" type="radio" name="destino_abonos" id="dest_sin_devolucion" value="sin_devolucion">
+                                <input class="form-check-input destino-abonos-radio ms-1 me-2" type="radio" name="destino_abonos" id="dest_sin_devolucion" value="sin_devolucion" {{ !$puedeAcreditarInicial ? 'checked' : '' }}>
                                 <label class="form-check-label fw-bold text-secondary" for="dest_sin_devolucion">
                                     <i class="fas fa-ban me-1"></i> Sin devolución (Penalización / Cláusula de contrato)
                                 </label>
@@ -722,10 +706,11 @@
                 }
 
                 // Actualizar visibilidad de opción 'Acreditar al lote que conserva'
-                const tieneOtrosContratos = {{ (!empty($tieneOtrosContratos) && $tieneOtrosContratos) ? 'true' : 'false' }};
-                const puedeAcreditar = (conservados > 0) || tieneOtrosContratos;
+                // Solo disponible si este contrato tiene más de 1 lote y el cliente CONSERVA al menos 1 lote (conservados > 0)
+                const puedeAcreditar = (totalLotes > 1 && conservados > 0);
                 const contenedorAcreditar = document.getElementById('contenedor_opcion_acreditar');
                 const radioAcreditar = document.getElementById('dest_acreditar');
+                const radioSinDevolucion = document.getElementById('dest_sin_devolucion');
                 const radioEfectivo = document.getElementById('dest_efectivo');
 
                 if (contenedorAcreditar) {
@@ -734,7 +719,11 @@
                     } else {
                         contenedorAcreditar.style.setProperty('display', 'none', 'important');
                         if (radioAcreditar && radioAcreditar.checked) {
-                            if (radioEfectivo) radioEfectivo.checked = true;
+                            if (radioSinDevolucion) {
+                                radioSinDevolucion.checked = true;
+                            } else if (radioEfectivo) {
+                                radioEfectivo.checked = true;
+                            }
                         }
                     }
                 }
@@ -743,6 +732,14 @@
             checkboxes.forEach(chk => {
                 chk.addEventListener('change', checkRescissionType);
             });
+
+            // Ejecutar al iniciar y cada vez que se abra el modal
+            checkRescissionType();
+            const modalRescindirEl = document.getElementById('rescindirModal');
+            if (modalRescindirEl) {
+                modalRescindirEl.addEventListener('show.bs.modal', checkRescissionType);
+                modalRescindirEl.addEventListener('shown.bs.modal', checkRescissionType);
+            }
 
             // Autocalcular plazo garantizando valores >= 0
             function calcularPlazo() {
