@@ -14,6 +14,7 @@ use App\Models\Cuota;
 use App\Models\Lote;
 use App\Models\Bloque;
 use App\Models\Lotificacion;
+use App\Models\HistorialLote;
 
 class ImportacionController extends Controller
 {
@@ -641,9 +642,12 @@ class ImportacionController extends Controller
             }
 
             // Verificar lote sin contrato vigente
-            $ventaVigente = Venta::withoutGlobalScope("lotificacion")->where("id_lote", $lote->id_lote)->where("estado_contrato", "Vigente")->first();
-            if ($ventaVigente) {
-                $errores[] = "[Contratos F{$numFila}] Lote '{$numeroLote}'/'{$nombreBloque}' ya tiene contrato Vigente (ID: {$ventaVigente->id_venta}).";
+            $historialVigente = HistorialLote::where("id_lote", $lote->id_lote)
+                ->where("estado", "Activo")
+                ->whereHas("venta", fn($q) => $q->withoutGlobalScope("lotificacion")->where("estado_contrato", "Vigente"))
+                ->first();
+            if ($historialVigente) {
+                $errores[] = "[Contratos F{$numFila}] Lote '{$numeroLote}'/'{$nombreBloque}' ya tiene contrato Vigente (ID Venta: {$historialVigente->id_venta}).";
                 continue;
             }
 
@@ -652,7 +656,6 @@ class ImportacionController extends Controller
             if ($modo === "importar") {
                 $venta = Venta::create([
                     "id_cliente"         => $cliente->id_cliente,
-                    "id_lote"            => $lote->id_lote,
                     "lotificacion_id"    => $lotificacion->id,
                     "fecha_venta"        => $fechaVentaParsed,
                     "precio_final"       => $precioNum,
@@ -664,20 +667,33 @@ class ImportacionController extends Controller
                     "nota_beneficiario"  => $notaBenef ?: null,
                 ]);
                 $ventaId = $venta->id_venta;
+
+                // Asignar el lote a través de la tabla historial_lotes
+                HistorialLote::create([
+                    "id_lote"          => $lote->id_lote,
+                    "id_venta"         => $ventaId,
+                    "estado"           => ($estadoContrato === "Rescindido") ? "Rescindido" : "Activo",
+                    "fecha_asignacion" => $fechaVentaParsed,
+                ]);
+
                 $lote->estado = ($estadoContrato === "Rescindido") ? "Disponible" : "Vendido";
                 $lote->save();
+
                 if ($estadoContrato === "Vigente" && $plazoInt > 0) {
                     $this->generarPlanCuotas($venta, $fechaVentaParsed);
                 }
                 // Prima como abono
                 if (!empty($primaPagada) && is_numeric($primaPagada) && (float)$primaPagada > 0) {
                     $fechaPrimaParsed = $this->parsearFecha($fechaPrima) ?? $fechaVentaParsed;
-                    $maxNum = (int)(Abono::withoutGlobalScope("lotificacion")->whereHas("venta", fn($q) => $q->where("lotificacion_id", $lotificacion->id))->max("numero_recibo") ?? 0);
-                    $maxNum++;
+                    $datosRecibo = Abono::generarSiguienteNumeroRecibo($lotificacion->id);
                     Abono::create([
-                        "id_venta" => $ventaId, "fecha_pago" => $fechaPrimaParsed,
-                        "monto_abonado" => (float)$primaPagada, "tipo_pago" => "Prima",
-                        "metodo_pago" => "Efectivo", "numero_recibo" => $maxNum, "codigo_recibo" => (string)$maxNum,
+                        "id_venta"      => $ventaId,
+                        "fecha_pago"    => $fechaPrimaParsed,
+                        "monto_abonado" => (float)$primaPagada,
+                        "tipo_pago"     => "Prima",
+                        "metodo_pago"   => "Efectivo",
+                        "numero_recibo" => $datosRecibo["numero_recibo"],
+                        "codigo_recibo" => $datosRecibo["codigo_recibo"],
                     ]);
                     $resumen["pagos"]++;
                 }
@@ -694,7 +710,6 @@ class ImportacionController extends Controller
     private function procesarPagos(array $filas, array $mapeoVentas, Lotificacion $lotificacion, string $modo): array
     {
         $errores = []; $advertencias = []; $procesados = 0;
-        $numRecibo = (int)(Abono::withoutGlobalScope("lotificacion")->whereHas("venta", fn($q) => $q->where("lotificacion_id", $lotificacion->id))->max("numero_recibo") ?? 0);
 
         foreach ($filas as $i => $fila) {
             $numFila        = $i + 2;
@@ -727,7 +742,7 @@ class ImportacionController extends Controller
 
             $idVenta = $mapeoVentas[$clave];
             if ($modo === "importar" && $idVenta) {
-                $numRecibo++;
+                $datosRecibo = Abono::generarSiguienteNumeroRecibo($lotificacion->id);
                 Abono::create([
                     "id_venta"       => $idVenta,
                     "fecha_pago"     => $fechaParsed,
@@ -736,8 +751,8 @@ class ImportacionController extends Controller
                     "metodo_pago"    => $metodoPago,
                     "referencia"     => $referencia ?: null,
                     "cuenta_destino" => $cuentaDestino ?: null,
-                    "numero_recibo"  => $numRecibo,
-                    "codigo_recibo"  => !empty($numOrig) ? $numOrig : (string)$numRecibo,
+                    "numero_recibo"  => $datosRecibo["numero_recibo"],
+                    "codigo_recibo"  => !empty($numOrig) ? $numOrig : $datosRecibo["codigo_recibo"],
                 ]);
             }
             $procesados++;
