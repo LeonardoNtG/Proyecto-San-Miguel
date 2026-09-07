@@ -146,7 +146,7 @@
 
             {{-- Paginación --}}
             <div class="mt-3">
-                {{ $clientes->appends(['search' => $search])->links() }}
+                {{ $clientes->appends(['search' => $search, 'filtro' => request('filtro', 'activos')])->links() }}
             </div>
         </div>
  </div>

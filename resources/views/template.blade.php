@@ -40,6 +40,16 @@
         input[type=number] {
             -moz-appearance: textfield;
         }
+
+        /* Limitar tamaño de SVGs e iconos en la paginación */
+        .pagination svg,
+        nav[role="navigation"] svg {
+            width: 1.25rem !important;
+            height: 1.25rem !important;
+            max-width: 20px !important;
+            max-height: 20px !important;
+            display: inline-block !important;
+        }
     </style>
 </head>
 
@@ -305,19 +315,36 @@
                      <i class="fas fa-sign-out-alt me-1"></i> Cerrar Sesión
                     </button>
                 </form>
-                            </div>
-                        </li>
                         </li>
                     </ul>
  
                 </nav>
                 <!-- End of Topbar -->
+
+                <!-- Begin Page Content -->
                 <div class="container-fluid">
                     @yield('contenido')
-                 </div>
+                </div>
+                <!-- /.container-fluid -->
 
+            </div>
+            <!-- End of Main Content -->
+
+            <!-- Footer -->
+            <footer class="sticky-footer bg-white mt-auto">
+                <div class="container my-auto">
+                    <div class="copyright text-center my-auto">
+                        <span>Copyright &copy; Sistema San Miguel {{ date('Y') }}</span>
+                    </div>
+                </div>
+            </footer>
+            <!-- End of Footer -->
+
+        </div>
+        <!-- End of Content Wrapper -->
 
     </div>
+    <!-- End of Page Wrapper -->
 
     <!-- Scroll to Top Button-->
     <a class="scroll-to-top rounded" href="#page-top">
