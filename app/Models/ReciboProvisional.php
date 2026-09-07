@@ -20,14 +20,20 @@ class ReciboProvisional extends Model
         'monto',
         'monto_letras',
         'concepto',
+        'valor_total',
+        'total_abonado',
+        'saldo_pendiente',
         'fecha',
         'motivo',
         'user_id',
     ];
 
     protected $casts = [
-        'fecha' => 'date',
-        'monto' => 'decimal:2',
+        'fecha'           => 'date',
+        'monto'           => 'decimal:2',
+        'valor_total'     => 'decimal:2',
+        'total_abonado'   => 'decimal:2',
+        'saldo_pendiente' => 'decimal:2',
     ];
 
     public function lotificacion()

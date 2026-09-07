@@ -78,15 +78,16 @@
                 <table class="table table-hover table-bordered align-middle">
                     <thead class="table-light">
                         <tr>
-                            <th class="text-center" style="width: 130px;">N° Recibo</th>
-                            <th style="width: 110px;">Fecha</th>
+                            <th class="text-center" style="width: 120px;">N° Recibo</th>
+                            <th style="width: 100px;">Fecha</th>
                             <th>Proyecto</th>
                             <th>Recibimos de (Cliente)</th>
-                            <th>Monto</th>
+                            <th>Monto Recibo</th>
+                            <th>Monto / Abono / Saldo</th>
                             <th>Concepto</th>
                             <th>Motivo / Observación</th>
                             <th>Cajero</th>
-                            <th class="text-center" style="width: 140px;">Acciones</th>
+                            <th class="text-center" style="width: 130px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -120,6 +121,17 @@
                                     @endif
                                 </td>
                                 <td>
+                                    @if($recibo->valor_total !== null || $recibo->total_abonado !== null)
+                                        <div class="small lh-sm">
+                                            <span class="text-muted">Monto:</span> <strong>${{ number_format($recibo->valor_total ?? 0, 2) }}</strong><br>
+                                            <span class="text-muted">Abonado:</span> <strong class="text-primary">${{ number_format($recibo->total_abonado ?? 0, 2) }}</strong><br>
+                                            <span class="text-muted">Saldo:</span> <strong class="text-danger">${{ number_format($recibo->saldo_pendiente ?? max(0, ($recibo->valor_total ?? 0) - ($recibo->total_abonado ?? 0)), 2) }}</strong>
+                                        </div>
+                                    @else
+                                        <span class="text-muted small">—</span>
+                                    @endif
+                                </td>
+                                <td>
                                     <small class="text-dark">{{ $recibo->concepto ?? '—' }}</small>
                                 </td>
                                 <td>
@@ -134,7 +146,7 @@
                                 </td>
                                 <td class="text-center">
                                     <div class="btn-group btn-group-sm">
-                                        <a href="{{ route('recibos_provisionales.imprimir', $recibo->id_recibo_provisional) }}" target="_blank" class="btn btn-outline-primary" title="Imprimir Recibo Provisional">
+                                        <a href="{{ route('recibos_provisionales.imprimir', $recibo->id_recibo_provisional) }}" target="_blank" class="btn btn-outline-primary" title="Imprimir Recibo">
                                             <i class="fas fa-print me-1"></i> Imprimir
                                         </a>
                                         @can('borrar-clientes')
@@ -147,7 +159,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="text-center py-4 text-muted">
+                                <td colspan="10" class="text-center py-4 text-muted">
                                     <i class="fas fa-file-invoice fa-3x text-warning mb-2 d-block"></i>
                                     No se han generado recibos provisionales todavía.<br>
                                     <button type="button" class="btn btn-sm btn-warning text-dark fw-bold mt-2" data-bs-toggle="modal" data-bs-target="#modalNuevoReciboProvisional">
@@ -212,13 +224,14 @@
                                 <input type="text" name="cliente_nombre" id="inputNombreManualIndex" class="form-control" placeholder="Escriba el nombre o déjelo en blanco">
                             </div>
                             <div class="col-md-5">
-                                <label class="form-label fw-bold text-dark small">Monto en U$ (Dólares):</label>
+                                <label class="form-label fw-bold text-dark small">Monto Recibido en U$ (Dólares):</label>
                                 <div class="input-group">
                                     <span class="input-group-text fw-bold">$</span>
                                     <input type="number" step="0.01" min="0" name="monto" id="inputMontoManualIndex" class="form-control" placeholder="0.00 (Opcional)">
                                 </div>
-                                <div class="form-text small">Si se deja vacío, la casilla saldrá en blanco para escribir a mano.</div>
+                                <div class="form-text small">Monto que se imprime en la casilla POR U$.</div>
                             </div>
+
                             <div class="col-md-7">
                                 <label class="form-label fw-bold text-dark small">En concepto de:</label>
                                 <input type="text" name="concepto" id="inputConceptoManualIndex" class="form-control" placeholder="Ej: Abono a Lote 15 Bloque B...">
@@ -227,6 +240,42 @@
                                 <label class="form-label fw-bold text-dark small">Fecha del Recibo:</label>
                                 <input type="date" name="fecha" class="form-control" value="{{ date('Y-m-d') }}" required>
                             </div>
+
+                            {{-- Sección de Cálculos: Monto Total, Total Abonado y Saldo Calculado --}}
+                            <div class="col-12">
+                                <div class="p-3 bg-light rounded border border-secondary-subtle">
+                                    <div class="fw-bold text-dark small mb-2">
+                                        <i class="fas fa-calculator text-primary me-1"></i> Línea de Estado de Cuenta (Monto / Abonado / Saldo):
+                                    </div>
+                                    <div class="row g-2 align-items-center">
+                                        <div class="col-md-4">
+                                            <label class="form-label text-dark small fw-bold mb-1">1. Monto Total (U$):</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" step="0.01" min="0" name="valor_total" id="inputValorTotalIndex" class="form-control" placeholder="Ej: 8500.00" oninput="calcularSaldoProvisionalIndex()">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label text-dark small fw-bold mb-1">2. Total Abonado (U$):</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text">$</span>
+                                                <input type="number" step="0.01" min="0" name="total_abonado" id="inputTotalAbonadoIndex" class="form-control" placeholder="Ej: 500.00" oninput="calcularSaldoProvisionalIndex()">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label text-dark small fw-bold mb-1">3. Saldo (Calculado):</label>
+                                            <div class="input-group input-group-sm">
+                                                <span class="input-group-text bg-white fw-bold text-danger">$</span>
+                                                <input type="text" id="previewSaldoPendienteIndex" class="form-control bg-white fw-bold text-danger" placeholder="0.00" readonly>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-text small mt-1">
+                                        Se mostrará en el recibo: <code class="text-dark">Monto: U$ [Monto]. Abonado: U$ [Abonado]. Saldo: U$ [Saldo]</code>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="col-12">
                                 <label class="form-label fw-bold text-dark small">Motivo / Observación interna (para registro y auditoría):</label>
                                 <input type="text" name="motivo" class="form-control" placeholder="Ej: Cobro en campo manual, contingencia de sistema, etc.">
@@ -252,15 +301,38 @@
 </form>
 
 <script>
+    function calcularSaldoProvisionalIndex() {
+        var valorTotalStr = document.getElementById('inputValorTotalIndex').value;
+        var totalAbonadoStr = document.getElementById('inputTotalAbonadoIndex').value;
+
+        if (valorTotalStr === '' && totalAbonadoStr === '') {
+            document.getElementById('previewSaldoPendienteIndex').value = '';
+            return;
+        }
+
+        var valorTotal = parseFloat(valorTotalStr) || 0;
+        var totalAbonado = parseFloat(totalAbonadoStr) || 0;
+        var saldo = Math.max(0, valorTotal - totalAbonado);
+
+        document.getElementById('previewSaldoPendienteIndex').value = saldo.toFixed(2);
+    }
+
     function toggleCamposEnBlancoIndex(enBlanco) {
         if (enBlanco) {
             $('#inputNombreManualIndex').val('').prop('disabled', true);
             $('#inputMontoManualIndex').val('').prop('disabled', true);
             $('#inputConceptoManualIndex').val('').prop('disabled', true);
+            $('#inputValorTotalIndex').val('').prop('disabled', true);
+            $('#inputTotalAbonadoIndex').val('').prop('disabled', true);
+            $('#previewSaldoPendienteIndex').val('').prop('disabled', true);
         } else {
             $('#inputNombreManualIndex').prop('disabled', false);
             $('#inputMontoManualIndex').prop('disabled', false);
             $('#inputConceptoManualIndex').prop('disabled', false);
+            $('#inputValorTotalIndex').prop('disabled', false);
+            $('#inputTotalAbonadoIndex').prop('disabled', false);
+            $('#previewSaldoPendienteIndex').prop('disabled', false);
+            calcularSaldoProvisionalIndex();
         }
     }
 

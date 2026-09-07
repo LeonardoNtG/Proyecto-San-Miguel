@@ -22,14 +22,25 @@ class ReciboProvisionalController extends Controller
                     $table->decimal('monto', 12, 2)->nullable();
                     $table->string('monto_letras')->nullable();
                     $table->text('concepto')->nullable();
+                    $table->decimal('valor_total', 12, 2)->nullable();
+                    $table->decimal('total_abonado', 12, 2)->nullable();
+                    $table->decimal('saldo_pendiente', 12, 2)->nullable();
                     $table->date('fecha');
                     $table->text('motivo')->nullable();
                     $table->unsignedBigInteger('user_id')->nullable();
                     $table->timestamps();
                 });
+            } else {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('recibos_provisionales', 'valor_total')) {
+                    \Illuminate\Support\Facades\Schema::table('recibos_provisionales', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->decimal('valor_total', 12, 2)->nullable()->after('concepto');
+                        $table->decimal('total_abonado', 12, 2)->nullable()->after('valor_total');
+                        $table->decimal('saldo_pendiente', 12, 2)->nullable()->after('total_abonado');
+                    });
+                }
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error('Error creating recibos_provisionales table: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::error('Error in recibos_provisionales schema: ' . $e->getMessage());
         }
     }
 
@@ -78,18 +89,27 @@ class ReciboProvisionalController extends Controller
         $dejarEnBlanco = $request->boolean('dejar_en_blanco');
 
         if ($dejarEnBlanco) {
-            $clienteNombre = null;
-            $monto = null;
-            $montoLetras = null;
-            $concepto = null;
+            $clienteNombre  = null;
+            $monto          = null;
+            $montoLetras    = null;
+            $concepto       = null;
+            $valorTotal     = null;
+            $totalAbonado   = null;
+            $saldoPendiente = null;
         } else {
-            $clienteNombre = $request->filled('cliente_nombre') ? trim($request->input('cliente_nombre')) : null;
-            $monto = $request->filled('monto') ? (float) $request->input('monto') : null;
-            $montoLetras = ($monto && $monto > 0) ? $this->convertirMontoALetras($monto) : null;
-            $concepto = $request->filled('concepto') ? trim($request->input('concepto')) : null;
+            $clienteNombre  = $request->filled('cliente_nombre') ? trim($request->input('cliente_nombre')) : null;
+            $monto          = $request->filled('monto') ? (float) $request->input('monto') : null;
+            $montoLetras    = ($monto && $monto > 0) ? $this->convertirMontoALetras($monto) : null;
+            $concepto       = $request->filled('concepto') ? trim($request->input('concepto')) : null;
+            $valorTotal     = $request->filled('valor_total') ? (float) $request->input('valor_total') : null;
+            $totalAbonado   = $request->filled('total_abonado') ? (float) $request->input('total_abonado') : null;
+            $saldoPendiente = null;
+            if ($valorTotal !== null) {
+                $saldoPendiente = max(0, $valorTotal - ($totalAbonado ?? 0));
+            }
         }
 
-        $fecha = $request->filled('fecha') ? $request->input('fecha') : now()->format('Y-m-d');
+        $fecha  = $request->filled('fecha') ? $request->input('fecha') : now()->format('Y-m-d');
         $motivo = $request->filled('motivo') ? trim($request->input('motivo')) : null;
 
         // Generar siguiente correlativo
@@ -103,6 +123,9 @@ class ReciboProvisionalController extends Controller
             'monto'           => $monto,
             'monto_letras'    => $montoLetras,
             'concepto'        => $concepto,
+            'valor_total'     => $valorTotal,
+            'total_abonado'   => $totalAbonado,
+            'saldo_pendiente' => $saldoPendiente,
             'fecha'           => $fecha,
             'motivo'          => $motivo,
             'user_id'         => auth()->id(),
@@ -110,8 +133,8 @@ class ReciboProvisionalController extends Controller
 
         if ($request->wantsJson()) {
             return response()->json([
-                'success' => true,
-                'recibo' => $recibo,
+                'success'      => true,
+                'recibo'       => $recibo,
                 'imprimir_url' => route('recibos_provisionales.imprimir', $recibo->id_recibo_provisional),
             ]);
         }

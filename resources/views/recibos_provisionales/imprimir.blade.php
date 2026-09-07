@@ -333,6 +333,16 @@
             <div class="value">{{ $recibo->concepto ?? '' }}</div>
         </div>
 
+        <div class="row" style="margin-bottom: 6px;">
+            <div class="value" style="font-weight: bold; font-size: 10.5px; padding-left: 2px;">
+                @if($recibo->valor_total !== null || $recibo->total_abonado !== null)
+                    Monto: U$ {{ number_format($recibo->valor_total ?? 0, 2) }}. Abonado: U$ {{ number_format($recibo->total_abonado ?? 0, 2) }}. Saldo: U$ {{ number_format($recibo->saldo_pendiente ?? max(0, ($recibo->valor_total ?? 0) - ($recibo->total_abonado ?? 0)), 2) }}
+                @else
+                    &nbsp;
+                @endif
+            </div>
+        </div>
+
         <div class="date-row">
             A los 
             <div class="date-input">{{ $recibo->fecha ? date('d', strtotime($recibo->fecha)) : date('d') }}</div> 
@@ -408,6 +418,16 @@
         <div class="row">
             <div class="label">En concepto de:</div>
             <div class="value">{{ $recibo->concepto ?? '' }}</div>
+        </div>
+
+        <div class="row" style="margin-bottom: 6px;">
+            <div class="value" style="font-weight: bold; font-size: 10.5px; padding-left: 2px;">
+                @if($recibo->valor_total !== null || $recibo->total_abonado !== null)
+                    Monto: U$ {{ number_format($recibo->valor_total ?? 0, 2) }}. Abonado: U$ {{ number_format($recibo->total_abonado ?? 0, 2) }}. Saldo: U$ {{ number_format($recibo->saldo_pendiente ?? max(0, ($recibo->valor_total ?? 0) - ($recibo->total_abonado ?? 0)), 2) }}
+                @else
+                    &nbsp;
+                @endif
+            </div>
         </div>
 
         <div class="date-row">
