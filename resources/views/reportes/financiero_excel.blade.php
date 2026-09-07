@@ -2,15 +2,15 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Cédula de Auditoría y Recaudación Financiera</title>
+<title>Reporte de Auditoría y Recaudación Financiera</title>
 <style>
     table { border-collapse: collapse; font-family: Arial, sans-serif; font-size: 11px; }
     th { background: #1a56db; color: #ffffff; font-weight: bold; padding: 6px 8px; border: 1px solid #cccccc; text-align: left; }
     td { padding: 5px 8px; border: 1px solid #cccccc; }
-    .rfx-titulo { font-size: 15px; font-weight: bold; color: #1a56db; }
-    .rfx-subtitulo { color: #555555; font-size: 11px; }
-    .rfx-seccion { background: #e5edff; font-weight: bold; font-size: 12px; color: #1a56db; }
-    .rfx-seccion-danger { background: #fee2e2; font-weight: bold; font-size: 12px; color: #b91c1c; }
+    .rfx-titulo { font-size: 14px; font-weight: bold; color: #1a56db; }
+    .rfx-subtitulo { color: #555555; font-size: 10px; }
+    .rfx-seccion { background: #e5edff; font-weight: bold; font-size: 11px; color: #1a56db; }
+    .rfx-seccion-danger { background: #fee2e2; font-weight: bold; font-size: 11px; color: #b91c1c; }
     .rfx-label { background: #f3f4f6; font-weight: bold; }
     .rfx-num { mso-number-format: "#,##0.00"; text-align: right; }
     .rfx-center { text-align: center; }
@@ -21,73 +21,96 @@
 <body>
 
 <table>
-    <tr><td class="rfx-titulo" colspan="{{ $esGlobal ? '12' : '11' }}">C&Eacute;DULA DE AUDITOR&Iacute;A Y RECAUDACI&Oacute;N FINANCIERA</td></tr>
-    <tr><td class="rfx-subtitulo" colspan="{{ $esGlobal ? '12' : '11' }}">Proyecto: {{ $etiquetaProyecto }} &mdash; Periodo: {{ $etiquetaPeriodo }} &mdash; Emisi&oacute;n: {{ $generadoEl }} &mdash; Auditor: {{ $generadoPor }}</td></tr>
-    <tr><td colspan="{{ $esGlobal ? '12' : '11' }}">&nbsp;</td></tr>
+    <!-- Encabezado General (Sin combinar celdas para no afectar selección de columnas) -->
+    <tr><td class="rfx-titulo">REPORTE DE AUDITOR&Iacute;A Y RECAUDACI&Oacute;N FINANCIERA</td></tr>
+    <tr><td class="rfx-subtitulo">Proyecto: {{ $etiquetaProyecto }} | Periodo: {{ $etiquetaPeriodo }} | Emisi&oacute;n: {{ $generadoEl }} | Auditor: {{ $generadoPor }}</td></tr>
+    <tr><td></td></tr>
 
-    <!-- Resumen Ejecutivo -->
-    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '12' : '11' }}">1. RESUMEN EJECUTIVO DE AUDITOR&Iacute;A Y FLUJO NETO</td></tr>
+    <!-- 1. Resumen Financiero y Flujo Neto -->
+    <tr><td class="rfx-seccion">1. RESUMEN FINANCIERO Y FLUJO NETO</td><td class="rfx-seccion">VALOR</td></tr>
     <tr>
         <td class="rfx-label">Ingresos Brutos Recaudados</td>
         <td class="rfx-num rfx-success">{{ number_format($totalRecaudado, 2, '.', '') }}</td>
+    </tr>
+    <tr>
         <td class="rfx-label">Devoluciones por Rescisi&oacute;n</td>
         <td class="rfx-num rfx-danger">-{{ number_format($totalDevolucionesRescisiones, 2, '.', '') }}</td>
+    </tr>
+    <tr>
         <td class="rfx-label">Recaudaci&oacute;n Neta Real</td>
         <td class="rfx-num rfx-success">{{ number_format($recaudacionNeta, 2, '.', '') }}</td>
+    </tr>
+    <tr>
         <td class="rfx-label">Recibos Emitidos</td>
         <td class="rfx-center">{{ $cantidadAbonos }}</td>
-        <td class="rfx-label">Bancarizaci&oacute;n</td>
-        <td colspan="{{ $esGlobal ? '3' : '2' }}">{{ $porcentajeBancarizado }}% Bancos ({{ number_format($totalBancos, 2, '.', '') }}) / {{ $porcentajeEfectivo }}% Caja ({{ number_format($totalEfectivo, 2, '.', '') }})</td>
     </tr>
-    <tr><td colspan="{{ $esGlobal ? '12' : '11' }}">&nbsp;</td></tr>
-
-    <!-- Matrices Resumen -->
-    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '12' : '11' }}">2. DESGLOSE POR CONCEPTO CONTABLE Y M&Eacute;TODO DE PAGO</td></tr>
     <tr>
-        <th colspan="3">Concepto de Cobro</th>
-        <th>Recibos</th>
-        <th class="rfx-num">Monto ($ USD)</th>
-        <th>% Part.</th>
-        <th colspan="2">M&eacute;todo / Canal</th>
-        <th>Recibos</th>
-        <th class="rfx-num">Monto ($ USD)</th>
-        <th colspan="{{ $esGlobal ? '2' : '1' }}">% Part.</th>
+        <td class="rfx-label">Clientes Aportantes</td>
+        <td class="rfx-center">{{ $clientesUnicos }}</td>
     </tr>
-    @php
-        $maxRows = max(count($desgloseConceptos), count($desgloseMetodos));
-    @endphp
-    @for($i = 0; $i < $maxRows; $i++)
-        @php
-            $dc = $desgloseConceptos[$i] ?? null;
-            $dm = $desgloseMetodos[$i] ?? null;
-        @endphp
+    <tr>
+        <td class="rfx-label">Ticket Promedio por Recibo</td>
+        <td class="rfx-num">{{ number_format($ticketPromedio, 2, '.', '') }}</td>
+    </tr>
+    <tr>
+        <td class="rfx-label">Recaudaci&oacute;n Bancarizada (Transferencias/Dep&oacute;sitos)</td>
+        <td class="rfx-num">{{ number_format($totalBancos, 2, '.', '') }}</td>
+    </tr>
+    <tr>
+        <td class="rfx-label">Recaudaci&oacute;n Efectivo en Caja</td>
+        <td class="rfx-num">{{ number_format($totalEfectivo, 2, '.', '') }}</td>
+    </tr>
+    <tr><td></td></tr>
+
+    <!-- 2. Desglose por Concepto Contable -->
+    <tr>
+        <th class="rfx-seccion">2. CONCEPTO DE COBRO</th>
+        <th>Recibos</th>
+        <th class="rfx-num">Monto ($ USD)</th>
+        <th>% Participaci&oacute;n</th>
+    </tr>
+    @foreach($desgloseConceptos as $dc)
         <tr>
-            <td colspan="3">{{ $dc ? $dc['concepto'] : '' }}</td>
-            <td class="rfx-center">{{ $dc ? $dc['cantidad'] : '' }}</td>
-            <td class="rfx-num rfx-success">{{ $dc ? number_format($dc['monto'], 2, '.', '') : '' }}</td>
-            <td class="rfx-center">{{ $dc ? $dc['porcentaje'] . '%' : '' }}</td>
-
-            <td colspan="2">{{ $dm ? $dm['metodo'] : '' }}</td>
-            <td class="rfx-center">{{ $dm ? $dm['cantidad'] : '' }}</td>
-            <td class="rfx-num">{{ $dm ? number_format($dm['monto'], 2, '.', '') : '' }}</td>
-            <td colspan="{{ $esGlobal ? '2' : '1' }}" class="rfx-center">{{ $dm ? $dm['porcentaje'] . '%' : '' }}</td>
+            <td>{{ $dc['concepto'] }}</td>
+            <td class="rfx-center">{{ $dc['cantidad'] }}</td>
+            <td class="rfx-num rfx-success">{{ number_format($dc['monto'], 2, '.', '') }}</td>
+            <td class="rfx-center">{{ $dc['porcentaje'] }}%</td>
         </tr>
-    @endfor
+    @endforeach
     <tr>
-        <td class="rfx-label" colspan="3">TOTAL RECAUDADO</td>
+        <td class="rfx-label">TOTAL RECAUDADO</td>
         <td class="rfx-label rfx-center">{{ $cantidadAbonos }}</td>
         <td class="rfx-label rfx-num rfx-success">{{ number_format($totalRecaudado, 2, '.', '') }}</td>
         <td class="rfx-label rfx-center">100.0%</td>
-        <td class="rfx-label" colspan="2">TOTAL CONCILIADO</td>
+    </tr>
+    <tr><td></td></tr>
+
+    <!-- 3. Desglose por Método de Pago -->
+    <tr>
+        <th class="rfx-seccion">3. M&Eacute;TODO / CANAL DE PAGO</th>
+        <th>Recibos</th>
+        <th class="rfx-num">Monto ($ USD)</th>
+        <th>% Participaci&oacute;n</th>
+    </tr>
+    @foreach($desgloseMetodos as $dm)
+        <tr>
+            <td>{{ $dm['metodo'] }}</td>
+            <td class="rfx-center">{{ $dm['cantidad'] }}</td>
+            <td class="rfx-num">{{ number_format($dm['monto'], 2, '.', '') }}</td>
+            <td class="rfx-center">{{ $dm['porcentaje'] }}%</td>
+        </tr>
+    @endforeach
+    <tr>
+        <td class="rfx-label">TOTAL CONCILIADO</td>
         <td class="rfx-label rfx-center">{{ $cantidadAbonos }}</td>
         <td class="rfx-label rfx-num">{{ number_format($totalRecaudado, 2, '.', '') }}</td>
-        <td colspan="{{ $esGlobal ? '2' : '1' }}" class="rfx-label rfx-center">100.0%</td>
+        <td class="rfx-label rfx-center">100.0%</td>
     </tr>
-    <tr><td colspan="{{ $esGlobal ? '12' : '11' }}">&nbsp;</td></tr>
+    <tr><td></td></tr>
 
     @if(count($filasRescisiones) > 0)
-    <!-- Cédula de Rescisiones y Devoluciones -->
-    <tr><td class="rfx-seccion-danger" colspan="{{ $esGlobal ? '12' : '11' }}">3. C&Eacute;DULA DE RESCISIONES Y COMPROMISOS DE DEVOLUCI&Oacute;N CONTABLE (NO AFECTAN CAJA OPERATIVA)</td></tr>
+    <!-- 4. Registro de Rescisiones y Devoluciones Contables -->
+    <tr><td class="rfx-seccion-danger">4. REGISTRO DE RESCISIONES Y DEVOLUCIONES CONTABLES (NO AFECTAN CAJA OPERATIVA)</td></tr>
     <tr>
         <th style="background: #b91c1c;">C&oacute;digo</th>
         <th style="background: #b91c1c;">Fecha</th>
@@ -123,14 +146,17 @@
     </tr>
     @endforeach
     <tr>
-        <td class="rfx-label" colspan="{{ $esGlobal ? '11' : '10' }}">TOTAL OBLIGACI&Oacute;N DE DEVOLUCI&Oacute;N CONTABLE POR RESCISI&Oacute;N</td>
+        <td class="rfx-label">TOTAL DEVOLUCIONES POR RESCISI&Oacute;N</td>
+        @for($k = 0; $k < ($esGlobal ? 10 : 9); $k++)
+            <td class="rfx-label"></td>
+        @endfor
         <td class="rfx-label rfx-num rfx-danger">-{{ number_format($totalDevolucionesRescisiones, 2, '.', '') }}</td>
     </tr>
-    <tr><td colspan="{{ $esGlobal ? '12' : '11' }}">&nbsp;</td></tr>
+    <tr><td></td></tr>
     @endif
 
-    <!-- Detalle de Transacciones -->
-    <tr><td class="rfx-seccion" colspan="{{ $esGlobal ? '12' : '11' }}">{{ count($filasRescisiones) > 0 ? '4' : '3' }}. PLANILLA DE DETALLE DE RECAUDACI&Oacute;N Y COBRANZAS</td></tr>
+    <!-- 5. Detalle de Recaudación y Cobranzas -->
+    <tr><td class="rfx-seccion">{{ count($filasRescisiones) > 0 ? '5' : '4' }}. PLANILLA DE DETALLE DE RECAUDACI&Oacute;N Y COBRANZAS</td></tr>
     <tr>
         <th>N&deg; Recibo</th>
         <th>Fecha</th>
@@ -167,11 +193,19 @@
             <td class="rfx-num rfx-success">{{ number_format($f['monto'], 2, '.', '') }}</td>
         </tr>
     @empty
-        <tr><td colspan="{{ $esGlobal ? '13' : '12' }}">No se registraron cobros en el periodo contable seleccionado.</td></tr>
+        <tr>
+            <td>No se registraron cobros en el periodo seleccionado.</td>
+            @for($k = 0; $k < ($esGlobal ? 12 : 11); $k++)
+                <td></td>
+            @endfor
+        </tr>
     @endforelse
     @if(count($filasAbonos) > 0)
     <tr>
-        <td class="rfx-label" colspan="{{ $esGlobal ? '12' : '11' }}">TOTAL GENERAL RECAUDADO Y AUDITADO ({{ count($filasAbonos) }} OPERACIONES)</td>
+        <td class="rfx-label">TOTAL GENERAL RECAUDADO ({{ count($filasAbonos) }} RECIBOS)</td>
+        @for($k = 0; $k < ($esGlobal ? 11 : 10); $k++)
+            <td class="rfx-label"></td>
+        @endfor
         <td class="rfx-label rfx-num rfx-success">{{ number_format($totalRecaudado, 2, '.', '') }}</td>
     </tr>
     @endif

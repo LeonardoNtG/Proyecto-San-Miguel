@@ -299,7 +299,7 @@
 </table>
 @if(count($filasRescisiones) > 0)
 <div class="section-title" style="border-left-color: #dc2626; color: #dc2626;">
-    {{ $esGlobal ? '4' : '3' }}. Cédula de Rescisiones y Devoluciones Contables
+    {{ $esGlobal ? '4' : '3' }}. Registro de Rescisiones y Devoluciones Contables
 </div>
 <table class="detail-table" style="margin-bottom: 12px;">
     <thead>

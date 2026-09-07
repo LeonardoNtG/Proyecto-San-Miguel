@@ -75,7 +75,7 @@
         <a href="{{ route('reportes.financiero.excel', request()->query()) }}"
            data-rf-exportar data-rf-base="{{ route('reportes.financiero.excel') }}"
            class="btn btn-success shadow-sm px-3">
-            <i class="fas fa-file-excel me-1"></i> Exportar Cédula Excel
+            <i class="fas fa-file-excel me-1"></i> Exportar Excel
         </a>
     </div>
 </div>
@@ -393,13 +393,13 @@
 @endif
 
 {{-- ================================================= --}}
-{{-- CÉDULA DE RESCISIONES Y OBLIGACIONES CONTABLES --}}
+{{-- REGISTRO DE RESCISIONES Y OBLIGACIONES CONTABLES --}}
 {{-- ================================================= --}}
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-header py-3 bg-white d-flex flex-wrap justify-content-between align-items-center border-bottom gap-2">
         <div>
             <h5 class="m-0 font-weight-bold text-danger">
-                <i class="fas fa-undo-alt me-2"></i> Cédula de Rescisiones y Compromisos de Devolución Contable ({{ $etiquetaPeriodo }})
+                <i class="fas fa-undo-alt me-2"></i> Registro de Rescisiones y Compromisos de Devolución Contable ({{ $etiquetaPeriodo }})
             </h5>
             <small class="text-muted">
                 Registro de contratos rescindidos, lotes liberados a inventario y obligaciones contables de reintegro.
