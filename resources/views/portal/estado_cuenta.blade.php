@@ -177,6 +177,20 @@
                                 <div class="info-value text-dark fw-bold">${{ number_format($venta->cuota_mensual, 2) }} / {{ $venta->plazo_meses }} meses</div>
                             </div>
                         </div>
+                        @php
+                            $cuotasPagadasCount = $venta->cuotas->where('estado', 'Pagada')->count();
+                            $cuotasPendientesCount = $venta->cuotas->where('estado', '!=', 'Pagada')->count();
+                        @endphp
+                        <div class="row g-2 mb-3 pt-2 border-top">
+                            <div class="col-6">
+                                <div class="info-label">Cuotas Pagadas</div>
+                                <div class="info-value text-success fw-bold">{{ $cuotasPagadasCount }} pagadas</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="info-label">Hacen Falta</div>
+                                <div class="info-value text-danger fw-bold">{{ $cuotasPendientesCount }} cuotas</div>
+                            </div>
+                        </div>
                         
                         @if($venta->estado_contrato !== 'Rescindido')
                         <hr>
@@ -222,7 +236,9 @@
                         <div class="fw-bold text-primary fs-6">
                             <i class="fas fa-calendar-alt me-2"></i> Plan Completo de Cuotas y Pagos
                         </div>
-                        <span class="badge bg-primary px-3 py-2 fs-6">{{ $venta->cuotas->count() }} Cuotas</span>
+                        <span class="badge bg-primary px-3 py-2 fs-6 rounded-pill">
+                            {{ $venta->cuotas->count() }} Cuotas
+                        </span>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive" style="max-height: 540px; overflow-y: auto;">
@@ -240,19 +256,25 @@
                                 </thead>
                                 <tbody>
                                     @php
-                                        $saldoAcumulado = (float) $venta->precio_final;
+                                        $abonosOrdenados = $venta->abonos->sortBy('fecha_pago')->values();
                                     @endphp
-                                    @forelse($venta->cuotas as $cuota)
+                                    @forelse($venta->cuotas as $index => $cuota)
                                     @php
                                         $montoAbonadoMostrar = max(0, (float)$cuota->monto_total - (float)$cuota->saldo_restante);
-                                        $saldoAcumulado = max(0, $saldoAcumulado - $montoAbonadoMostrar);
                                         $moraMostrar = (float) $cuota->mora_pendiente;
                                         $estadoTexto = $cuota->estado;
+                                        $abonoCorrespondiente = ($estadoTexto === 'Pagada' || $montoAbonadoMostrar > 0) ? $abonosOrdenados->get($index) : null;
                                     @endphp
                                     <tr>
                                         <td class="text-center fw-bold text-muted">{{ $cuota->numero_cuota }}</td>
                                         <td>
                                             <span class="fw-semibold text-dark">{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</span>
+                                            @if($abonoCorrespondiente && $abonoCorrespondiente->fecha_pago)
+                                                <br><small class="text-success" style="font-size: 0.75rem;" title="Fecha en que se realizó el abono"><i class="fas fa-calendar-check me-1"></i>Abonado: {{ \Carbon\Carbon::parse($abonoCorrespondiente->fecha_pago)->format('d/m/Y') }}</small>
+                                            @endif
+                                            @if($abonoCorrespondiente && $abonoCorrespondiente->fecha_transferencia)
+                                                <br><small class="text-primary" style="font-size: 0.75rem;" title="Fecha en que se realizó la transferencia"><i class="fas fa-university me-1"></i>Transf: {{ \Carbon\Carbon::parse($abonoCorrespondiente->fecha_transferencia)->format('d/m/Y') }}</small>
+                                            @endif
                                         </td>
                                         <td>
                                             <span class="text-dark">${{ number_format($cuota->monto_total, 2) }}</span>
