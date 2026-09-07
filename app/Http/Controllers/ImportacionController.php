@@ -489,25 +489,48 @@ class ImportacionController extends Controller
             if (!is_numeric($precioBase) || $precioBase < 0)  { $errores[] = "[Lotes F{$numFila}] precio_base inválido."; continue; }
             if (!in_array($estado, self::ESTADOS_LOTE)) { $errores[] = "[Lotes F{$numFila}] estado inválido: {$estado}"; continue; }
 
-            $bloque = Bloque::withoutGlobalScope("lotificacion")->where("nombre", $nombreBloque)->where("lotificacion_id", $lotificacion->id)->first();
+            $bloque = Bloque::withoutGlobalScope("lotificacion")
+                ->where("lotificacion_id", $lotificacion->id)
+                ->where(function($q) use ($nombreBloque) {
+                    $q->where("nombre", $nombreBloque)
+                      ->orWhere("nombre", "Bloque " . $nombreBloque)
+                      ->orWhere("nombre", trim(str_ireplace("Bloque", "", $nombreBloque)));
+                })->first();
+
             if (!$bloque) {
-                if ($modo === "importar") {
-                    $bloque = Bloque::create([
-                        "nombre"          => $nombreBloque,
-                        "lotificacion_id" => $lotificacion->id,
-                        "prefijo"         => $nombreBloque,
-                    ]);
-                } else {
-                    $bloque = (object)["id_bloque" => "SIM_BLOQUE_{$nombreBloque}"];
-                }
+                $bloque = Bloque::create([
+                    "nombre"          => $nombreBloque,
+                    "lotificacion_id" => $lotificacion->id,
+                    "prefijo"         => $nombreBloque,
+                ]);
             }
 
-            if ($modo === "importar") {
-                $existe = Lote::withoutGlobalScope("lotificacion")->where("id_bloque", $bloque->id_bloque)->where("numero_lote", $numeroLote)->exists();
-                if ($existe) { $advertencias[] = "[Lotes F{$numFila}] Lote {$numeroLote}/{$nombreBloque} ya existe en '{$lotificacion->nombre}'. Omitido."; continue; }
+            $posiblesLotes = array_unique(array_filter([
+                $numeroLote,
+                ltrim($numeroLote, '0'),
+                preg_replace('/^' . preg_quote($bloque->nombre, '/') . '[\s\-_]*/i', '', $numeroLote),
+                ltrim(preg_replace('/^' . preg_quote($bloque->nombre, '/') . '[\s\-_]*/i', '', $numeroLote), '0'),
+                $bloque->nombre . '-' . $numeroLote,
+                $bloque->nombre . '-' . str_pad($numeroLote, 2, '0', STR_PAD_LEFT),
+            ]));
 
-                Lote::create(["id_bloque" => $bloque->id_bloque, "numero_lote" => $numeroLote, "area_metros" => (float)$areaMetros, "precio_base" => (float)$precioBase, "estado" => $estado]);
+            $existe = Lote::withoutGlobalScope("lotificacion")
+                ->where("id_bloque", $bloque->id_bloque)
+                ->whereIn("numero_lote", $posiblesLotes)
+                ->exists();
+
+            if ($existe) {
+                $advertencias[] = "[Lotes F{$numFila}] Lote {$numeroLote}/{$nombreBloque} ya existe en '{$lotificacion->nombre}'. Omitido.";
+                continue;
             }
+
+            Lote::create([
+                "id_bloque"   => $bloque->id_bloque,
+                "numero_lote" => $numeroLote,
+                "area_metros" => (float)$areaMetros,
+                "precio_base" => (float)$precioBase,
+                "estado"      => $estado
+            ]);
             $creados++;
         }
         return [$errores, $advertencias, $creados];
@@ -593,12 +616,6 @@ class ImportacionController extends Controller
                 }
             }
 
-            // Expediente duplicado
-            if (Cliente::withoutGlobalScope("lotificacion")->where("expediente_num", $expediente)->exists()) {
-                $errores[] = "[Contratos F{$numFila}] Expediente '{$expediente}' ya existe.";
-                continue;
-            }
-
             // Buscar o crear cliente
             if (isset($clientesCache[$identificacion])) {
                 $cliente = $clientesCache[$identificacion];
@@ -609,33 +626,59 @@ class ImportacionController extends Controller
                     $cliente = $clienteExistente;
                     $resumen["clientes_existentes"]++;
                 } else {
-                    if ($modo === "importar") {
-                        $cliente = Cliente::create([
-                            "expediente_num"    => $expediente,
-                            "nombres_apellidos" => $nombres,
-                            "identificacion"    => $identificacion,
-                            "telefono"          => $telefono ?: null,
-                            "direccion"         => $direccion ?: null,
-                            "estado_civil"      => $estadoCivil ?: null,
-                            "oficio"            => $oficio ?: null,
-                            "pv_num"            => $pvNum ?: null,
-                            "token_seguimiento" => Str::uuid()->toString(),
-                        ]);
-                    } else {
-                        $cliente = (object)["id_cliente" => "SIM_{$identificacion}", "identificacion" => $identificacion];
+                    // Verificar si el expediente ya pertenece a otro cliente
+                    $expedienteEnUso = Cliente::withoutGlobalScope("lotificacion")->where("expediente_num", $expediente)->first();
+                    if ($expedienteEnUso) {
+                        $errores[] = "[Contratos F{$numFila}] El expediente '{$expediente}' ya pertenece a otro cliente ('{$expedienteEnUso->nombres_apellidos}').";
+                        continue;
                     }
+
+                    $cliente = Cliente::create([
+                        "expediente_num"    => $expediente,
+                        "nombres_apellidos" => $nombres,
+                        "identificacion"    => $identificacion,
+                        "telefono"          => $telefono ?: null,
+                        "direccion"         => $direccion ?: null,
+                        "estado_civil"      => $estadoCivil ?: null,
+                        "oficio"            => $oficio ?: null,
+                        "pv_num"            => $pvNum ?: null,
+                        "token_seguimiento" => Str::uuid()->toString(),
+                    ]);
                     $resumen["clientes_nuevos"]++;
                 }
                 $clientesCache[$identificacion] = $cliente;
             }
 
-            // Buscar bloque y lote
-            $bloque = Bloque::withoutGlobalScope("lotificacion")->where("nombre", $nombreBloque)->where("lotificacion_id", $lotificacion->id)->first();
+            // Buscar bloque con flexibilidad de nombres
+            $bloque = Bloque::withoutGlobalScope("lotificacion")
+                ->where("lotificacion_id", $lotificacion->id)
+                ->where(function($q) use ($nombreBloque) {
+                    $q->where("nombre", $nombreBloque)
+                      ->orWhere("nombre", "Bloque " . $nombreBloque)
+                      ->orWhere("nombre", trim(str_ireplace("Bloque", "", $nombreBloque)));
+                })->first();
+
             if (!$bloque) {
                 $errores[] = "[Contratos F{$numFila}] Bloque '{$nombreBloque}' no encontrado en proyecto '{$lotificacion->nombre}'.";
                 continue;
             }
-            $lote = Lote::withoutGlobalScope("lotificacion")->where("id_bloque", $bloque->id_bloque)->where("numero_lote", $numeroLote)->first();
+
+            // Búsqueda inteligente de lote (con o sin prefijo del bloque, ej. '01', '1', 'A-01', 'A-1')
+            $posiblesLotes = array_unique(array_filter([
+                $numeroLote,
+                ltrim($numeroLote, '0'),
+                preg_replace('/^' . preg_quote($bloque->nombre, '/') . '[\s\-_]*/i', '', $numeroLote),
+                ltrim(preg_replace('/^' . preg_quote($bloque->nombre, '/') . '[\s\-_]*/i', '', $numeroLote), '0'),
+                $bloque->nombre . '-' . $numeroLote,
+                $bloque->nombre . '-' . str_pad($numeroLote, 2, '0', STR_PAD_LEFT),
+                $bloque->nombre . '-' . ltrim($numeroLote, '0'),
+            ]));
+
+            $lote = Lote::withoutGlobalScope("lotificacion")
+                ->where("id_bloque", $bloque->id_bloque)
+                ->whereIn("numero_lote", $posiblesLotes)
+                ->first();
+
             if (!$lote) {
                 $errores[] = "[Contratos F{$numFila}] Lote '{$numeroLote}' no encontrado en bloque '{$nombreBloque}'.";
                 continue;
@@ -652,55 +695,58 @@ class ImportacionController extends Controller
             }
 
             // Crear Venta
-            $ventaId = null;
-            if ($modo === "importar") {
-                $venta = Venta::create([
-                    "id_cliente"         => $cliente->id_cliente,
-                    "lotificacion_id"    => $lotificacion->id,
-                    "fecha_venta"        => $fechaVentaParsed,
-                    "precio_final"       => $precioNum,
-                    "plazo_meses"        => $plazoInt,
-                    "cuota_mensual"      => $cuotaNum,
-                    "extension_lote"     => $lote->area_metros . " m²",
-                    "estado_contrato"    => $estadoContrato,
-                    "beneficiario_final" => $beneficiario ?: null,
-                    "nota_beneficiario"  => $notaBenef ?: null,
-                ]);
-                $ventaId = $venta->id_venta;
+            $venta = Venta::create([
+                "id_cliente"         => $cliente->id_cliente,
+                "lotificacion_id"    => $lotificacion->id,
+                "fecha_venta"        => $fechaVentaParsed,
+                "precio_final"       => $precioNum,
+                "plazo_meses"        => $plazoInt,
+                "cuota_mensual"      => $cuotaNum,
+                "extension_lote"     => $lote->area_metros . " m²",
+                "estado_contrato"    => $estadoContrato,
+                "beneficiario_final" => $beneficiario ?: null,
+                "nota_beneficiario"  => $notaBenef ?: null,
+            ]);
+            $ventaId = $venta->id_venta;
 
-                // Asignar el lote a través de la tabla historial_lotes
-                HistorialLote::create([
-                    "id_lote"          => $lote->id_lote,
-                    "id_venta"         => $ventaId,
-                    "estado"           => ($estadoContrato === "Rescindido") ? "Rescindido" : "Activo",
-                    "fecha_asignacion" => $fechaVentaParsed,
-                ]);
+            // Asignar el lote a través de la tabla historial_lotes
+            HistorialLote::create([
+                "id_lote"          => $lote->id_lote,
+                "id_venta"         => $ventaId,
+                "estado"           => ($estadoContrato === "Rescindido") ? "Rescindido" : "Activo",
+                "fecha_asignacion" => $fechaVentaParsed,
+            ]);
 
-                $lote->estado = ($estadoContrato === "Rescindido") ? "Disponible" : "Vendido";
-                $lote->save();
+            $lote->estado = ($estadoContrato === "Rescindido") ? "Disponible" : "Vendido";
+            $lote->save();
 
-                if ($estadoContrato === "Vigente" && $plazoInt > 0) {
-                    $this->generarPlanCuotas($venta, $fechaVentaParsed);
-                }
-                // Prima como abono
-                if (!empty($primaPagada) && is_numeric($primaPagada) && (float)$primaPagada > 0) {
-                    $fechaPrimaParsed = $this->parsearFecha($fechaPrima) ?? $fechaVentaParsed;
-                    $datosRecibo = Abono::generarSiguienteNumeroRecibo($lotificacion->id);
-                    Abono::create([
-                        "id_venta"      => $ventaId,
-                        "fecha_pago"    => $fechaPrimaParsed,
-                        "monto_abonado" => (float)$primaPagada,
-                        "tipo_pago"     => "Prima",
-                        "metodo_pago"   => "Efectivo",
-                        "numero_recibo" => $datosRecibo["numero_recibo"],
-                        "codigo_recibo" => $datosRecibo["codigo_recibo"],
-                    ]);
-                    $resumen["pagos"]++;
-                }
+            if ($estadoContrato === "Vigente" && $plazoInt > 0) {
+                $this->generarPlanCuotas($venta, $fechaVentaParsed);
             }
 
-            $clave = strtolower("{$identificacion}_{$nombreBloque}_{$numeroLote}");
-            $mapeoVentas[$clave] = $ventaId;
+            // Prima como abono
+            if (!empty($primaPagada) && is_numeric($primaPagada) && (float)$primaPagada > 0) {
+                $fechaPrimaParsed = $this->parsearFecha($fechaPrima) ?? $fechaVentaParsed;
+                $datosRecibo = Abono::generarSiguienteNumeroRecibo($lotificacion->id);
+                Abono::create([
+                    "id_venta"      => $ventaId,
+                    "fecha_pago"    => $fechaPrimaParsed,
+                    "monto_abonado" => (float)$primaPagada,
+                    "tipo_pago"     => "Prima",
+                    "metodo_pago"   => "Efectivo",
+                    "numero_recibo" => $datosRecibo["numero_recibo"],
+                    "codigo_recibo" => $datosRecibo["codigo_recibo"],
+                ]);
+                $resumen["pagos"]++;
+            }
+
+            // Registrar clave en mapeo de ventas para los pagos
+            foreach ($posiblesLotes as $nl) {
+                $clave = strtolower("{$identificacion}_{$nombreBloque}_{$nl}");
+                $mapeoVentas[$clave] = $ventaId;
+                $claveSinBloque = strtolower("{$identificacion}_{$bloque->nombre}_{$nl}");
+                $mapeoVentas[$claveSinBloque] = $ventaId;
+            }
             $resumen["contratos"]++;
         }
 
@@ -713,7 +759,14 @@ class ImportacionController extends Controller
 
         foreach ($filas as $i => $fila) {
             $numFila        = $i + 2;
-            $identificacion = trim($fila["identificacion_cliente"] ?? "");
+            $identificacionRaw = trim($fila["identificacion_cliente"] ?? "");
+            $cleanId = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $identificacionRaw));
+            if (strlen($cleanId) === 14) {
+                $identificacion = substr($cleanId, 0, 3) . '-' . substr($cleanId, 3, 6) . '-' . substr($cleanId, 9, 5);
+            } else {
+                $identificacion = mb_strtoupper($identificacionRaw, 'UTF-8');
+            }
+
             $numeroLote     = trim($fila["numero_lote"] ?? "");
             $nombreBloque   = trim($fila["nombre_bloque"] ?? "");
             $fechaPago      = trim($fila["fecha_pago"] ?? "");
@@ -734,27 +787,41 @@ class ImportacionController extends Controller
             if (!in_array($tipoPago, self::TIPOS_PAGO)) { $advertencias[] = "[Pagos F{$numFila}] tipo_pago '{$tipoPago}' desconocido. Se usará 'Cuota'."; $tipoPago = "Cuota"; }
             if (!in_array($metodoPago, self::METODOS_PAGO)) { $advertencias[] = "[Pagos F{$numFila}] metodo_pago '{$metodoPago}' desconocido. Se usará 'Efectivo'."; $metodoPago = "Efectivo"; }
 
-            $clave = strtolower("{$identificacion}_{$nombreBloque}_{$numeroLote}");
-            if (!isset($mapeoVentas[$clave])) {
+            $posiblesLotes = array_unique(array_filter([
+                $numeroLote,
+                ltrim($numeroLote, '0'),
+                preg_replace('/^' . preg_quote($nombreBloque, '/') . '[\s\-_]*/i', '', $numeroLote),
+                ltrim(preg_replace('/^' . preg_quote($nombreBloque, '/') . '[\s\-_]*/i', '', $numeroLote), '0'),
+                $nombreBloque . '-' . $numeroLote,
+                $nombreBloque . '-' . str_pad($numeroLote, 2, '0', STR_PAD_LEFT),
+            ]));
+
+            $idVenta = null;
+            foreach ($posiblesLotes as $nl) {
+                $clave = strtolower("{$identificacion}_{$nombreBloque}_{$nl}");
+                if (isset($mapeoVentas[$clave])) {
+                    $idVenta = $mapeoVentas[$clave];
+                    break;
+                }
+            }
+
+            if (!$idVenta) {
                 $advertencias[] = "[Pagos F{$numFila}] Sin contrato para cédula='{$identificacion}', Bloque='{$nombreBloque}', Lote='{$numeroLote}'. Omitido.";
                 continue;
             }
 
-            $idVenta = $mapeoVentas[$clave];
-            if ($modo === "importar" && $idVenta) {
-                $datosRecibo = Abono::generarSiguienteNumeroRecibo($lotificacion->id);
-                Abono::create([
-                    "id_venta"       => $idVenta,
-                    "fecha_pago"     => $fechaParsed,
-                    "monto_abonado"  => (float)$monto,
-                    "tipo_pago"      => $tipoPago,
-                    "metodo_pago"    => $metodoPago,
-                    "referencia"     => $referencia ?: null,
-                    "cuenta_destino" => $cuentaDestino ?: null,
-                    "numero_recibo"  => $datosRecibo["numero_recibo"],
-                    "codigo_recibo"  => !empty($numOrig) ? $numOrig : $datosRecibo["codigo_recibo"],
-                ]);
-            }
+            $datosRecibo = Abono::generarSiguienteNumeroRecibo($lotificacion->id);
+            Abono::create([
+                "id_venta"       => $idVenta,
+                "fecha_pago"     => $fechaParsed,
+                "monto_abonado"  => (float)$monto,
+                "tipo_pago"      => $tipoPago,
+                "metodo_pago"    => $metodoPago,
+                "referencia"     => $referencia ?: null,
+                "cuenta_destino" => $cuentaDestino ?: null,
+                "numero_recibo"  => $datosRecibo["numero_recibo"],
+                "codigo_recibo"  => !empty($numOrig) ? $numOrig : $datosRecibo["codigo_recibo"],
+            ]);
             $procesados++;
         }
         return [$errores, $advertencias, $procesados];
