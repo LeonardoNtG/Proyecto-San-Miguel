@@ -1035,12 +1035,30 @@ class ImportacionController extends Controller
     private function obtenerEstilosFecha(?string $xml): array
     {
         if (!$xml) return [];
-        $ids = []; $styles = simplexml_load_string($xml);
+        $ids = []; 
+        $styles = @simplexml_load_string($xml);
         if (!$styles) return [];
-        $fechaBuiltin = array_merge(range(14, 17), [22]);
+
+        // IDs estándar de formato de fecha en OpenXML
+        $dateFmtIds = array_merge(range(14, 22), range(45, 47));
+
+        // Formatos personalizados que representen fechas (contienen d, m, y)
+        if (isset($styles->numFmts->numFmt)) {
+            foreach ($styles->numFmts->numFmt as $numFmt) {
+                $code = strtolower((string)($numFmt['formatCode'] ?? ''));
+                $id = (int)($numFmt['numFmtId'] ?? 0);
+                if ((str_contains($code, 'yy') || str_contains($code, 'dd') || str_contains($code, 'mm')) && !str_contains($code, '[red]')) {
+                    $dateFmtIds[] = $id;
+                }
+            }
+        }
+
         $xfIdx = 0;
         foreach ($styles->cellXfs->xf ?? [] as $xf) {
-            if (in_array((int)$xf["numFmtId"], $fechaBuiltin)) { $ids[] = $xfIdx; }
+            $numFmtId = (int)($xf["numFmtId"] ?? 0);
+            if (in_array($numFmtId, $dateFmtIds)) { 
+                $ids[] = $xfIdx; 
+            }
             $xfIdx++;
         }
         return $ids;
@@ -1053,8 +1071,17 @@ class ImportacionController extends Controller
 
     private function parsearFecha(string $valor): ?string
     {
+        $valor = trim($valor);
         if (empty($valor)) return null;
-        foreach (["d/m/Y", "Y-m-d", "d-m-Y", "m/d/Y", "d/m/y", "Y/m/d"] as $fmt) {
+
+        // Si Excel guardó la fecha como número de serie (ej: 46157 -> 15/05/2026)
+        if (is_numeric($valor) && (float)$valor > 1000 && (float)$valor < 100000) {
+            try {
+                return Carbon::createFromDate(1899, 12, 30)->addDays((int)$valor)->format("Y-m-d");
+            } catch (\Exception $e) {}
+        }
+
+        foreach (["d/m/Y", "Y-m-d", "d-m-Y", "m/d/Y", "d/m/y", "Y/m/d", "d.m.Y", "Y.m.d"] as $fmt) {
             try {
                 $f = Carbon::createFromFormat($fmt, $valor);
                 if ($f && $f->year > 1900 && $f->year < 2100) return $f->format("Y-m-d");
