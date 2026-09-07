@@ -178,8 +178,20 @@
                             </div>
                         </div>
                         @php
-                            $cuotasPagadasCount = $venta->cuotas->where('estado', 'Pagada')->count();
-                            $cuotasPendientesCount = $venta->cuotas->where('estado', '!=', 'Pagada')->count();
+                            $abonosOrdenados = $venta->abonos->sortBy('fecha_pago')->values();
+                            $numAbonos = $abonosOrdenados->count();
+                            $todasCuotas = $venta->cuotas->sortBy('numero_cuota')->values();
+
+                            // Las cuotas del final que se hayan liquidado por completo (Pagada) desaparecen de la lista
+                            $cuotasVisibles = $todasCuotas->filter(function($cuota, $idx) use ($numAbonos) {
+                                if ($idx >= $numAbonos && $cuota->estado === 'Pagada') {
+                                    return false;
+                                }
+                                return true;
+                            })->values();
+
+                            $cuotasPagadasCount = min($numAbonos, $cuotasVisibles->count());
+                            $cuotasPendientesCount = max(0, $cuotasVisibles->count() - $cuotasPagadasCount);
                         @endphp
                         <div class="row g-2 mb-3 pt-2 border-top">
                             <div class="col-6">
@@ -237,7 +249,7 @@
                             <i class="fas fa-calendar-alt me-2"></i> Plan Completo de Cuotas y Pagos
                         </div>
                         <span class="badge bg-primary px-3 py-2 fs-6 rounded-pill">
-                            {{ $venta->cuotas->count() }} Cuotas
+                            {{ $cuotasVisibles->count() }} Cuotas
                         </span>
                     </div>
                     <div class="card-body p-0">
@@ -255,25 +267,34 @@
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    @forelse($cuotasVisibles as $index => $cuota)
                                     @php
-                                        $abonosOrdenados = $venta->abonos->sortBy('fecha_pago')->values();
-                                    @endphp
-                                    @forelse($venta->cuotas as $index => $cuota)
-                                    @php
-                                        $montoAbonadoMostrar = max(0, (float)$cuota->monto_total - (float)$cuota->saldo_restante);
-                                        $moraMostrar = (float) $cuota->mora_pendiente;
-                                        $estadoTexto = $cuota->estado;
-                                        $abonoCorrespondiente = ($estadoTexto === 'Pagada' || $montoAbonadoMostrar > 0) ? $abonosOrdenados->get($index) : null;
+                                        $abonoCorrespondiente = ($index < $numAbonos) ? $abonosOrdenados->get($index) : null;
+                                        if ($abonoCorrespondiente) {
+                                            $montoAbonadoMostrar = (float) $abonoCorrespondiente->monto_abonado;
+                                            $saldoMostrar = 0.00;
+                                            $moraMostrar = 0.00;
+                                            $estadoTexto = 'Pagada';
+                                            $fechaAbonoMostrar = $abonoCorrespondiente->fecha_pago;
+                                            $fechaTransfMostrar = $abonoCorrespondiente->fecha_transferencia;
+                                        } else {
+                                            $montoAbonadoMostrar = 0.00;
+                                            $saldoMostrar = (float) $cuota->monto_total;
+                                            $moraMostrar = ($cuota->fecha_vencimiento < now()->format('Y-m-d')) ? (float) $cuota->mora_pendiente : 0.00;
+                                            $estadoTexto = ($cuota->fecha_vencimiento < now()->format('Y-m-d') && $moraMostrar > 0) ? 'Mora' : 'Pendiente';
+                                            $fechaAbonoMostrar = null;
+                                            $fechaTransfMostrar = null;
+                                        }
                                     @endphp
                                     <tr>
                                         <td class="text-center fw-bold text-muted">{{ $cuota->numero_cuota }}</td>
                                         <td>
                                             <span class="fw-semibold text-dark">{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</span>
-                                            @if($abonoCorrespondiente && $abonoCorrespondiente->fecha_pago)
-                                                <br><small class="text-success" style="font-size: 0.75rem;" title="Fecha en que se realizó el abono"><i class="fas fa-calendar-check me-1"></i>Abonado: {{ \Carbon\Carbon::parse($abonoCorrespondiente->fecha_pago)->format('d/m/Y') }}</small>
+                                            @if($fechaAbonoMostrar)
+                                                <br><small class="text-success" style="font-size: 0.75rem;" title="Fecha en que se realizó el abono"><i class="fas fa-calendar-check me-1"></i>Abonado: {{ \Carbon\Carbon::parse($fechaAbonoMostrar)->format('d/m/Y') }}</small>
                                             @endif
-                                            @if($abonoCorrespondiente && $abonoCorrespondiente->fecha_transferencia)
-                                                <br><small class="text-primary" style="font-size: 0.75rem;" title="Fecha en que se realizó la transferencia"><i class="fas fa-university me-1"></i>Transf: {{ \Carbon\Carbon::parse($abonoCorrespondiente->fecha_transferencia)->format('d/m/Y') }}</small>
+                                            @if($fechaTransfMostrar)
+                                                <br><small class="text-primary" style="font-size: 0.75rem;" title="Fecha en que se realizó la transferencia"><i class="fas fa-university me-1"></i>Transf: {{ \Carbon\Carbon::parse($fechaTransfMostrar)->format('d/m/Y') }}</small>
                                             @endif
                                         </td>
                                         <td>
@@ -287,7 +308,7 @@
                                             @endif
                                         </td>
                                         <td>
-                                            <strong class="text-dark">${{ number_format($cuota->saldo_restante, 2) }}</strong>
+                                            <strong class="text-dark">${{ number_format($saldoMostrar, 2) }}</strong>
                                         </td>
                                         <td>
                                             @if($moraMostrar > 0)
@@ -301,8 +322,6 @@
                                                 <span class="badge bg-success px-2 py-1"><i class="fas fa-check me-1"></i>Pagada</span>
                                             @elseif($estadoTexto === 'Mora')
                                                 <span class="badge bg-danger px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>En Mora</span>
-                                            @elseif($estadoTexto === 'Parcial')
-                                                <span class="badge bg-info text-white px-2 py-1"><i class="fas fa-adjust me-1"></i>Parcial</span>
                                             @else
                                                 <span class="badge bg-warning text-dark px-2 py-1">Pendiente</span>
                                             @endif
