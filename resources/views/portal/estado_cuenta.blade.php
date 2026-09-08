@@ -199,20 +199,72 @@
                             </div>
                         </div>
                         @php
-                            $abonosOrdenados = $venta->abonos->sortBy('fecha_pago')->values();
-                            $numAbonos = $abonosOrdenados->count();
                             $todasCuotas = $venta->cuotas->sortBy('numero_cuota')->values();
+                            $abonosPool = $venta->abonos->sortBy('fecha_pago')->values();
 
-                            // Las cuotas del final que se hayan liquidado por completo (Pagada) desaparecen de la lista
-                            $cuotasVisibles = $todasCuotas->filter(function($cuota, $idx) use ($numAbonos) {
-                                if ($idx >= $numAbonos && $cuota->estado === 'Pagada') {
-                                    return false;
+                            $abonoIdx = 0;
+                            $abonoActual = ($abonoIdx < $abonosPool->count()) ? $abonosPool[$abonoIdx] : null;
+                            $montoAbonoRemanente = $abonoActual ? (float)$abonoActual->monto_abonado : 0;
+
+                            $cuotasProcesadas = [];
+                            $saldoAcumulado = (float)$venta->precio_final;
+                            $cuotasPagadasCount = 0;
+
+                            foreach ($todasCuotas as $cuota) {
+                                $montoCuota = (float)$cuota->monto_total;
+                                $saldoRestante = (float)$cuota->saldo_restante;
+                                $montoPagadoCuota = max(0, $montoCuota - $saldoRestante);
+
+                                $fechaAbono = null;
+                                $fechaTransf = null;
+
+                                if ($montoPagadoCuota > 0) {
+                                    if ($saldoRestante <= 0) {
+                                        $cuotasPagadasCount++;
+                                    }
+
+                                    if ($abonoActual) {
+                                        $fechaAbono = $abonoActual->fecha_pago;
+                                        $fechaTransf = $abonoActual->fecha_transferencia;
+
+                                        $montoAbonoRemanente -= $montoPagadoCuota;
+                                        while ($montoAbonoRemanente <= 0.001 && $abonoIdx + 1 < $abonosPool->count()) {
+                                            $abonoIdx++;
+                                            $abonoActual = $abonosPool[$abonoIdx];
+                                            $montoAbonoRemanente += (float)$abonoActual->monto_abonado;
+                                        }
+                                    }
                                 }
-                                return true;
-                            })->values();
 
-                            $cuotasPagadasCount = min($numAbonos, $cuotasVisibles->count());
-                            $cuotasPendientesCount = max(0, $cuotasVisibles->count() - $cuotasPagadasCount);
+                                $saldoAcumulado = max(0, $saldoAcumulado - $montoCuota);
+
+                                $estado = $cuota->estado;
+                                if ($saldoRestante <= 0) {
+                                    $estado = 'Pagada';
+                                } elseif ($cuota->fecha_vencimiento < now()->format('Y-m-d') && $cuota->mora_pendiente > 0) {
+                                    $estado = 'Mora';
+                                } elseif ($saldoRestante < $montoCuota) {
+                                    $estado = 'Parcial';
+                                } else {
+                                    $estado = 'Pendiente';
+                                }
+
+                                $cuotasProcesadas[] = (object)[
+                                    'id_cuota' => $cuota->id_cuota,
+                                    'numero_cuota' => $cuota->numero_cuota,
+                                    'fecha_vencimiento' => $cuota->fecha_vencimiento,
+                                    'monto_total' => $montoCuota,
+                                    'monto_abonado' => $montoPagadoCuota,
+                                    'saldo_acumulado' => $saldoAcumulado,
+                                    'mora' => ($estado === 'Mora') ? (float)$cuota->mora_pendiente : 0.00,
+                                    'estado' => $estado,
+                                    'fecha_abono' => $fechaAbono,
+                                    'fecha_transferencia' => $fechaTransf,
+                                ];
+                            }
+
+                            $totalCuotas = count($cuotasProcesadas);
+                            $cuotasPendientesCount = max(0, $totalCuotas - $cuotasPagadasCount);
                         @endphp
                         <div class="row g-2 mb-3 pt-2 border-top">
                             <div class="col-6">
@@ -244,7 +296,7 @@
                             <i class="fas fa-calendar-alt me-2"></i> Plan Completo de Cuotas y Pagos
                         </div>
                         <span class="badge bg-primary px-3 py-2 fs-6 rounded-pill">
-                            {{ $cuotasVisibles->count() }} Cuotas
+                            {{ $totalCuotas }} Cuotas
                         </span>
                     </div>
                     <div class="card-body p-0">
@@ -262,66 +314,45 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @php
-                                        $saldoAcumulado = (float) $venta->precio_final;
-                                    @endphp
-                                    @forelse($cuotasVisibles as $index => $cuota)
-                                    @php
-                                        $abonoCorrespondiente = ($index < $numAbonos) ? $abonosOrdenados->get($index) : null;
-                                        if ($abonoCorrespondiente) {
-                                            $montoAbonadoMostrar = (float) $abonoCorrespondiente->monto_abonado;
-                                            $saldoAcumulado = max(0, $saldoAcumulado - $montoAbonadoMostrar);
-                                            $saldoMostrar = $saldoAcumulado;
-                                            $moraMostrar = 0.00;
-                                            $estadoTexto = 'Pagada';
-                                            $fechaAbonoMostrar = $abonoCorrespondiente->fecha_pago;
-                                            $fechaTransfMostrar = $abonoCorrespondiente->fecha_transferencia;
-                                        } else {
-                                            $montoAbonadoMostrar = 0.00;
-                                            $saldoAcumulado = max(0, $saldoAcumulado - (float) $cuota->monto_total);
-                                            $saldoMostrar = $saldoAcumulado;
-                                            $moraMostrar = ($cuota->fecha_vencimiento < now()->format('Y-m-d')) ? (float) $cuota->mora_pendiente : 0.00;
-                                            $estadoTexto = ($cuota->fecha_vencimiento < now()->format('Y-m-d') && $moraMostrar > 0) ? 'Mora' : 'Pendiente';
-                                            $fechaAbonoMostrar = null;
-                                            $fechaTransfMostrar = null;
-                                        }
-                                    @endphp
+                                    @forelse($cuotasProcesadas as $cuota)
                                     <tr>
                                         <td class="text-center fw-bold text-muted">{{ $cuota->numero_cuota }}</td>
                                         <td>
                                             <span class="fw-semibold text-dark">{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</span>
-                                            @if($fechaAbonoMostrar)
-                                                <br><small class="text-success" style="font-size: 0.75rem;" title="Fecha en que se realizó el abono"><i class="fas fa-calendar-check me-1"></i>Abonado: {{ \Carbon\Carbon::parse($fechaAbonoMostrar)->format('d/m/Y') }}</small>
+                                            @if($cuota->fecha_abono)
+                                                <br><small class="text-success" style="font-size: 0.75rem;" title="Fecha en que se realizó el abono"><i class="fas fa-calendar-check me-1"></i>Abonado: {{ \Carbon\Carbon::parse($cuota->fecha_abono)->format('d/m/Y') }}</small>
                                             @endif
-                                            @if($fechaTransfMostrar)
-                                                <br><small class="text-primary" style="font-size: 0.75rem;" title="Fecha en que se realizó la transferencia"><i class="fas fa-university me-1"></i>Transf: {{ \Carbon\Carbon::parse($fechaTransfMostrar)->format('d/m/Y') }}</small>
+                                            @if($cuota->fecha_transferencia)
+                                                <br><small class="text-primary" style="font-size: 0.75rem;" title="Fecha en que se realizó la transferencia"><i class="fas fa-university me-1"></i>Transf: {{ \Carbon\Carbon::parse($cuota->fecha_transferencia)->format('d/m/Y') }}</small>
                                             @endif
                                         </td>
                                         <td>
                                             <span class="text-dark">${{ number_format($cuota->monto_total, 2) }}</span>
                                         </td>
                                         <td>
-                                            @if($montoAbonadoMostrar > 0)
-                                                <span class="text-success fw-bold fs-6">${{ number_format($montoAbonadoMostrar, 2) }}</span>
+                                            @if($cuota->monto_abonado > 0)
+                                                <span class="text-success fw-bold fs-6">${{ number_format($cuota->monto_abonado, 2) }}</span>
                                             @else
                                                 <span class="text-muted">$0.00</span>
                                             @endif
                                         </td>
                                         <td>
-                                            <strong class="text-dark">${{ number_format($saldoMostrar, 2) }}</strong>
+                                            <strong class="text-dark">${{ number_format($cuota->saldo_acumulado, 2) }}</strong>
                                         </td>
                                         <td>
-                                            @if($moraMostrar > 0)
-                                                <span class="text-danger fw-bold">${{ number_format($moraMostrar, 2) }}</span>
+                                            @if($cuota->mora > 0)
+                                                <span class="text-danger fw-bold">${{ number_format($cuota->mora, 2) }}</span>
                                             @else
                                                 <span class="text-muted">$0.00</span>
                                             @endif
                                         </td>
                                         <td>
-                                            @if($estadoTexto === 'Pagada')
+                                            @if($cuota->estado === 'Pagada')
                                                 <span class="badge bg-success px-2 py-1"><i class="fas fa-check me-1"></i>Pagada</span>
-                                            @elseif($estadoTexto === 'Mora')
+                                            @elseif($cuota->estado === 'Mora')
                                                 <span class="badge bg-danger px-2 py-1"><i class="fas fa-exclamation-triangle me-1"></i>En Mora</span>
+                                            @elseif($cuota->estado === 'Parcial')
+                                                <span class="badge bg-info text-dark px-2 py-1">Parcial</span>
                                             @else
                                                 <span class="badge bg-warning text-dark px-2 py-1">Pendiente</span>
                                             @endif
