@@ -664,9 +664,11 @@ class ReporteController extends Controller
         $inicioTurno = $apertura ? $apertura->created_at : $cierre->created_at->startOfDay();
         $finTurno = $cierre->created_at;
 
+        $fechaCierre = Carbon::parse($cierre->fecha)->format('Y-m-d');
         $abonos = \App\Models\Abono::with(['venta.cliente', 'venta.lotes.bloque'])
             ->where('user_id', $cierre->user_id)
             ->whereBetween('created_at', [$inicioTurno, $finTurno])
+            ->whereDate('fecha_pago', $fechaCierre)
             ->get();
 
         $salidas = \App\Models\Salida::where('user_id', $cierre->user_id)
@@ -899,12 +901,9 @@ class ReporteController extends Controller
                 ->orderBy('created_at', 'asc')
                 ->get();
 
-            // Abonos registrados en la fecha por este usuario
+            // Abonos registrados para la fecha por este usuario (filtrado por fecha de pago real para no mezclar migración histórica)
             $abonosDia = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
-                ->where(function($q) use ($fecha) {
-                    $q->whereDate('created_at', $fecha)
-                      ->orWhereDate('fecha_pago', $fecha);
-                })
+                ->whereDate('fecha_pago', $fecha)
                 ->where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -941,6 +940,7 @@ class ReporteController extends Controller
                 $abonosTurno = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
                     ->where('user_id', $user->id)
                     ->where('created_at', '>=', $ultimaApertura->created_at)
+                    ->whereDate('fecha_pago', $fecha)
                     ->orderBy('created_at', 'desc')
                     ->get();
 

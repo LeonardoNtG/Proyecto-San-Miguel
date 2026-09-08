@@ -22,12 +22,9 @@ class ReportesController extends Controller
         }
         $usuarioSeleccionado = \App\Models\User::find($userId) ?? auth()->user();
 
-        // Obtener abonos del día, con sus relaciones (venta, cliente, lotes, bloque)
+        // Obtener abonos de la fecha seleccionada (por fecha de pago real, para no afectar cierres con recibos de migración histórica)
         $abonos = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
-            ->where(function($q) use ($fecha) {
-                $q->whereDate('created_at', $fecha)
-                  ->orWhereDate('fecha_pago', $fecha);
-            })
+            ->whereDate('fecha_pago', $fecha)
             ->where('user_id', $userId)
             ->get();
 
@@ -66,12 +63,9 @@ class ReportesController extends Controller
         }
         $usuarioObj = \App\Models\User::find($userId) ?? auth()->user();
 
-        // 1. Obtener abonos de la fecha (por fecha de registro o fecha de pago)
+        // 1. Obtener abonos de la fecha por fecha de pago real (evita que recibos históricos de migración afecten el cierre de hoy)
         $abonos = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
-            ->where(function($q) use ($fecha) {
-                $q->whereDate('created_at', $fecha)
-                  ->orWhereDate('fecha_pago', $fecha);
-            })
+            ->whereDate('fecha_pago', $fecha)
             ->where('user_id', $userId)
             ->get();
 
