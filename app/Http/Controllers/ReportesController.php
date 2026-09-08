@@ -88,7 +88,7 @@ class ReportesController extends Controller
         $saldoInicial = $apertura ? (float)$apertura->monto_inicial : 0.0;
 
         $abonosEfectivo = [];
-        $abonosTransferencia = [];
+        $rawTransferencias = [];
         $totalEfectivo = 0.0;
         $totalTransferencias = 0.0;
 
@@ -96,39 +96,81 @@ class ReportesController extends Controller
             $cliente = $abono->venta && $abono->venta->cliente ? $abono->venta->cliente->nombres_apellidos : 'Cliente Desconocido';
             $lotes = '';
             $bloques = '';
+            $lotesBloquesTexto = '';
             if ($abono->venta) {
                 $lotesArr = [];
                 $bloquesArr = [];
+                $lbArr = [];
                 foreach ($abono->venta->lotes as $lote) {
                     $lotesArr[] = $lote->numero_lote;
-                    if ($lote->bloque) {
-                        $bloquesArr[] = $lote->bloque->nombre;
+                    $bNombre = $lote->bloque ? $lote->bloque->nombre : '';
+                    if ($bNombre) {
+                        $bloquesArr[] = $bNombre;
+                        $lbArr[] = "Lote {$lote->numero_lote} (Bl. {$bNombre})";
+                    } else {
+                        $lbArr[] = "Lote {$lote->numero_lote}";
                     }
                 }
                 $lotes = implode(', ', array_unique($lotesArr));
                 $bloques = implode(', ', array_unique($bloquesArr));
+                $lotesBloquesTexto = implode(', ', array_unique($lbArr));
             }
 
             $item = [
+                'id_abono' => $abono->id_abono,
                 'cliente' => $cliente,
                 'lotes' => $lotes,
                 'bloques' => $bloques,
-                'monto' => $abono->monto_abonado,
+                'lotes_texto' => $lotesBloquesTexto ?: "Lote {$lotes}",
+                'monto' => (float) $abono->monto_abonado,
                 'hora' => $abono->created_at ? $abono->created_at->format('h:i a') : '-',
                 'fecha_hora_registro' => $abono->created_at ? $abono->created_at->format('d/m/Y h:i a') : \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y'),
                 'fecha_transferencia' => $abono->fecha_transferencia ? \Carbon\Carbon::parse($abono->fecha_transferencia)->format('d/m/Y') : \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y'),
                 'referencia' => $abono->referencia ?? 'N/A',
                 'metodo_pago' => $abono->metodo_pago,
                 'cuenta_destino' => $abono->cuenta_destino ?? 'N/A',
+                'grupo_recibo' => $abono->grupo_recibo ?? null,
             ];
 
             if ($abono->metodo_pago === 'Efectivo') {
                 $abonosEfectivo[] = $item;
-                $totalEfectivo += $abono->monto_abonado;
+                $totalEfectivo += $item['monto'];
             } else {
-                $abonosTransferencia[] = $item;
-                $totalTransferencias += $abono->monto_abonado;
+                $rawTransferencias[] = $item;
+                $totalTransferencias += $item['monto'];
             }
+        }
+
+        // Agrupar transferencias de la misma transacción bancaria (mismo cliente y misma referencia o grupo_recibo)
+        $abonosTransferencia = [];
+        $gruposTransf = [];
+
+        foreach ($rawTransferencias as $item) {
+            $refKey = trim((string)$item['referencia']);
+            $hasValidRef = !empty($refKey) && $refKey !== 'N/A' && $refKey !== 'null';
+
+            if (!empty($item['grupo_recibo'])) {
+                $key = 'GRUPO_' . $item['grupo_recibo'];
+            } elseif ($hasValidRef) {
+                $key = 'REF_' . md5(mb_strtolower($item['cliente']) . '_' . mb_strtolower($refKey) . '_' . mb_strtolower($item['cuenta_destino']));
+            } else {
+                $key = 'SINGLE_' . $item['id_abono'];
+            }
+
+            if (!isset($gruposTransf[$key])) {
+                $gruposTransf[$key] = $item;
+                $gruposTransf[$key]['lotes_lista'] = [$item['lotes_texto']];
+            } else {
+                $gruposTransf[$key]['monto'] += $item['monto'];
+                if (!in_array($item['lotes_texto'], $gruposTransf[$key]['lotes_lista'])) {
+                    $gruposTransf[$key]['lotes_lista'][] = $item['lotes_texto'];
+                }
+            }
+        }
+
+        foreach ($gruposTransf as $g) {
+            $g['lotes_texto'] = implode(', ', $g['lotes_lista']);
+            $abonosTransferencia[] = $g;
         }
 
         // Salidas
