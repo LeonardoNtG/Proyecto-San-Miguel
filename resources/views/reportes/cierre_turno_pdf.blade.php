@@ -227,7 +227,7 @@
         <thead>
             <tr>
                 <th>Nombre del Cliente</th>
-                <th>Lote / Bloque</th>
+                <th>Lote(s)</th>
                 <th class="num-col">Abonado</th>
                 <th>F. Transf.</th>
                 <th>F/Hora Registro</th>
@@ -239,7 +239,7 @@
             @forelse($abonosTransferencia as $abono)
             <tr>
                 <td>{{ $abono['cliente'] }}</td>
-                <td>{{ $abono['lotes_texto'] ?? ('Lote ' . $abono['lotes'] . ' (Bl. ' . $abono['bloques'] . ')') }}</td>
+                <td>{{ $abono['lotes_texto'] ?? ('Lote ' . $abono['lotes']) }}</td>
                 <td class="num-col">{{ number_format($abono['monto'], 2) }}</td>
                 <td style="font-weight:bold; color:#1c3666;">{{ $abono['fecha_transferencia'] }}</td>
                 <td>{{ $abono['fecha_hora_registro'] }}</td>

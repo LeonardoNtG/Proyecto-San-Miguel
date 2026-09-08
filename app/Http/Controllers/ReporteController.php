@@ -689,13 +689,10 @@ class ReporteController extends Controller
                 $lbArr = [];
                 foreach ($abono->venta->lotes as $lote) {
                     $lotesArr[] = $lote->numero_lote;
-                    $bNombre = $lote->bloque ? $lote->bloque->nombre : '';
-                    if ($bNombre) {
-                        $bloquesArr[] = $bNombre;
-                        $lbArr[] = "Lote {$lote->numero_lote} (Bl. {$bNombre})";
-                    } else {
-                        $lbArr[] = "Lote {$lote->numero_lote}";
+                    if ($lote->bloque) {
+                        $bloquesArr[] = $lote->bloque->nombre;
                     }
+                    $lbArr[] = "Lote {$lote->numero_lote}";
                 }
                 $lotes = implode(', ', array_unique($lotesArr));
                 $bloques = implode(', ', array_unique($bloquesArr));
