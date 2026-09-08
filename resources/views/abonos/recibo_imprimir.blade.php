@@ -34,13 +34,14 @@
 
         .page-container {
             width: 100%;
+            max-width: 1050px;
             display: flex;
             flex-direction: row;
             justify-content: center;
             align-items: stretch;
-            gap: 8px;
+            gap: 12px;
             background-color: transparent;
-            margin: auto 0;
+            margin: auto;
         }
 
         .receipt-card {
@@ -66,6 +67,7 @@
             /* FORMATO RECIBO ÚNICO (100% DEL ESPACIO) */
             .page-container {
                 display: block;
+                max-width: 750px;
                 padding: 4mm 0 0 0;
             }
             .receipt-card-left {
@@ -250,52 +252,55 @@
 
         .row .value {
             flex-grow: 1;
-            border-bottom: 1px solid #333;
+            border-bottom: 1.5px solid #1A237E;
+            padding-bottom: 1px;
             color: black;
-            padding-left: 4px;
-            font-size: 11px;
+            font-weight: 900;
+            text-transform: uppercase;
         }
         
         .receipt-card-right .row .value {
             font-size: 11px;
         }
 
-        /* Small details row */
+        /* Details */
         .details-row {
-            font-size: 8.5px;
+            font-size: 9.5px;
             color: black;
             font-weight: bold;
             margin-bottom: 5px;
-            margin-left: 2px;
+            display: flex;
+            justify-content: flex-start;
+            gap: 15px;
         }
 
         .receipt-card-right .details-row {
-            font-size: 8.5px;
+            font-size: 9.5px;
         }
-        
-        /* Date Row */
+
+        /* Date line */
         .date-row {
             display: flex;
-            align-items: baseline;
-            margin-top: 5px;
-            margin-bottom: 5px;
-            font-size: 10.5px;
+            align-items: center;
+            font-size: 11px;
             color: #1A237E;
             font-weight: bold;
+            margin-top: 6px;
+            margin-bottom: 6px;
         }
 
         .receipt-card-right .date-row {
-            font-size: 10.5px;
+            font-size: 11px;
         }
 
         .date-input {
-            border-bottom: 1px solid #333;
-            color: black;
-            display: inline-block;
-            text-align: center;
+            border-bottom: 1.5px solid #1A237E;
             min-width: 25px;
+            text-align: center;
+            display: inline-block;
             margin: 0 4px;
-            font-size: 11px;
+            color: black;
+            font-weight: 900;
         }
 
         .date-input.month {
@@ -371,6 +376,7 @@
             }
             .page-container {
                 width: 100% !important;
+                max-width: none !important;
                 padding: 0 !important;
                 gap: 8px !important;
                 justify-content: center !important;
@@ -536,10 +542,10 @@
             </div>
             <div class="amount-boxes-container">
                 <div class="amount-box">
-                    C$: <div class="amount-input"></div>
+                    POR C$: <div class="amount-input"></div>
                 </div>
                 <div class="amount-box">
-                    U$: <div class="amount-input">{{ isset($modoProvisional) && $modoProvisional ? (isset($montoManual) && $montoManual ? number_format($montoManual, 2) : '') : number_format($pago->monto_abonado, 2) }}</div>
+                    POR U$: <div class="amount-input">{{ isset($modoProvisional) && $modoProvisional ? (isset($montoManual) && $montoManual ? number_format($montoManual, 2) : '') : number_format($pago->monto_abonado, 2) }}</div>
                 </div>
             </div>
         </div>
@@ -570,7 +576,7 @@
         @endif
 
         <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
-            Monto: U$ {{ number_format($valor_total, 2) }}. Saldo: U$ {{ number_format($saldo_pendiente, 2) }}.
+            Monto: U$ {{ number_format($valor_total, 2) }}. Abonado: U$ {{ number_format($total_abonado, 2) }}. Saldo: U$ {{ number_format($saldo_pendiente, 2) }}.
         </div>
 
         <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
@@ -580,7 +586,7 @@
         <div class="date-row">
             A los 
             <div class="date-input">{{ date('d', strtotime($pago->fecha_pago)) }}</div> 
-            de 
+            dias del mes de 
             <div class="date-input month">{{ ucfirst(\Carbon\Carbon::parse($pago->fecha_pago)->locale('es')->monthName) }}</div> 
             del 
             <div class="date-input year">{{ date('Y', strtotime($pago->fecha_pago)) }}</div>
