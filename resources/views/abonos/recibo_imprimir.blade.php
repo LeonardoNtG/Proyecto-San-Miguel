@@ -461,11 +461,11 @@
         @endif
 
         <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
-            Total: ${{ number_format($valor_total, 2) }} | Abonado: ${{ number_format($total_abonado, 2) }} | Saldo Actual: ${{ number_format($saldo_pendiente, 2) }}
+            Monto: U$ {{ number_format($valor_total, 2) }}. Abonado: U$ {{ number_format($total_abonado, 2) }}. Saldo: U$ {{ number_format($saldo_pendiente, 2) }}.
         </div>
 
         <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
-            Cuota: ${{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes | Plazo: {{ $venta->plazo_meses ?? 0 }} Meses | Cuotas Pendientes: {{ $abonos_faltantes }}
+            Cuota: U$ {{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes. Plazo: {{ $venta->plazo_meses ?? 0 }} Meses. Cuotas Pendientes: {{ $abonos_faltantes }}.
         </div>
 
         <div class="date-row">
@@ -570,11 +570,11 @@
         @endif
 
         <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
-            Total: ${{ number_format($valor_total, 2) }} | Saldo Actual: ${{ number_format($saldo_pendiente, 2) }}
+            Monto: U$ {{ number_format($valor_total, 2) }}. Saldo: U$ {{ number_format($saldo_pendiente, 2) }}.
         </div>
 
         <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
-            Cuota: ${{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes | Plazo: {{ $venta->plazo_meses ?? 0 }} Meses | Cuotas Pendientes: {{ $abonos_faltantes }}
+            Cuota: U$ {{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes. Plazo: {{ $venta->plazo_meses ?? 0 }} Meses. Cuotas Pendientes: {{ $abonos_faltantes }}.
         </div>
 
         <div class="date-row">
