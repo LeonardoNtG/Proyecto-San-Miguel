@@ -61,10 +61,6 @@
                 </a>
                 @endif
                 
-                <a href="{{ route('abonos.auditoria', ['search' => $cliente->expediente_num]) }}" class="btn btn-outline-success" title="Ver todos los recibos firmados de este cliente">
-                    <i class="fas fa-file-signature"></i> Recibos Firmados
-                </a>
-                
                 @if($cliente->token_seguimiento)
                 <a href="{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}" target="_blank" class="btn btn-primary" title="Abrir portal del cliente">
                     <i class="fas fa-external-link-alt"></i> Portal
@@ -79,12 +75,6 @@
                     <i class="fas fa-ban"></i> Rescindir Venta
                 </button>
                 @endif
-    
-                @can('borrar-clientes')
-                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
-                    <i class="fas fa-trash"></i> Eliminar Cliente
-                </button>
-                @endcan
             </div>
         </div>
     </div>
@@ -266,9 +256,6 @@
                     <span class="badge bg-warning text-dark fw-bold me-2 shadow-sm">
                         Deuda: ${{ number_format(max(0, $venta->precio_final - $venta->total_abonado), 2) }}
                     </span>
-                    <button type="button" class="btn btn-sm btn-warning text-dark fw-bold shadow-sm py-1 px-2" data-bs-toggle="modal" data-bs-target="#modalReciboProvisional" onclick="event.stopPropagation();" title="Generar e imprimir un recibo en blanco o con datos manuales (oculta cálculos financieros y QR)">
-                        <i class="fas fa-file-invoice text-dark me-1"></i> Recibo Provisional
-                    </button>
                     <span class="btn btn-sm btn-outline-light ms-2 px-2 py-1">
                         <i class="fas fa-chevron-up" id="chevronAbonos"></i>
                     </span>
