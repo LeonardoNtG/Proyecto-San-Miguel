@@ -661,25 +661,13 @@ class AbonoController extends Controller
 
         $montoTotalAbono = (float) $abonos->sum('monto_abonado');
 
-        // Si los contratos son simétricos/iguales, mostrar la deuda y cuota unitaria representativa
-        $primeraVenta = $ventas->first();
-        $sonPreciosIguales = $primeraVenta ? $ventas->every(fn($v) => (float)$v->precio_final === (float)$primeraVenta->precio_final) : false;
-
-        if ($sonPreciosIguales && $primeraVenta) {
-            $valor_total = (float) $primeraVenta->precio_final;
-            $total_abonado = (float) \App\Models\Abono::withoutGlobalScope('lotificacion')
-                ->where('id_venta', $primeraVenta->id_venta)
-                ->sum('monto_abonado');
-            $saldo_pendiente = max(0, $valor_total - $total_abonado);
-            $cuota_mensual_total = (float) $primeraVenta->cuota_mensual;
-        } else {
-            $valor_total = (float) $ventas->sum('precio_final');
-            $total_abonado = (float) \App\Models\Abono::withoutGlobalScope('lotificacion')
-                ->whereIn('id_venta', $ventas->pluck('id_venta'))
-                ->sum('monto_abonado');
-            $saldo_pendiente = max(0, $valor_total - $total_abonado);
-            $cuota_mensual_total = (float) $ventas->sum('cuota_mensual');
-        }
+        // Totales combinados y proporcionales de todos los lotes involucrados en el recibo
+        $valor_total = (float) $ventas->sum('precio_final');
+        $total_abonado = (float) \App\Models\Abono::withoutGlobalScope('lotificacion')
+            ->whereIn('id_venta', $ventas->pluck('id_venta'))
+            ->sum('monto_abonado');
+        $saldo_pendiente = max(0, $valor_total - $total_abonado);
+        $cuota_mensual_total = (float) $ventas->sum('cuota_mensual');
 
         $plazo_meses = (int) ($ventas->max('plazo_meses') ?? 60);
 
