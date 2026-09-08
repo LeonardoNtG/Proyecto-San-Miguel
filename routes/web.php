@@ -32,16 +32,16 @@ Route::get('/', function () {
 });
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->name('login.post')->middleware('throttle:5,1');
+Route::post('/login', [AuthController::class, 'login'])->name('login.post')->middleware('throttle:30,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Portal del Cliente (Público con protección de fuerza bruta / saturación)
 Route::get('/mi-estado/{token}', [PortalClienteController::class, 'show'])
     ->name('portal.estado_cuenta')
-    ->middleware('throttle:30,1');
+    ->middleware('throttle:120,1');
 Route::get('/mi-estado/{token}/recibo/{abono_id}', [PortalClienteController::class, 'imprimirRecibo'])
     ->name('portal.recibo.imprimir')
-    ->middleware('throttle:30,1');
+    ->middleware('throttle:120,1');
 
 // =========================================================================
 // RUTAS AUTENTICADAS
