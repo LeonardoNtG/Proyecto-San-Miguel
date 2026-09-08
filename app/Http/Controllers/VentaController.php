@@ -141,34 +141,8 @@ class VentaController extends Controller
 
                 // Regenerar plan de cuotas y recalcular
                 Cuota::where('id_venta', $venta->id_venta)->delete();
-                $fechaVencimiento = \Carbon\Carbon::parse($venta->fecha_venta ?? now());
-                $primerAbono = Abono::where('id_venta', $venta->id_venta)->where('monto_abonado', '>', 0)->orderBy('fecha_pago', 'asc')->first();
-                if ($primerAbono) {
-                    $fechaVencimiento = \Carbon\Carbon::parse($primerAbono->fecha_pago);
-                }
-
-                $saldoRestante = $venta->precio_final;
-                $cuotaMensual = $venta->cuota_mensual;
-                $plazoRestante = $venta->plazo_meses;
-
-                if ($plazoRestante > 0 && $saldoRestante > 0) {
-                    for ($i = 1; $i <= $plazoRestante; $i++) {
-                        $fechaVencimiento->addMonth();
-                        $montoCuota = max(0, ($i == $plazoRestante) ? $saldoRestante : $cuotaMensual);
-                        Cuota::create([
-                            'id_venta'          => $venta->id_venta,
-                            'numero_cuota'      => $i,
-                            'fecha_vencimiento' => $fechaVencimiento->format('Y-m-d'),
-                            'monto_total'       => $montoCuota,
-                            'capital'           => $montoCuota,
-                            'interes'           => 0,
-                            'saldo_restante'    => $montoCuota,
-                            'estado'            => 'Pendiente',
-                        ]);
-                        $saldoRestante = max(0, $saldoRestante - $montoCuota);
-                    }
-                }
-
+                $fechaBase = $venta->fecha_venta ?: now()->format('Y-m-d');
+                \App\Http\Controllers\ClienteController::generarPlanCuotas($venta, $fechaBase);
                 AbonoController::recalcularCuotas($venta->id_venta);
 
                 $mensaje = "Rescisión parcial completada. Los lotes ({$lotesRescindidosNombres}) han sido liberados (Disponible) y el plan de pagos del lote conservado fue actualizado.";

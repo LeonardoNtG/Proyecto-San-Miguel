@@ -834,11 +834,20 @@ class ImportacionController extends Controller
         $plazo = $venta->plazo_meses;
         $cuota = $venta->cuota_mensual;
         $saldo = $venta->precio_final;
-        $fecha = Carbon::parse($fechaInicio);
+        $fechaInicial = Carbon::parse($fechaInicio);
         for ($i = 1; $i <= $plazo; $i++) {
-            $fecha->addMonth();
+            $fechaVencimiento = (clone $fechaInicial)->addMonths($i - 1);
             $montoCuota = ($i === $plazo) ? $saldo : $cuota;
-            Cuota::create(["id_venta" => $venta->id_venta, "numero_cuota" => $i, "fecha_vencimiento" => $fecha->format("Y-m-d"), "monto_total" => $montoCuota, "capital" => $montoCuota, "interes" => 0, "saldo_restante" => $montoCuota, "estado" => "Pendiente"]);
+            Cuota::create([
+                "id_venta"          => $venta->id_venta,
+                "numero_cuota"      => $i,
+                "fecha_vencimiento" => $fechaVencimiento->format("Y-m-d"),
+                "monto_total"       => $montoCuota,
+                "capital"           => $montoCuota,
+                "interes"           => 0,
+                "saldo_restante"    => $montoCuota,
+                "estado"            => "Pendiente"
+            ]);
             $saldo -= $montoCuota;
         }
     }

@@ -218,32 +218,8 @@ class ReservaController extends Controller
             ]);
 
             // 4. Generar el Plan de Pagos (Cuotas)
-            $plazoRestante = $venta->plazo_meses;
-            $saldoRestante = $venta->precio_final;
-            $cuotaMensual = $venta->cuota_mensual;
-
-            if ($plazoRestante > 0 && $saldoRestante > 0) {
-                $fechaVencimiento = \Carbon\Carbon::parse($abonoInicial->fecha_pago);
-                for ($i = 1; $i <= $plazoRestante; $i++) {
-                    $fechaVencimiento->addMonth();
-                    $montoCuota = ($i == $plazoRestante) ? $saldoRestante : $cuotaMensual;
-                    
-                    \App\Models\Cuota::create([
-                        'id_venta' => $venta->id_venta,
-                        'numero_cuota' => $i,
-                        'fecha_vencimiento' => $fechaVencimiento->format('Y-m-d'),
-                        'monto_total' => $montoCuota,
-                        'capital' => $montoCuota,
-                        'interes' => 0,
-                        'saldo_restante' => $montoCuota,
-                        'estado' => 'Pendiente',
-                    ]);
-                    
-                    $saldoRestante -= $montoCuota;
-                }
-            }
-
-            // Aplicar el abono inicial automáticamente a las cuotas
+            Cuota::where('id_venta', $venta->id_venta)->delete();
+            \App\Http\Controllers\ClienteController::generarPlanCuotas($venta, $abonoInicial->fecha_pago);
             \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
 
             // 5. Marcar reserva como Formalizada

@@ -349,10 +349,11 @@ class ClienteController extends Controller
 
         if ($plazoRestante > 0 && $saldoRestante > 0) {
             $fechaBase = $fechaInicio ?: ($venta->fecha_venta ?: ($venta->created_at ?: now()));
-            $fechaVencimiento = \Carbon\Carbon::parse($fechaBase);
+            $fechaInicial = \Carbon\Carbon::parse($fechaBase);
 
             for ($i = 1; $i <= $plazoRestante; $i++) {
-                $fechaVencimiento->addMonth();
+                // Cuota 1 inicia en la fecha del contrato / prima (mes 0), Cuota 2 al 1er mes, Cuota 3 al 2do mes, etc.
+                $fechaVencimiento = (clone $fechaInicial)->addMonths($i - 1);
                 $montoCuota = ($i == $plazoRestante) ? $saldoRestante : $cuotaMensual;
 
                 \App\Models\Cuota::create([
