@@ -28,13 +28,13 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 0 12mm;
+            padding: 0 6mm;
             box-sizing: border-box;
         }
 
         .page-container {
             width: 100%;
-            max-width: 1050px;
+            max-width: 1200px;
             display: flex;
             flex-direction: row;
             justify-content: center;
@@ -47,12 +47,12 @@
         .receipt-card {
             border: 2px solid #1A237E; /* Deep Blue border */
             position: relative;
-            padding: 16px 14px;
+            padding: 12px 14px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             background-color: white;
-            min-height: 380px;
+            min-height: 310px;
         }
 
         @if($imprimirDoble)
@@ -121,8 +121,8 @@
         }
 
         .logo-container {
-            width: 80px;
-            height: 70px;
+            width: 72px;
+            height: 52px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -135,8 +135,8 @@
         }
         
         .logo-placeholder {
-            width: 70px;
-            height: 60px;
+            width: 65px;
+            height: 48px;
             border: 1px dashed #ccc;
             display: flex;
             align-items: center;
@@ -150,13 +150,13 @@
             text-align: center;
             flex-grow: 1;
             color: #1A237E; /* Deep blue */
-            font-size: 10px;
+            font-size: 9.5px;
             font-weight: bold;
-            line-height: 1.2;
+            line-height: 1.15;
         }
 
         .receipt-card-right .company-info {
-            font-size: 10px;
+            font-size: 9.5px;
         }
 
         .receipt-number-container {
@@ -172,19 +172,19 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
             padding-right: 5px;
         }
 
         .title {
             color: #1A237E;
-            font-size: 20px;
+            font-size: 19px;
             font-weight: 900;
             letter-spacing: 1px;
         }
 
         .receipt-card-right .title {
-            font-size: 20px;
+            font-size: 19px;
         }
 
         /* Ocultar filas de cálculos en modo provisional */
@@ -235,7 +235,7 @@
         .row {
             display: flex;
             align-items: flex-end;
-            margin-bottom: 7px;
+            margin-bottom: 4px;
             font-size: 10.5px;
             color: #1A237E;
             font-weight: bold;
@@ -268,7 +268,7 @@
             font-size: 9.5px;
             color: black;
             font-weight: bold;
-            margin-bottom: 5px;
+            margin-bottom: 4px;
             display: flex;
             justify-content: flex-start;
             gap: 15px;
@@ -282,15 +282,15 @@
         .date-row {
             display: flex;
             align-items: center;
-            font-size: 11px;
+            font-size: 10.5px;
             color: #1A237E;
             font-weight: bold;
-            margin-top: 6px;
-            margin-bottom: 6px;
+            margin-top: 4px;
+            margin-bottom: 4px;
         }
 
         .receipt-card-right .date-row {
-            font-size: 11px;
+            font-size: 10.5px;
         }
 
         .date-input {
@@ -312,7 +312,7 @@
         }
 
         .receipt-card-right .date-input {
-            font-size: 11px;
+            font-size: 10.5px;
             min-width: 25px;
         }
         .receipt-card-right .date-input.month {
@@ -323,12 +323,12 @@
         .signatures {
             display: flex;
             justify-content: space-around;
-            margin-top: 65px; 
+            margin-top: 32px; 
             align-items: flex-start;
         }
 
         .receipt-card-right .signatures {
-            margin-top: 65px;
+            margin-top: 32px;
         }
 
         .signature-box {
@@ -355,7 +355,7 @@
             font-size: 7.5px;
             color: #555;
             text-align: center;
-            margin-top: 8px;
+            margin-top: 4px;
             font-style: italic;
         }
 
@@ -367,7 +367,7 @@
                 height: 100% !important;
                 min-height: 100vh !important;
                 margin: 0 !important;
-                padding: 0 10mm !important;
+                padding: 0 4mm !important;
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: center !important;
@@ -378,7 +378,7 @@
                 width: 100% !important;
                 max-width: none !important;
                 padding: 0 !important;
-                gap: 8px !important;
+                gap: 6px !important;
                 justify-content: center !important;
                 margin: auto 0 !important;
             }
