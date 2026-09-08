@@ -1020,10 +1020,18 @@
                             selectCuenta.appendChild(newOption);
                         }
 
-                        // Cerrar modal
+                        // Cerrar modal de forma segura compatible con BS4/BS5/jQuery/DOM
                         var modalEl = document.getElementById('modalNuevaCuenta');
-                        var modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
-                        modalInstance.hide();
+                        if (typeof $ !== 'undefined' && typeof $('#modalNuevaCuenta').modal === 'function') {
+                            $('#modalNuevaCuenta').modal('hide');
+                        } else if (modalEl) {
+                            var closeBtn = modalEl.querySelector('[data-bs-dismiss="modal"], [data-dismiss="modal"]');
+                            if (closeBtn) {
+                                closeBtn.click();
+                            } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                                (bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl)).hide();
+                            }
+                        }
 
                         // Limpiar formulario modal
                         formNuevaCuenta.reset();
