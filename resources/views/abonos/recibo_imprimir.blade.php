@@ -8,7 +8,7 @@
         /* CSS Reset for Printing */
         @page {
             size: landscape;
-            margin: 0;
+            margin: 6mm 8mm;
         }
         html, body {
             width: 100%;
@@ -28,13 +28,13 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 0 6mm;
+            padding: 0 8mm;
             box-sizing: border-box;
         }
 
         .page-container {
             width: 100%;
-            max-width: 1200px;
+            max-width: 1180px;
             display: flex;
             flex-direction: row;
             justify-content: center;
@@ -268,10 +268,8 @@
             font-size: 9.5px;
             color: black;
             font-weight: bold;
-            margin-bottom: 4px;
-            display: flex;
-            justify-content: flex-start;
-            gap: 15px;
+            margin-bottom: 3px;
+            line-height: 1.3;
         }
 
         .receipt-card-right .details-row {
@@ -367,7 +365,7 @@
                 height: 100% !important;
                 min-height: 100vh !important;
                 margin: 0 !important;
-                padding: 0 4mm !important;
+                padding: 0 !important;
                 display: flex !important;
                 flex-direction: column !important;
                 justify-content: center !important;
@@ -378,7 +376,7 @@
                 width: 100% !important;
                 max-width: none !important;
                 padding: 0 !important;
-                gap: 6px !important;
+                gap: 6mm !important;
                 justify-content: center !important;
                 margin: auto 0 !important;
             }
@@ -459,10 +457,14 @@
         </div>
 
         @if(in_array($pago->metodo_pago, ['Transferencia Bancaria', 'Depósito Bancario', 'Cheque']))
-        <div class="details-row" style="margin-top: 4px; margin-bottom: 8px;">
-            <span style="color:#1A237E;">Vía:</span> {{ $pago->metodo_pago }} 
-            @if($pago->cuenta_destino) &nbsp;|&nbsp; <span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }} @endif
-            @if($pago->referencia) &nbsp;|&nbsp; <span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }} @endif
+        <div class="details-row" style="margin-top: 3px; margin-bottom: 5px; font-size: 9px; line-height: 1.25;">
+            <span style="color:#1A237E;">Vía:</span> {{ $pago->metodo_pago }}
+            @if($pago->cuenta_destino)
+                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }}
+            @endif
+            @if($pago->referencia)
+                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }}
+            @endif
         </div>
         @endif
 
@@ -568,10 +570,14 @@
         </div>
 
         @if(in_array($pago->metodo_pago, ['Transferencia Bancaria', 'Depósito Bancario', 'Cheque']))
-        <div class="details-row" style="margin-top: 4px; margin-bottom: 8px;">
+        <div class="details-row" style="margin-top: 3px; margin-bottom: 5px; font-size: 9px; line-height: 1.25;">
             <span style="color:#1A237E;">Vía:</span> {{ $pago->metodo_pago }} 
-            @if($pago->cuenta_destino) &nbsp;|&nbsp; <span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }} @endif
-            @if($pago->referencia) &nbsp;|&nbsp; <span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }} @endif
+            @if($pago->cuenta_destino)
+                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }}
+            @endif
+            @if($pago->referencia)
+                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }}
+            @endif
         </div>
         @endif
 
