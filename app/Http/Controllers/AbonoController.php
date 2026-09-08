@@ -633,7 +633,7 @@ class AbonoController extends Controller
         }
 
         if ($abonos->count() === 1) {
-            return $this->imprimirRecibo($request, $abonos->first()->id_abono);
+            return $this->imprimirRecibo($abonos->first()->id_abono, $request);
         }
 
         $datosConsolidados = $this->prepararDatosReciboConsolidado($abonos);

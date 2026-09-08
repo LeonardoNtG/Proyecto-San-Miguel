@@ -80,8 +80,9 @@ class Abono extends Model
     /**
      * Genera el siguiente número correlativo y código de recibo para una lotificación dada.
      */
-    public static function generarSiguienteNumeroRecibo(int $lotificacionId): array
+    public static function generarSiguienteNumeroRecibo(?int $lotificacionId = 1): array
     {
+        $lotificacionId = $lotificacionId ?: 1;
         $tipoNumeracion = setting('tipo_numeracion_recibo', 'proyecto_correlativo', $lotificacionId);
         $prefijo = (string) setting('prefijo_recibo', '', $lotificacionId);
         $longitud = (int) setting('longitud_digitos_recibo', 1, $lotificacionId);
