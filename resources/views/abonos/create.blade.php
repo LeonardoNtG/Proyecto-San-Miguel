@@ -325,19 +325,19 @@
                                 <label for="cuenta_destino" class="form-label text-dark fw-bold small">
                                     <i class="fas fa-university text-primary me-1"></i> Banco / Cuenta Destino
                                 </label>
-                                <div class="input-group flex-nowrap">
+                                <div class="input-group">
                                     <select class="form-select" id="cuenta_destino" name="cuenta_destino">
                                         <option value="">-- Seleccione Cuenta Destino --</option>
                                         @if(isset($cuentasBancarias) && $cuentasBancarias->isNotEmpty())
                                             @foreach($cuentasBancarias as $cta)
-                                                <option value="{{ $cta->texto_completo }}">
+                                                <option value="{{ $cta->texto_completo }}" {{ old('cuenta_destino') == $cta->texto_completo ? 'selected' : '' }}>
                                                     {{ $cta->texto_completo }}
                                                 </option>
                                             @endforeach
                                         @endif
                                     </select>
-                                    <button type="button" class="btn btn-primary px-3" id="btn_abrir_modal_cuenta" data-bs-toggle="modal" data-bs-target="#modalNuevaCuenta" title="Agregar Nueva Cuenta Bancaria" style="flex-shrink: 0;">
-                                        <i class="fas fa-plus"></i>
+                                    <button type="button" class="btn btn-primary px-3 fw-bold d-inline-flex align-items-center gap-1 shadow-sm" id="btn_abrir_modal_cuenta" data-bs-toggle="modal" data-bs-target="#modalNuevaCuenta" title="Agregar Nueva Cuenta Bancaria" style="flex-shrink: 0; white-space: nowrap; z-index: 2;">
+                                        <i class="fas fa-plus-circle"></i> <span>Nueva Cuenta</span>
                                     </button>
                                 </div>
                             </div>
