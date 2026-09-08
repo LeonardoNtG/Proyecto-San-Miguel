@@ -203,6 +203,16 @@ class AbonoController extends Controller
             ? ($request->fecha_transferencia ?: $request->fecha_pago) 
             : null;
 
+        // Asegurar que la columna grupo_recibo exista antes de abrir la transacción
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'grupo_recibo')) {
+            try {
+                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('grupo_recibo', 64)->nullable()->index()->after('codigo_recibo');
+                });
+            } catch (\Exception $e) {}
+        }
+        $tieneGrupoRecibo = \Illuminate\Support\Facades\Schema::hasColumn('abonos', 'grupo_recibo');
+
         DB::beginTransaction();
         try {
             $montoTotalAbonado = (float)$request->monto_abonado;
@@ -223,6 +233,7 @@ class AbonoController extends Controller
                 }
 
                 if ($maximoAPagar > 0 && round($montoTotalAbonado, 2) > round($maximoAPagar, 2)) {
+                    if (DB::transactionLevel() > 0) DB::rollBack();
                     return back()->withInput()->with('error', 'El monto del abono ($' . number_format($montoTotalAbonado, 2) . ') supera la deuda pendiente ($' . number_format($maximoAPagar, 2) . ').');
                 }
 
@@ -232,7 +243,7 @@ class AbonoController extends Controller
 
                 $datosRecibo = Abono::generarSiguienteNumeroRecibo($venta->lotificacion_id ?? 1);
 
-                $abono = Abono::create([
+                $abonoData = [
                     'id_venta'      => $venta->id_venta,
                     'numero_recibo' => $datosRecibo['numero_recibo'],
                     'codigo_recibo' => $datosRecibo['codigo_recibo'],
@@ -246,11 +257,13 @@ class AbonoController extends Controller
                     'comentario'    => $request->comentario,
                     'ruta_recibo'   => $ruta_imagen,
                     'user_id'       => auth()->id()
-                ]);
+                ];
+
+                $abono = Abono::create($abonoData);
 
                 self::recalcularCuotas($venta->id_venta);
 
-                DB::commit();
+                if (DB::transactionLevel() > 0) DB::commit();
                 \App\Models\Auditoria::log('Registró Abono', 'Abono', $abono->id_abono, "Recibo: {$datosRecibo['codigo_recibo']} - Monto: $" . number_format($montoTotalAbonado, 2) . " - " . $request->metodo_pago);
                 return redirect()->route('registro.show', $cliente->id_cliente)
                     ->with('success', "¡Abono registrado exitosamente! Recibo N° {$datosRecibo['codigo_recibo']}")
@@ -269,6 +282,7 @@ class AbonoController extends Controller
             }
 
             if ($maximoConsolidado > 0 && round($montoTotalAbonado, 2) > round($maximoConsolidado, 2)) {
+                if (DB::transactionLevel() > 0) DB::rollBack();
                 return back()->withInput()->with('error', 'El monto total a ingresar ($' . number_format($montoTotalAbonado, 2) . ') supera la deuda total pendiente de los lotes seleccionados ($' . number_format($maximoConsolidado, 2) . ').');
             }
 
@@ -282,16 +296,6 @@ class AbonoController extends Controller
 
             $grupoRecibo = (string) \Illuminate\Support\Str::uuid();
             $datosRecibo = Abono::generarSiguienteNumeroRecibo($ventasTarget->first()->lotificacion_id ?? 1);
-
-            // Asegurar que la columna grupo_recibo exista en la tabla abonos
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'grupo_recibo')) {
-                try {
-                    \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
-                        $table->string('grupo_recibo', 64)->nullable()->index()->after('codigo_recibo');
-                    });
-                } catch (\Exception $e) {}
-            }
-            $tieneGrupoRecibo = \Illuminate\Support\Facades\Schema::hasColumn('abonos', 'grupo_recibo');
 
             foreach ($ventasTarget as $index => $v) {
                 if ($index === $totalVentas - 1) {
@@ -336,7 +340,7 @@ class AbonoController extends Controller
                 self::recalcularCuotas($v->id_venta);
             }
 
-            DB::commit();
+            if (DB::transactionLevel() > 0) DB::commit();
             \App\Models\Auditoria::log('Registró Abono Múltiple', 'Cliente', $cliente->id_cliente, "Monto Total: $" . number_format($montoTotalAbonado, 2) . " distribuido en {$totalVentas} lotes - Recibo N° {$datosRecibo['codigo_recibo']}");
             return redirect()->route('registro.show', $cliente->id_cliente)
                 ->with('success', "¡Abono consolidado de $" . number_format($montoTotalAbonado, 2) . " registrado exitosamente para {$totalVentas} lotes!")
@@ -344,7 +348,7 @@ class AbonoController extends Controller
                 ->with('imprimir_consolidado_id', $abonosCreadosIds[0] ?? null);
 
         } catch (\Exception $e) {
-            DB::rollBack();
+            if (DB::transactionLevel() > 0) DB::rollBack();
             return back()->withInput()->with('error', 'Error al registrar el abono: ' . $e->getMessage());
         }
     }
