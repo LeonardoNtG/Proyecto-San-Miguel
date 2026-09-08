@@ -34,6 +34,12 @@ class PortalClienteController extends Controller
         $ventas = $cliente->ventas;
         $ventas->each(function ($v) {
             $v->total_abonado = $v->abonos->sum('monto_abonado');
+            $primeraCuota = $v->cuotas->first();
+            $fechaContrato = $v->fecha_venta ? \Carbon\Carbon::parse($v->fecha_venta)->format('Y-m-d') : null;
+            if ($fechaContrato && (!$primeraCuota || $primeraCuota->fecha_vencimiento !== $fechaContrato)) {
+                \App\Http\Controllers\AbonoController::recalcularCuotas($v->id_venta);
+                $v->load(['cuotas' => fn($q) => $q->orderBy('numero_cuota', 'asc')]);
+            }
         });
 
         $ventaId = $request->get('venta_id');

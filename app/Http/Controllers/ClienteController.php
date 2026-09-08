@@ -408,6 +408,12 @@ class ClienteController extends Controller
 
         $cliente->ventas->each(function ($venta) {
             $venta->total_abonado = $venta->abonos->sum('monto_abonado');
+            $primeraCuota = $venta->cuotas->first();
+            $fechaContrato = $venta->fecha_venta ? \Carbon\Carbon::parse($venta->fecha_venta)->format('Y-m-d') : null;
+            if ($fechaContrato && (!$primeraCuota || $primeraCuota->fecha_vencimiento !== $fechaContrato)) {
+                \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
+                $venta->load('cuotas');
+            }
         });
 
         $ventaIdSeleccionada = $request->get('venta_id');

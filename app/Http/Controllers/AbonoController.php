@@ -397,16 +397,25 @@ class AbonoController extends Controller
     }
 
     public static function recalcularCuotas($id_venta) {
-        $venta = \App\Models\Venta::findOrFail($id_venta);
+        $venta = \App\Models\Venta::withoutGlobalScope('lotificacion')->findOrFail($id_venta);
         
-        // 1. Si la venta no tiene cuotas generadas, crearlas automáticamente.
-        //    IMPORTANTE: La fecha base del plan siempre es fecha_venta del contrato,
-        //    independientemente del orden en que se ingresen los abonos al sistema.
-        //    Esto permite registrar el abono de hoy primero y luego ingresar
-        //    abonos históricos de meses anteriores sin que el plan quede desfasado.
-        if (\App\Models\Cuota::where('id_venta', $id_venta)->count() === 0) {
-            $fechaBase = $venta->fecha_venta ?: ($venta->created_at ? $venta->created_at->format('Y-m-d') : now()->format('Y-m-d'));
+        // 1. Sincronizar fechas de vencimiento de las cuotas con la fecha base del contrato (Mes 0 para Cuota 1)
+        $fechaBase = $venta->fecha_venta ?: ($venta->created_at ? $venta->created_at->format('Y-m-d') : now()->format('Y-m-d'));
+        $fechaInicial = \Carbon\Carbon::parse($fechaBase);
+
+        $cuotasExistentes = \App\Models\Cuota::where('id_venta', $id_venta)->orderBy('numero_cuota', 'asc')->get();
+        if ($cuotasExistentes->isEmpty()) {
             \App\Http\Controllers\ClienteController::generarPlanCuotas($venta, $fechaBase);
+            $cuotasExistentes = \App\Models\Cuota::where('id_venta', $id_venta)->orderBy('numero_cuota', 'asc')->get();
+        } else {
+            // Asegurar que las fechas de vencimiento inicien exactamente en fecha_venta (Mes 0)
+            foreach ($cuotasExistentes as $c) {
+                $nuevaFechaVenc = (clone $fechaInicial)->addMonths($c->numero_cuota - 1)->format('Y-m-d');
+                if ($c->fecha_vencimiento !== $nuevaFechaVenc) {
+                    $c->fecha_vencimiento = $nuevaFechaVenc;
+                    $c->save();
+                }
+            }
         }
 
         // 2. Restaurar todas las cuotas a su estado original
