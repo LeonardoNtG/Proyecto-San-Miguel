@@ -114,6 +114,7 @@ Route::middleware(['auth'])->group(function () {
     // Módulo de Caja (Arqueo, Apertura, Cierre de Turno y Reporte Diario)
     Route::prefix('reportes')->name('reportes.')->group(function () {
         Route::get('/', [ReporteController::class, 'index'])->name('index');
+        Route::get('monitor-cajas', [ReporteController::class, 'monitorCajas'])->name('monitor_cajas');
         Route::post('abrir-caja', [ReporteController::class, 'abrirCaja'])->name('abrirCaja');
         Route::post('cerrar-caja', [ReporteController::class, 'cerrarCaja'])->name('cerrarCaja');
         Route::get('cierre-caja', [ReportesController::class, 'cierreCaja'])->name('cierre_caja');

@@ -76,22 +76,32 @@
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        @if(isset($usuarioSeleccionado) && $usuarioSeleccionado->id !== auth()->id())
+                            <span class="badge bg-primary px-2.5 py-1 fw-bold">
+                                <i class="fas fa-user me-1"></i> Cajero: {{ $usuarioSeleccionado->name }}
+                            </span>
+                        @endif
+                    </div>
                     <h3 class="mb-1 fw-bold" style="color: #1e293b !important;">
                         <i class="fas fa-calculator text-primary me-2"></i> Reporte Diario / Cierre de Caja
                     </h3>
                     <p class="text-muted small mb-0">
                         Movimientos registrados del día: <strong class="text-dark">{{ \Carbon\Carbon::parse($fecha)->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}</strong>
+                        @if(isset($usuarioSeleccionado) && $usuarioSeleccionado->id !== auth()->id())
+                            — Visualizando reporte del usuario: <strong class="text-primary">{{ $usuarioSeleccionado->name }}</strong>
+                        @endif
                     </p>
                 </div>
 
                 <div class="d-flex align-items-center flex-wrap gap-2 no-print">
                     {{-- Accesos rápidos de fecha --}}
                     <div class="btn-group btn-group-sm" role="group">
-                        <a href="{{ route('reportes.cierre_caja', ['fecha' => \Carbon\Carbon::today()->format('Y-m-d')]) }}" 
+                        <a href="{{ route('reportes.cierre_caja', ['fecha' => \Carbon\Carbon::today()->format('Y-m-d'), 'user_id' => $userId ?? null]) }}" 
                            class="btn {{ $fecha == \Carbon\Carbon::today()->format('Y-m-d') ? 'btn-primary fw-bold' : 'btn-outline-secondary' }}">
                             Hoy
                         </a>
-                        <a href="{{ route('reportes.cierre_caja', ['fecha' => \Carbon\Carbon::yesterday()->format('Y-m-d')]) }}" 
+                        <a href="{{ route('reportes.cierre_caja', ['fecha' => \Carbon\Carbon::yesterday()->format('Y-m-d'), 'user_id' => $userId ?? null]) }}" 
                            class="btn {{ $fecha == \Carbon\Carbon::yesterday()->format('Y-m-d') ? 'btn-primary fw-bold' : 'btn-outline-secondary' }}">
                             Ayer
                         </a>
@@ -99,6 +109,9 @@
 
                     {{-- Selector de Fecha --}}
                     <form method="GET" action="{{ route('reportes.cierre_caja') }}" class="d-flex align-items-center gap-1">
+                        @if(isset($userId) && $userId != auth()->id())
+                            <input type="hidden" name="user_id" value="{{ $userId }}">
+                        @endif
                         <input type="date" id="fecha" name="fecha" value="{{ $fecha }}" class="form-control form-control-sm" onchange="this.form.submit()">
                         <button type="submit" class="btn btn-sm btn-primary" title="Consultar Fecha">
                             <i class="fas fa-search"></i>
@@ -106,9 +119,15 @@
                     </form>
 
                     {{-- Botón Imprimir Reporte PDF Oficial --}}
-                    <a href="{{ route('reportes.cierre_caja.pdf', ['fecha' => $fecha]) }}" target="_blank" class="btn btn-sm btn-dark fw-bold px-3 ms-1 shadow-sm">
+                    <a href="{{ route('reportes.cierre_caja.pdf', ['fecha' => $fecha, 'user_id' => $userId ?? null]) }}" target="_blank" class="btn btn-sm btn-dark fw-bold px-3 ms-1 shadow-sm">
                         <i class="fas fa-file-pdf text-danger me-1"></i> Imprimir Reporte PDF
                     </a>
+
+                    @if(auth()->user()->hasRole('Administrador') || auth()->user()->can('ver-reportes'))
+                        <a href="{{ route('reportes.monitor_cajas', ['fecha' => $fecha]) }}" class="btn btn-sm btn-outline-primary fw-bold px-3 shadow-sm">
+                            <i class="fas fa-desktop me-1"></i> Monitor de Cajas
+                        </a>
+                    @endif
                 </div>
             </div>
         </div>

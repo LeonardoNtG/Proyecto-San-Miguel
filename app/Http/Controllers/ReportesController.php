@@ -15,6 +15,12 @@ class ReportesController extends Controller
     public function cierreCaja(Request $request)
     {
         $fecha = $request->input('fecha', Carbon::today()->format('Y-m-d'));
+        
+        $userId = auth()->id();
+        if (auth()->user()->hasRole('Administrador') && $request->filled('user_id')) {
+            $userId = (int) $request->input('user_id');
+        }
+        $usuarioSeleccionado = \App\Models\User::find($userId) ?? auth()->user();
 
         // Obtener abonos del día, con sus relaciones (venta, cliente, lotes, bloque)
         $abonos = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
@@ -22,7 +28,7 @@ class ReportesController extends Controller
                 $q->whereDate('created_at', $fecha)
                   ->orWhereDate('fecha_pago', $fecha);
             })
-            ->where('user_id', auth()->id())
+            ->where('user_id', $userId)
             ->get();
 
         // Calcular totales por método de pago
@@ -42,18 +48,23 @@ class ReportesController extends Controller
         $totalGeneral = $abonos->sum('monto_abonado');
 
         // Obtener salidas (egresos) del día
-        $salidas = Salida::whereDate('fecha', $fecha)->where('user_id', auth()->id())->get();
+        $salidas = Salida::whereDate('fecha', $fecha)->where('user_id', $userId)->get();
 
         $totalEgresos = $salidas->sum('monto');
         $flujoNeto = $totalGeneral - $totalEgresos;
 
-        return view('reportes.cierre_caja', compact('abonos', 'salidas', 'fecha', 'totales', 'totalGeneral', 'totalEgresos', 'flujoNeto'));
+        return view('reportes.cierre_caja', compact('abonos', 'salidas', 'fecha', 'totales', 'totalGeneral', 'totalEgresos', 'flujoNeto', 'usuarioSeleccionado', 'userId'));
     }
 
     public function imprimirCierreCajaPdf(Request $request)
     {
         $fecha = $request->input('fecha', Carbon::today()->format('Y-m-d'));
+        
         $userId = auth()->id();
+        if (auth()->user()->hasRole('Administrador') && $request->filled('user_id')) {
+            $userId = (int) $request->input('user_id');
+        }
+        $usuarioObj = \App\Models\User::find($userId) ?? auth()->user();
 
         // 1. Obtener abonos de la fecha (por fecha de registro o fecha de pago)
         $abonos = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
@@ -157,7 +168,7 @@ class ReportesController extends Controller
             }
         }
 
-        $cajeroNombre = auth()->user() ? auth()->user()->name : 'Cajero';
+        $cajeroNombre = $usuarioObj ? $usuarioObj->name : (auth()->user() ? auth()->user()->name : 'Cajero');
 
         $data = [
             'fechaFormateada' => Carbon::parse($fecha)->format('d/m/Y'),

@@ -782,4 +782,176 @@ class ReporteController extends Controller
 
         return $pdf->download('Cierre_Turno_' . \Carbon\Carbon::parse($cierre->fecha)->format('Ymd') . '_' . $cierre->id . '.pdf');
     }
+
+    /**
+     * Panel de Monitoreo de Cajas y Cierres de Usuarios en Tiempo Real (Vista de Administración).
+     */
+    public function monitorCajas(Request $request)
+    {
+        if (!auth()->user()->hasRole('Administrador') && !auth()->user()->can('ver-reportes')) {
+            abort(403, 'No tiene permisos para acceder al monitoreo global de cajas.');
+        }
+
+        $fecha = $request->input('fecha', Carbon::today()->format('Y-m-d'));
+        $filtroUsuarioId = $request->input('user_id');
+
+        // Obtener usuarios del sistema
+        $usuariosQuery = \App\Models\User::with('roles')->orderBy('name', 'asc');
+        if ($filtroUsuarioId) {
+            $usuariosQuery->where('id', $filtroUsuarioId);
+        }
+        $usuarios = $usuariosQuery->get();
+
+        $usuariosData = [];
+        $totalRecaudadoGlobal = 0.0;
+        $totalEfectivoGlobal = 0.0;
+        $totalBancosGlobal = 0.0;
+        $totalEgresosGlobal = 0.0;
+        $totalCajasAbiertas = 0;
+        $totalCierresRealizados = 0;
+
+        foreach ($usuarios as $user) {
+            // Aperturas del día para este usuario
+            $aperturas = \App\Models\AperturaCaja::whereDate('fecha', $fecha)
+                ->where('user_id', $user->id)
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            // Cierres del día para este usuario
+            $cierres = \App\Models\CierreCaja::whereDate('fecha', $fecha)
+                ->where('user_id', $user->id)
+                ->orderBy('created_at', 'asc')
+                ->get();
+
+            // Abonos registrados en la fecha por este usuario
+            $abonosDia = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
+                ->where(function($q) use ($fecha) {
+                    $q->whereDate('created_at', $fecha)
+                      ->orWhereDate('fecha_pago', $fecha);
+                })
+                ->where('user_id', $user->id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            // Salidas registradas en la fecha por este usuario
+            $salidasDia = Salida::whereDate('fecha', $fecha)
+                ->where('user_id', $user->id)
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $ultimaApertura = $aperturas->last();
+            $ultimoCierre = $cierres->last();
+
+            // Determinar estado actual
+            $estado = 'SIN_APERTURA';
+            $turnoActivo = false;
+            $inicioTurno = null;
+            $montoInicialTurno = 0.0;
+
+            if ($ultimaApertura && (!$ultimoCierre || $ultimoCierre->created_at < $ultimaApertura->created_at)) {
+                $estado = 'EN_VIVO'; // Turno abierto actualmente
+                $turnoActivo = true;
+                $inicioTurno = $ultimaApertura->created_at;
+                $montoInicialTurno = (float) $ultimaApertura->monto_inicial;
+                $totalCajasAbiertas++;
+            } elseif ($ultimoCierre) {
+                $estado = 'CERRADO'; // Turno cerrado
+            }
+
+            $totalCierresRealizados += $cierres->count();
+
+            // Movimientos del turno en vivo (si está abierto) o acumulados del día
+            if ($turnoActivo && $ultimaApertura) {
+                $abonosTurno = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
+                    ->where('user_id', $user->id)
+                    ->where('created_at', '>=', $ultimaApertura->created_at)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+                $salidasTurno = Salida::where('user_id', $user->id)
+                    ->where('created_at', '>=', $ultimaApertura->created_at)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+            } else {
+                $abonosTurno = $abonosDia;
+                $salidasTurno = $salidasDia;
+            }
+
+            // Cálculos del turno / en vivo
+            $ingresosEfectivoTurno = (float) $abonosTurno->where('metodo_pago', 'Efectivo')->sum('monto_abonado');
+            $ingresosBancosTurno = (float) $abonosTurno->where('metodo_pago', '!=', 'Efectivo')->sum('monto_abonado');
+            $totalIngresosTurno = (float) $abonosTurno->sum('monto_abonado');
+            $totalSalidasTurno = (float) $salidasTurno->sum('monto');
+            $salidasEfectivoTurno = (float) $salidasTurno->filter(fn($s) => empty($s->metodo_pago) || $s->metodo_pago === 'Efectivo')->sum('monto');
+            
+            // Efectivo estimado en gaveta en este momento
+            $efectivoEnGaveta = $montoInicialTurno + $ingresosEfectivoTurno - $salidasEfectivoTurno;
+
+            // Totales de todo el día para este usuario
+            $diaEfectivo = (float) $abonosDia->where('metodo_pago', 'Efectivo')->sum('monto_abonado');
+            $diaBancos = (float) $abonosDia->where('metodo_pago', '!=', 'Efectivo')->sum('monto_abonado');
+            $diaTotalRecaudado = (float) $abonosDia->sum('monto_abonado');
+            $diaTotalEgresos = (float) $salidasDia->sum('monto');
+
+            // Acumular a KPIs globales
+            $totalRecaudadoGlobal += $diaTotalRecaudado;
+            $totalEfectivoGlobal += $diaEfectivo;
+            $totalBancosGlobal += $diaBancos;
+            $totalEgresosGlobal += $diaTotalEgresos;
+
+            $tieneActividad = ($aperturas->count() > 0 || $cierres->count() > 0 || $abonosDia->count() > 0 || $salidasDia->count() > 0);
+
+            $usuariosData[] = [
+                'user' => $user,
+                'estado' => $estado,
+                'turnoActivo' => $turnoActivo,
+                'tieneActividad' => $tieneActividad,
+                'aperturas' => $aperturas,
+                'cierres' => $cierres,
+                'ultimaApertura' => $ultimaApertura,
+                'ultimoCierre' => $ultimoCierre,
+                'montoInicialTurno' => $montoInicialTurno,
+                'ingresosEfectivoTurno' => $ingresosEfectivoTurno,
+                'ingresosBancosTurno' => $ingresosBancosTurno,
+                'totalIngresosTurno' => $totalIngresosTurno,
+                'totalSalidasTurno' => $totalSalidasTurno,
+                'salidasEfectivoTurno' => $salidasEfectivoTurno,
+                'efectivoEnGaveta' => $efectivoEnGaveta,
+                'abonosTurno' => $abonosTurno,
+                'salidasTurno' => $salidasTurno,
+                'abonosDia' => $abonosDia,
+                'salidasDia' => $salidasDia,
+                'diaEfectivo' => $diaEfectivo,
+                'diaBancos' => $diaBancos,
+                'diaTotalRecaudado' => $diaTotalRecaudado,
+                'diaTotalEgresos' => $diaTotalEgresos,
+                'cantAbonosDia' => $abonosDia->count(),
+            ];
+        }
+
+        // Ordenar usuarios: primero los que tienen turno abierto en vivo, luego los que tienen actividad, luego el resto
+        usort($usuariosData, function($a, $b) {
+            if ($a['turnoActivo'] && !$b['turnoActivo']) return -1;
+            if (!$a['turnoActivo'] && $b['turnoActivo']) return 1;
+            if ($a['tieneActividad'] && !$b['tieneActividad']) return -1;
+            if (!$a['tieneActividad'] && $b['tieneActividad']) return 1;
+            return strcmp($a['user']->name, $b['user']->name);
+        });
+
+        $kpis = [
+            'totalRecaudadoGlobal' => $totalRecaudadoGlobal,
+            'totalEfectivoGlobal' => $totalEfectivoGlobal,
+            'totalBancosGlobal' => $totalBancosGlobal,
+            'totalEgresosGlobal' => $totalEgresosGlobal,
+            'flujoNetoGlobal' => $totalRecaudadoGlobal - $totalEgresosGlobal,
+            'totalCajasAbiertas' => $totalCajasAbiertas,
+            'totalCierresRealizados' => $totalCierresRealizados,
+            'totalUsuariosActivos' => count(array_filter($usuariosData, fn($u) => $u['tieneActividad'])),
+        ];
+
+        $todosLosUsuarios = \App\Models\User::orderBy('name', 'asc')->get();
+
+        return view('reportes.monitor_cajas', compact('fecha', 'usuariosData', 'kpis', 'todosLosUsuarios', 'filtroUsuarioId'));
+    }
 }
+
