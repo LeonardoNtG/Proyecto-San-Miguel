@@ -5,17 +5,27 @@
 @section('contenido')
 
     @if (session('imprimir_abonos'))
+        @php
+            $imprimirIds = (array) session('imprimir_abonos');
+            $esMultiplesAbonos = count($imprimirIds) > 1;
+        @endphp
         <div class="alert alert-success shadow-sm d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4 p-3 border-success">
             <div>
                 <h5 class="alert-heading mb-1 fw-bold text-success"><i class="fas fa-check-circle me-1"></i> ¡Abono registrado con éxito!</h5>
                 <p class="mb-0 text-dark">{{ session('success') }}</p>
             </div>
-            <div class="d-flex gap-2 flex-wrap">
-                @foreach(session('imprimir_abonos') as $abonoId)
-                    <a href="{{ route('imprimirRecibo', ['abono_id' => $abonoId]) }}" target="_blank" class="btn btn-success btn-lg fw-bold shadow-sm px-3 btn-imprimir-auto" data-url="{{ route('imprimirRecibo', ['abono_id' => $abonoId]) }}">
-                        <i class="fas fa-print me-1"></i> Imprimir Recibo #{{ $abonoId }}
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                @if($esMultiplesAbonos)
+                    <a href="{{ route('abonos.imprimirConsolidado', ['ids' => implode(',', $imprimirIds)]) }}" target="_blank" class="btn btn-success btn-lg fw-bold shadow px-4 btn-imprimir-auto" data-url="{{ route('abonos.imprimirConsolidado', ['ids' => implode(',', $imprimirIds)]) }}">
+                        <i class="fas fa-print me-2"></i> Imprimir Recibo Unificado (Todos los Lotes)
                     </a>
-                @endforeach
+                @else
+                    @foreach($imprimirIds as $abonoId)
+                        <a href="{{ route('imprimirRecibo', ['abono_id' => $abonoId]) }}" target="_blank" class="btn btn-success btn-lg fw-bold shadow-sm px-3 btn-imprimir-auto" data-url="{{ route('imprimirRecibo', ['abono_id' => $abonoId]) }}">
+                            <i class="fas fa-print me-1"></i> Imprimir Recibo
+                        </a>
+                    @endforeach
+                @endif
             </div>
         </div>
     @elseif (session('success'))
@@ -350,8 +360,8 @@
                                         @endif
                                     </td>
                                     <td class="text-center">
-                                        <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm {{ $esProvisional ? 'btn-warning text-dark fw-bold' : 'btn-outline-secondary' }}" title="Imprimir Recibo">
-                                            <i class="fas fa-print me-1"></i> Imprimir
+                                        <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm {{ $esProvisional ? 'btn-warning text-dark fw-bold' : ($abono->grupo_recibo ? 'btn-primary fw-bold shadow-sm' : 'btn-outline-secondary') }}" title="{{ $abono->grupo_recibo ? 'Imprimir Recibo Unificado' : 'Imprimir Recibo' }}">
+                                            <i class="fas fa-print me-1"></i> {{ $abono->grupo_recibo ? 'Recibo Unificado' : 'Imprimir' }}
                                         </a>
                                     </td>
                                 </tr>

@@ -85,6 +85,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard-grafico', [GraficoController::class, 'dashboard'])->name('dashboard.grafico');
 
     // Impresión de Recibos y Documentos
+    Route::get('abonos/consolidado/imprimir', [AbonoController::class, 'imprimirReciboConsolidado'])->name('abonos.imprimirConsolidado');
     Route::get('abono/{abono_id}/imprimir', [AbonoController::class, 'imprimirRecibo'])->name('imprimirRecibo');
     Route::get('abonos/{abono_id}/imprimir', [AbonoController::class, 'imprimirRecibo'])->name('abonos.imprimir');
     Route::match(['get', 'post'], 'ventas/{id_venta}/recibo-provisional', [AbonoController::class, 'reciboProvisional'])->name('abonos.recibo_provisional');

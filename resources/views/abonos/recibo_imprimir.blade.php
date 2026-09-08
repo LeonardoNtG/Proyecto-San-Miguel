@@ -448,7 +448,7 @@
         <div class="row">
             <div class="label">En concepto de:</div>
             <div class="value" style="display:flex; justify-content: space-between;">
-                <span>{{ isset($modoProvisional) && $modoProvisional ? ($conceptoManual ?? '') : ('Abono a ' . ($venta->lotes->count() > 1 ? 'Lotes' : 'Lote') . ' ' . $lotes_texto) }}</span>
+                <span>{{ isset($modoProvisional) && $modoProvisional ? ($conceptoManual ?? '') : ('Abono a ' . ((isset($lotes_count) ? $lotes_count : ($venta->lotes->count() ?? 1)) > 1 ? 'Lotes' : 'Lote') . ' ' . $lotes_texto) }}</span>
             </div>
         </div>
 
@@ -557,7 +557,7 @@
         <div class="row">
             <div class="label">En concepto de:</div>
             <div class="value" style="display:flex; justify-content: space-between;">
-                <span>{{ isset($modoProvisional) && $modoProvisional ? ($conceptoManual ?? '') : ('Abono a ' . ($venta->lotes->count() > 1 ? 'Lotes' : 'Lote') . ' ' . $lotes_texto) }}</span>
+                <span>{{ isset($modoProvisional) && $modoProvisional ? ($conceptoManual ?? '') : ('Abono a ' . ((isset($lotes_count) ? $lotes_count : ($venta->lotes->count() ?? 1)) > 1 ? 'Lotes' : 'Lote') . ' ' . $lotes_texto) }}</span>
             </div>
         </div>
 

@@ -61,6 +61,6 @@ class PortalClienteController extends Controller
             ->where('id_abono', $abonoId)
             ->firstOrFail();
 
-        return app(\App\Http\Controllers\AbonoController::class)->imprimirRecibo($abono->id_abono);
+        return app(\App\Http\Controllers\AbonoController::class)->imprimirRecibo($request, $abono->id_abono);
     }
 }

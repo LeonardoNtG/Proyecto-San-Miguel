@@ -20,6 +20,7 @@ class Abono extends Model
         'id_venta',
         'numero_recibo',
         'codigo_recibo',
+        'grupo_recibo',
         'monto_abonado',
         'fecha_pago',
         'tipo_pago',
