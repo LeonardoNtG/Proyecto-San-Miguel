@@ -237,6 +237,36 @@ Route::middleware(['auth'])->group(function () {
         })->name('sistema.symlink');
     });
 
+    Route::get('/limpiar-cache', function () {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+            \Illuminate\Support\Facades\Artisan::call('view:clear');
+            \Illuminate\Support\Facades\Artisan::call('route:clear');
+            \Illuminate\Support\Facades\Artisan::call('config:clear');
+            return redirect()->back()->with('success', 'Caché optimizada y limpiada exitosamente.');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Error al limpiar caché: ' . $e->getMessage());
+        }
+    })->name('sistema.limpiar_cache');
+
+    Route::get('/ejecutar-migraciones', function () {
+        try {
+            \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+            $output = \Illuminate\Support\Facades\Artisan::output();
+            \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+            return response()->json([
+                'success' => true,
+                'message' => 'Migraciones ejecutadas exitosamente.',
+                'output' => $output
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    })->name('sistema.migraciones');
+
     Route::get('/errores/post', function () {
         return view('errores.post');
     });

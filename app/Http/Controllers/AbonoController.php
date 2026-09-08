@@ -283,6 +283,16 @@ class AbonoController extends Controller
             $grupoRecibo = (string) \Illuminate\Support\Str::uuid();
             $datosRecibo = Abono::generarSiguienteNumeroRecibo($ventasTarget->first()->lotificacion_id ?? 1);
 
+            // Asegurar que la columna grupo_recibo exista en la tabla abonos
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'grupo_recibo')) {
+                try {
+                    \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->string('grupo_recibo', 64)->nullable()->index()->after('codigo_recibo');
+                    });
+                } catch (\Exception $e) {}
+            }
+            $tieneGrupoRecibo = \Illuminate\Support\Facades\Schema::hasColumn('abonos', 'grupo_recibo');
+
             foreach ($ventasTarget as $index => $v) {
                 if ($index === $totalVentas - 1) {
                     $montoParaEsta = round($montoTotalAbonado - $acumulado, 2);
@@ -300,11 +310,10 @@ class AbonoController extends Controller
                 $nombreLotes = $v->lotes->map(fn($l) => 'Lote '.$l->numero_lote)->implode(', ');
                 $ref = $referenciaBase ? ($referenciaBase . ' [' . $nombreLotes . ']') : ('Pago Consolidado - ' . $nombreLotes);
 
-                $abono = Abono::create([
+                $abonoData = [
                     'id_venta'      => $v->id_venta,
                     'numero_recibo' => $datosRecibo['numero_recibo'],
                     'codigo_recibo' => $datosRecibo['codigo_recibo'],
-                    'grupo_recibo'  => $grupoRecibo,
                     'monto_abonado' => $montoParaEsta,
                     'fecha_pago'    => $request->fecha_pago,
                     'tipo_pago'     => $request->tipo_pago,
@@ -315,7 +324,13 @@ class AbonoController extends Controller
                     'comentario'    => $request->comentario,
                     'ruta_recibo'   => $ruta_imagen,
                     'user_id'       => auth()->id()
-                ]);
+                ];
+
+                if ($tieneGrupoRecibo) {
+                    $abonoData['grupo_recibo'] = $grupoRecibo;
+                }
+
+                $abono = Abono::create($abonoData);
 
                 $abonosCreadosIds[] = $abono->id_abono;
                 self::recalcularCuotas($v->id_venta);
