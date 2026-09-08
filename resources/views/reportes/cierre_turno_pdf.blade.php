@@ -191,22 +191,22 @@
         <thead>
             <tr>
                 <th>Nombre del Cliente</th>
-                <th>N° Lote</th>
-                <th>N° Bloque</th>
+                <th>Lote(s)</th>
                 <th class="num-col">Abonado</th>
+                <th style="text-align:center;">F. Cuota / Pago</th>
                 <th>Hora</th>
-                <th>Ref.</th>
+                <th>Recibo / Ref.</th>
             </tr>
         </thead>
         <tbody>
             @forelse($abonosEfectivo as $abono)
             <tr>
                 <td>{{ $abono['cliente'] }}</td>
-                <td>{{ $abono['lotes'] }}</td>
-                <td>{{ $abono['bloques'] }}</td>
+                <td>{{ $abono['lotes_texto'] ?? ('Lote ' . $abono['lotes']) }}</td>
                 <td class="num-col">{{ number_format($abono['monto'], 2) }}</td>
+                <td style="text-align:center; font-weight:bold; color:#1c3666;">{{ $abono['fecha_pago'] }}</td>
                 <td>{{ $abono['hora'] }}</td>
-                <td>{{ $abono['referencia'] }}</td>
+                <td>{{ $abono['numero_recibo'] ?? $abono['referencia'] }}</td>
             </tr>
             @empty
             <tr>
@@ -214,9 +214,9 @@
             </tr>
             @endforelse
             <tr class="total-row">
-                <td colspan="3">TOTAL REGISTRADO EN EFECTIVO</td>
+                <td colspan="2">TOTAL REGISTRADO EN EFECTIVO</td>
                 <td class="num-col">{{ number_format($totalEfectivo, 2) }}</td>
-                <td colspan="2"></td>
+                <td colspan="3"></td>
             </tr>
         </tbody>
     </table>
@@ -230,7 +230,7 @@
                 <th>Lote(s)</th>
                 <th class="num-col">Abonado</th>
                 <th>F. Transf.</th>
-                <th>F/Hora Registro</th>
+                <th>F. Cuota / Pago</th>
                 <th>Banco / Cuenta Destino</th>
                 <th>Ref.</th>
             </tr>
@@ -242,7 +242,7 @@
                 <td>{{ $abono['lotes_texto'] ?? ('Lote ' . $abono['lotes']) }}</td>
                 <td class="num-col">{{ number_format($abono['monto'], 2) }}</td>
                 <td style="font-weight:bold; color:#1c3666;">{{ $abono['fecha_transferencia'] }}</td>
-                <td>{{ $abono['fecha_hora_registro'] }}</td>
+                <td>{{ $abono['fecha_pago'] }}</td>
                 <td>{{ $abono['cuenta_destino'] }} <span style="font-size:8px; color:#555;">({{ $abono['metodo_pago'] }})</span></td>
                 <td style="color:#6a1b9a; font-weight:bold; font-family:monospace;">{{ $abono['referencia'] }}</td>
             </tr>

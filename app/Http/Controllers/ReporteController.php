@@ -673,7 +673,7 @@ class ReporteController extends Controller
             ->whereBetween('created_at', [$inicioTurno, $finTurno])
             ->get();
 
-        $abonosEfectivo = [];
+        $rawEfectivo = [];
         $rawTransferencias = [];
         $totalEfectivo = 0.0;
         $totalTransferencias = 0.0;
@@ -707,21 +707,56 @@ class ReporteController extends Controller
                 'lotes_texto' => $lotesBloquesTexto ?: "Lote {$lotes}",
                 'monto' => (float) $abono->monto_abonado,
                 'hora' => $abono->created_at ? $abono->created_at->format('h:i a') : '-',
+                'fecha_pago' => $abono->fecha_pago ? \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') : '-',
                 'fecha_hora_registro' => $abono->created_at ? $abono->created_at->format('d/m/Y h:i a') : \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y'),
                 'fecha_transferencia' => $abono->fecha_transferencia ? \Carbon\Carbon::parse($abono->fecha_transferencia)->format('d/m/Y') : \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y'),
-                'referencia' => $abono->referencia ?? 'N/A',
+                'referencia' => $abono->referencia ?? 'Pago en Efectivo',
+                'numero_recibo' => $abono->numero_recibo_formateado ?? ($abono->numero_recibo ? 'REC-' . $abono->numero_recibo : 'N/A'),
                 'metodo_pago' => $abono->metodo_pago,
                 'cuenta_destino' => $abono->cuenta_destino ?? 'N/A',
                 'grupo_recibo' => $abono->grupo_recibo ?? null,
+                'created_at_ts' => $abono->created_at ? $abono->created_at->timestamp : 0,
             ];
 
             if ($abono->metodo_pago === 'Efectivo') {
-                $abonosEfectivo[] = $item;
+                $rawEfectivo[] = $item;
                 $totalEfectivo += $item['monto'];
             } else {
                 $rawTransferencias[] = $item;
                 $totalTransferencias += $item['monto'];
             }
+        }
+
+        // Agrupar abonos en efectivo que pertenezcan a la misma operación / recibo
+        $abonosEfectivo = [];
+        $gruposEfectivo = [];
+
+        foreach ($rawEfectivo as $item) {
+            if (!empty($item['grupo_recibo'])) {
+                $key = 'GRUPO_' . $item['grupo_recibo'];
+            } elseif (!empty($item['numero_recibo']) && $item['numero_recibo'] !== 'N/A') {
+                $key = 'REC_' . md5(mb_strtolower($item['cliente']) . '_' . $item['numero_recibo']);
+            } elseif ($item['created_at_ts'] > 0) {
+                $minuteKey = floor($item['created_at_ts'] / 60);
+                $key = 'TIME_' . md5(mb_strtolower($item['cliente']) . '_' . $item['fecha_pago'] . '_' . $minuteKey);
+            } else {
+                $key = 'SINGLE_' . $item['id_abono'];
+            }
+
+            if (!isset($gruposEfectivo[$key])) {
+                $gruposEfectivo[$key] = $item;
+                $gruposEfectivo[$key]['lotes_lista'] = [$item['lotes_texto']];
+            } else {
+                $gruposEfectivo[$key]['monto'] += $item['monto'];
+                if (!in_array($item['lotes_texto'], $gruposEfectivo[$key]['lotes_lista'])) {
+                    $gruposEfectivo[$key]['lotes_lista'][] = $item['lotes_texto'];
+                }
+            }
+        }
+
+        foreach ($gruposEfectivo as $g) {
+            $g['lotes_texto'] = implode(', ', $g['lotes_lista']);
+            $abonosEfectivo[] = $g;
         }
 
         // Agrupar transferencias de la misma transacción bancaria (mismo cliente y misma referencia o grupo_recibo)
