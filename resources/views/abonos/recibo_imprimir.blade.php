@@ -457,13 +457,13 @@
         </div>
 
         @if(in_array($pago->metodo_pago, ['Transferencia Bancaria', 'Depósito Bancario', 'Cheque']))
-        <div class="details-row" style="margin-top: 3px; margin-bottom: 5px; font-size: 9px; line-height: 1.25;">
-            <span style="color:#1A237E;">Vía:</span> {{ $pago->metodo_pago }}
+        <div class="details-row" style="margin-top: 2px; margin-bottom: 4px; font-size: 8.5px; line-height: 1.25;">
+            <span style="white-space: nowrap;"><span style="color:#1A237E;">Vía:</span> {{ $pago->metodo_pago }}</span>
             @if($pago->cuenta_destino)
-                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }}
+                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span><span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }}</span>
             @endif
             @if($pago->referencia)
-                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }}
+                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span style="white-space: nowrap;"><span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }}</span>
             @endif
         </div>
         @endif
@@ -570,13 +570,13 @@
         </div>
 
         @if(in_array($pago->metodo_pago, ['Transferencia Bancaria', 'Depósito Bancario', 'Cheque']))
-        <div class="details-row" style="margin-top: 3px; margin-bottom: 5px; font-size: 9px; line-height: 1.25;">
-            <span style="color:#1A237E;">Vía:</span> {{ $pago->metodo_pago }} 
+        <div class="details-row" style="margin-top: 2px; margin-bottom: 4px; font-size: 8.5px; line-height: 1.25;">
+            <span style="white-space: nowrap;"><span style="color:#1A237E;">Vía:</span> {{ $pago->metodo_pago }}</span>
             @if($pago->cuenta_destino)
-                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }}
+                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span><span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }}</span>
             @endif
             @if($pago->referencia)
-                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }}
+                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span style="white-space: nowrap;"><span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }}</span>
             @endif
         </div>
         @endif
