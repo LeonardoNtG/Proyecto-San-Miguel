@@ -127,9 +127,30 @@
         width: 70%;
         margin: 0 auto 5px auto;
     }
+    
+    .watermark {
+        position: fixed;
+        top: 28%;
+        left: 0;
+        right: 0;
+        width: 100%;
+        text-align: center;
+        opacity: 0.30;
+        z-index: -1000;
+    }
+    .watermark img {
+        width: 360px;
+        height: auto;
+    }
 </style>
 </head>
 <body>
+
+    @if(!empty($logoBase64))
+    <div class="watermark">
+        <img src="{{ $logoBase64 }}">
+    </div>
+    @endif
 
     <table class="header-table">
         <tr>
