@@ -84,6 +84,12 @@ Route::middleware(['auth'])->group(function () {
     // Dashboard de Gráficos y Estadísticas
     Route::get('/dashboard-grafico', [GraficoController::class, 'dashboard'])->name('dashboard.grafico');
 
+    // Limpieza de caché de vistas y optimización
+    Route::get('/limpiar-cache', function () {
+        \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+        return back()->with('success', '¡Caché de vistas, configuración y rutas limpiada exitosamente!');
+    })->name('sistema.limpiar_cache');
+
     // Impresión de Recibos y Documentos
     Route::get('abonos/consolidado/imprimir', [AbonoController::class, 'imprimirReciboConsolidado'])->name('abonos.imprimirConsolidado');
     Route::get('abono/{abono_id}/imprimir', [AbonoController::class, 'imprimirRecibo'])->name('imprimirRecibo');
