@@ -100,6 +100,12 @@ try {
                 });
                 $columnFixes[] = "✔ Agregada columna 'user_recibo_firmado_id' a la tabla 'abonos'.";
             }
+            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'es_migracion')) {
+                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->boolean('es_migracion')->default(false)->after('comentario');
+                });
+                $columnFixes[] = "✔ Agregada columna 'es_migracion' a la tabla 'abonos'.";
+            }
         }
 
         // 5. Limpiar caché desde Artisan
