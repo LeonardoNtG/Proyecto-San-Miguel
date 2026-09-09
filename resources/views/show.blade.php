@@ -44,6 +44,17 @@
             $otrosContratosActivos = $cliente->ventas->where('id_venta', '!=', $venta->id_venta)->where('estado_contrato', 'Vigente');
             $tieneOtrosContratos = $otrosContratosActivos->count() > 0;
         }
+
+        // Totales consolidados de toda la cartera del cliente
+        $ventasCliente = $cliente->ventas;
+        $totalLotesCount = 0;
+        foreach($ventasCliente as $vc) {
+            $totalLotesCount += $vc->lotes->count();
+        }
+        $totalPrecioGlobal = (float)$ventasCliente->sum('precio_final');
+        $totalAbonadoGlobal = (float)$ventasCliente->sum('total_abonado');
+        $totalDeudaGlobal = max(0, $totalPrecioGlobal - $totalAbonadoGlobal);
+        $totalCuotaMensualGlobal = (float)$ventasCliente->where('estado_contrato', '!=', 'Rescindido')->sum('cuota_mensual');
     @endphp
 
     <div class="row mb-4">
@@ -80,15 +91,64 @@
     </div>
     <hr>
 
-    @if($tieneMultiplesContratos)
-    {{-- BARRA SELECTORA DE CONTRATOS (cuando el cliente tiene varios lotes independientes) --}}
-    <div class="card shadow-sm mb-4 border-primary">
-        <div class="card-header bg-primary text-white py-2 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 fw-bold">
-                <i class="fas fa-layer-group me-1"></i> Este cliente posee {{ $cliente->ventas->count() }} Contratos Independientes — Seleccione para ver su estado y plan de pagos:
-            </h6>
+    @if($tieneMultiplesContratos || $totalLotesCount > 1)
+    {{-- RESUMEN GLOBAL DE CARTERA Y DEUDA TOTAL (PARA CAJERA / ASESOR) --}}
+    <div class="card shadow mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
+        <div class="card-header text-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-wallet fa-lg me-2 text-warning"></i>
+                <div>
+                    <h5 class="m-0 fw-bold">Resumen Global de Cartera — {{ $cliente->nombres_apellidos }}</h5>
+                    <small class="opacity-85 text-white">
+                        <i class="fas fa-layer-group me-1"></i> Cliente con <strong>{{ $cliente->ventas->count() }} Contratos</strong> ({{ $totalLotesCount }} Lotes en total)
+                    </small>
+                </div>
+            </div>
+            <div>
+                <span class="badge bg-warning text-dark fw-bold px-3 py-2 fs-6 shadow-sm border border-light">
+                    <i class="fas fa-exclamation-circle me-1"></i> DEUDA TOTAL DEL CLIENTE: ${{ number_format($totalDeudaGlobal, 2) }}
+                </span>
+            </div>
         </div>
-        <div class="card-body p-2 bg-light">
+        <div class="card-body p-3 bg-light">
+            {{-- KPI CARDS GLOBALES --}}
+            <div class="row g-2 mb-3">
+                <div class="col-md-3 col-6">
+                    <div class="p-3 bg-white rounded border-start border-danger border-4 shadow-sm h-100">
+                        <span class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem;">Deuda Total (Saldo Global)</span>
+                        <h4 class="mb-0 fw-bold text-danger mt-1">${{ number_format($totalDeudaGlobal, 2) }}</h4>
+                        <small class="text-muted"><i class="fas fa-file-invoice-dollar text-danger me-1"></i> Por pagar en cartera</small>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="p-3 bg-white rounded border-start border-success border-4 shadow-sm h-100">
+                        <span class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem;">Total Abonado Global</span>
+                        <h4 class="mb-0 fw-bold text-success mt-1">${{ number_format($totalAbonadoGlobal, 2) }}</h4>
+                        <small class="text-muted"><i class="fas fa-check-circle text-success me-1"></i> Pagado en todos sus lotes</small>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="p-3 bg-white rounded border-start border-primary border-4 shadow-sm h-100">
+                        <span class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem;">Cuota Mensual Combinada</span>
+                        <h4 class="mb-0 fw-bold text-primary mt-1">${{ number_format($totalCuotaMensualGlobal, 2) }} <span style="font-size: 0.8rem; font-weight: normal;">/ mes</span></h4>
+                        <small class="text-muted"><i class="fas fa-calendar-alt text-primary me-1"></i> Suma de todos sus lotes</small>
+                    </div>
+                </div>
+                <div class="col-md-3 col-6">
+                    <div class="p-3 bg-white rounded border-start border-info border-4 shadow-sm h-100">
+                        <span class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem;">Valor Total Contratado</span>
+                        <h4 class="mb-0 fw-bold text-dark mt-1">${{ number_format($totalPrecioGlobal, 2) }}</h4>
+                        <small class="text-muted"><i class="fas fa-map-marked-alt text-info me-1"></i> {{ $totalLotesCount }} Lotes adquiridos</small>
+                    </div>
+                </div>
+            </div>
+
+            {{-- LISTADO Y SELECTOR DE CONTRATOS --}}
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="fw-bold text-dark" style="font-size: 0.85rem;">
+                    <i class="fas fa-hand-pointer text-primary me-1"></i> Selecciona un lote para consultar su plan de cuotas y recibos abajo:
+                </span>
+            </div>
             <div class="row g-2">
                 @foreach($cliente->ventas as $v)
                     @php
@@ -96,13 +156,14 @@
                         $nombreLotes = $lotesV->map(fn($l) => 'Bloque '.($l->bloque->nombre ?? '').' - Lote '.$l->numero_lote)->implode(', ');
                         $esActual = ($venta && $venta->id_venta == $v->id_venta);
                         $enMora = $v->cuotas->where('estado', 'Mora')->count() > 0;
+                        $deudaLote = max(0, (float)$v->precio_final - (float)$v->total_abonado);
                     @endphp
-                    <div class="col-md-4">
+                    <div class="col-md-3 col-sm-6">
                         <a href="{{ route('registro.show', [$cliente->id_cliente, 'venta_id' => $v->id_venta]) }}" class="text-decoration-none">
-                            <div class="p-2 rounded border {{ $esActual ? 'border-primary bg-primary text-white shadow' : 'border-secondary bg-white text-dark' }} transition-all">
-                                <div class="d-flex justify-content-between align-items-center">
+                            <div class="p-3 rounded border {{ $esActual ? 'border-primary bg-primary text-white shadow' : 'border-secondary-subtle bg-white text-dark shadow-sm' }} transition-all h-100">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
                                     <strong class="fs-6">
-                                        <i class="fas fa-map-marker-alt me-1"></i>{{ $nombreLotes ?: 'Contrato #'.$v->id_venta }}
+                                        <i class="fas fa-map-marker-alt {{ $esActual ? 'text-warning' : 'text-primary' }} me-1"></i>{{ $nombreLotes ?: 'Contrato #'.$v->id_venta }}
                                     </strong>
                                     @if($v->estado_contrato === 'Rescindido')
                                         <span class="badge {{ $esActual ? 'bg-light text-dark' : 'bg-secondary text-white' }}">Rescindido</span>
@@ -113,13 +174,23 @@
                                     @endif
                                 </div>
                                 @if($v->beneficiario_final)
-                                    <div class="small {{ $esActual ? 'text-white-50' : 'text-muted' }} mt-1">
+                                    <div class="small {{ $esActual ? 'text-white-50' : 'text-muted' }} mb-1">
                                         <i class="fas fa-user-tie me-1"></i> {{ $v->beneficiario_final }}
                                     </div>
                                 @endif
-                                <div class="small mt-1 {{ $esActual ? 'text-white' : 'text-muted' }} d-flex justify-content-between">
-                                    <span>${{ number_format($v->cuota_mensual, 2) }}/mes</span>
-                                    <span>${{ number_format($v->precio_final, 2) }} total</span>
+                                <div class="small mt-1 pt-1 border-top {{ $esActual ? 'border-white-50' : 'border-light' }}">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="{{ $esActual ? 'text-white-50' : 'text-muted' }}">Deuda Lote:</span>
+                                        <strong class="{{ $esActual ? 'text-warning' : 'text-danger' }}">${{ number_format($deudaLote, 2) }}</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span class="{{ $esActual ? 'text-white-50' : 'text-muted' }}">Abonado:</span>
+                                        <span class="{{ $esActual ? 'text-white' : 'text-success fw-bold' }}">${{ number_format($v->total_abonado, 2) }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span class="{{ $esActual ? 'text-white-50' : 'text-muted' }}">Cuota/mes:</span>
+                                        <span class="{{ $esActual ? 'text-white' : 'text-dark' }}">${{ number_format($v->cuota_mensual, 2) }}</span>
+                                    </div>
                                 </div>
                             </div>
                         </a>
@@ -140,12 +211,12 @@
                 </div>
                 <div class="card-body">
                     <p><strong>Nombres:</strong> {{ $cliente->nombres_apellidos }}</p>
-                    <p><strong>N° PV:</strong> {{ $cliente->pv_num }}</p>
+                    <p><strong>N° PV:</strong> {{ $cliente->pv_num ?: 'N/D' }}</p>
                     <p><strong>Identificación:</strong> {{ $cliente->identificacion }}</p>
                     <p><strong>Teléfono:</strong> {{ $cliente->telefono ?? 'N/A' }}</p>
                     <p><strong>Estado Civil:</strong> {{ $cliente->estado_civil ?? 'N/A' }}</p>
                     <p><strong>Dirección:</strong> {{ $cliente->direccion ?? 'N/A' }}</p>
-                    <p><strong>Registro:</strong> {{ $cliente->created_at ? $cliente->created_at->format('d/M/Y') : ($cliente->ventas->first()?->fecha_venta ? \Carbon\Carbon::parse($cliente->ventas->first()->fecha_venta)->format('d/M/Y') : 'N/A') }}</p>
+                    <p><strong>Registro:</strong> {{ $cliente->created_at->format('d/M/Y') }}</p>
                 </div>
             </div>
         </div>
@@ -156,7 +227,7 @@
                 <div class="card-header bg-success text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
                     <h5 class="m-0">
                         Detalles del Contrato
-                        @if($venta && $venta->lotes->count() > 0)
+                        @if($venta && $venta->lotes->isNotEmpty())
                             <span class="badge bg-light text-dark ms-2">
                                 {{ $venta->lotes->map(fn($l) => 'Lote '.$l->numero_lote)->implode(', ') }}
                             </span>
@@ -186,13 +257,10 @@
                                     </span>
                                 </p>
                                 <p><strong>Proyecto:</strong> <span class="badge bg-primary text-white fs-6">{{ $venta->proyecto }}</span></p>
-                                <p><strong>Precio Final:</strong> ${{ number_format($venta->precio_final, 2) }}</p>
-                                <p><strong>Plazo (Meses):</strong> {{ $venta->plazo_meses }}</p>
-                                <p><strong>Cuota Mensual:</strong> ${{ number_format($venta->cuota_mensual, 2) }}
-                                <p><strong>Fecha de Venta:</strong> {{ \Carbon\Carbon::parse($venta->fecha_venta)->format('d/m/Y') }}</p>
                                 <p><strong>Precio Final:</strong> <span class="text-primary fw-bold">${{ number_format($venta->precio_final, 2) }}</span></p>
                                 <p><strong>Plazo:</strong> {{ $venta->plazo_meses }} meses</p>
                                 <p><strong>Cuota Mensual:</strong> ${{ number_format($venta->cuota_mensual, 2) }}</p>
+                                <p><strong>Fecha de Venta:</strong> {{ \Carbon\Carbon::parse($venta->fecha_venta)->format('d/m/Y') }}</p>
                                 @if($venta->beneficiario_final)
                                     <div class="alert alert-info py-1 px-2 small mb-2">
                                         <strong><i class="fas fa-user-tie me-1"></i> Beneficiario Final:</strong> {{ $venta->beneficiario_final }}
