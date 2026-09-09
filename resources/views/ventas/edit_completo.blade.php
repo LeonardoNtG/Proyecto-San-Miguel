@@ -258,7 +258,11 @@
                                         <input type="hidden" name="abonos[{{ $index }}][fecha_transferencia]" value="{{ $abono->fecha_transferencia }}">
                                     </td>
                                     <td>
-                                        <input type="text" name="abonos[{{ $index }}][referencia]" class="form-control form-control-sm" value="{{ $abono->referencia }}" placeholder="Referencia / Observación">
+                                        <input type="text" name="abonos[{{ $index }}][referencia]" class="form-control form-control-sm mb-1" value="{{ $abono->referencia }}" placeholder="Referencia / Observación">
+                                        <div class="d-flex align-items-center gap-1">
+                                            <span class="text-muted" style="font-size: 0.72rem; white-space: nowrap;"><i class="fas fa-calendar-alt text-primary me-1"></i>F. Transf:</span>
+                                            <input type="date" name="abonos[{{ $index }}][fecha_transferencia]" class="form-control form-control-sm py-0 px-1" style="font-size: 0.75rem;" value="{{ $abono->fecha_transferencia ? \Carbon\Carbon::parse($abono->fecha_transferencia)->format('Y-m-d') : '' }}" title="Fecha real de la transferencia bancaria">
+                                        </div>
                                     </td>
                                     <td class="text-center">
                                         <button type="button" class="btn btn-sm btn-outline-danger" title="Marcar para eliminar" onclick="toggleEliminarAbono({{ $abono->id_abono }})">

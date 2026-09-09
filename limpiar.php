@@ -164,6 +164,32 @@ try {
             // Ignorar si falla
         }
 
+        // 5.7 Actualizar fecha de transferencia de María Jesús Herrera al 08 de Septiembre de 2026
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('abonos')) {
+                $abonosMariaJesus = \App\Models\Abono::where(function($q) {
+                        $q->where('referencia', 'like', '%14703669%')
+                          ->orWhereHas('venta.cliente', function($qc) {
+                              $qc->where('nombres_apellidos', 'like', '%MARIA JESUS HERRERA%');
+                          });
+                    })
+                    ->where('monto_abonado', 600.00)
+                    ->get();
+
+                $actualizadosMJ = 0;
+                foreach ($abonosMariaJesus as $abn) {
+                    $abn->fecha_transferencia = '2026-09-08';
+                    $abn->save();
+                    $actualizadosMJ++;
+                }
+                if ($actualizadosMJ > 0) {
+                    $columnFixes[] = "✔ Fecha de transferencia de María Jesús Herrera (Lote Q-02, $600.00) actualizada en base de datos a: 08/09/2026.";
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignorar si falla
+        }
+
         // 6. Verificar tablas críticas
         $tablesToVerify = ['users', 'lotificaciones', 'lotificacion_user', 'clientes', 'ventas', 'cuotas', 'abonos', 'historial_lotes', 'apertura_cajas', 'cierre_cajas', 'salidas', 'configuraciones', 'rescisiones', 'cuentas_bancarias'];
         foreach ($tablesToVerify as $t) {

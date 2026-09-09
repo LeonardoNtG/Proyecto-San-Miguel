@@ -405,6 +405,7 @@ class VentaController extends Controller
 
                         $montoNuevo = (float)($item['monto_abonado'] ?? 0);
                         $fechaNueva = !empty($item['fecha_pago']) ? \Carbon\Carbon::parse($item['fecha_pago'])->format('Y-m-d') : $abonoExistente->fecha_pago;
+                        $fechaTransfNueva = !empty($item['fecha_transferencia']) ? \Carbon\Carbon::parse($item['fecha_transferencia'])->format('Y-m-d') : $abonoExistente->fecha_transferencia;
                         $reciboNuevo = !empty($item['numero_recibo']) ? (int)$item['numero_recibo'] : $abonoExistente->numero_recibo;
                         $metodoNuevo = $item['metodo_pago'] ?? $abonoExistente->metodo_pago;
                         $tipoNuevo = $item['tipo_pago'] ?? $abonoExistente->tipo_pago;
@@ -417,15 +418,16 @@ class VentaController extends Controller
                         }
 
                         $abonoExistente->update([
-                            'numero_recibo'  => $reciboNuevo,
-                            'codigo_recibo'  => (string)$reciboNuevo,
-                            'fecha_pago'     => $fechaNueva,
-                            'monto_abonado'  => $montoNuevo,
-                            'tipo_pago'      => $tipoNuevo,
-                            'metodo_pago'    => $metodoNuevo,
-                            'referencia'     => $refNueva,
-                            'cuenta_destino' => $cuentaNueva,
-                            'comentario'     => $comentNuevo,
+                            'numero_recibo'       => $reciboNuevo,
+                            'codigo_recibo'       => (string)$reciboNuevo,
+                            'fecha_pago'          => $fechaNueva,
+                            'fecha_transferencia' => $fechaTransfNueva,
+                            'monto_abonado'       => $montoNuevo,
+                            'tipo_pago'           => $tipoNuevo,
+                            'metodo_pago'         => $metodoNuevo,
+                            'referencia'          => $refNueva,
+                            'cuenta_destino'      => $cuentaNueva,
+                            'comentario'          => $comentNuevo,
                         ]);
                     }
                 } else {
