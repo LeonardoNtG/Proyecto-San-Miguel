@@ -15,10 +15,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('abonos', function (Blueprint $table) {
-            $table->boolean('es_migracion')
-                  ->default(false)
-                  ->after('comentario')
-                  ->comment('Indica si el abono fue ingresado durante la migración histórica de datos');
+            if (!Schema::hasColumn('abonos', 'es_migracion')) {
+                $table->boolean('es_migracion')
+                      ->default(false)
+                      ->after('comentario')
+                      ->comment('Indica si el abono fue ingresado durante la migración histórica de datos');
+            }
         });
     }
 
