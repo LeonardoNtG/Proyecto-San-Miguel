@@ -96,7 +96,7 @@
         <!-- Alerta de Bienvenida -->
         <div class="alert alert-info border-0 shadow-sm rounded-3 mb-4" role="alert">
             <h4 class="alert-heading"><i class="fas fa-user-circle me-2"></i>¡Hola, {{ $cliente->nombres_apellidos }}!</h4>
-            <p>Bienvenido a tu portal en línea. Aquí puedes visualizar el estado actualizado de tu cuenta, revisar tus pagos y descargar tus comprobantes.</p>
+            <p>Bienvenido a tu portal en línea. Aquí puedes visualizar el estado actualizado de tu cuenta y consultar el detalle de tus cuotas y pagos.</p>
         </div>
 
         @if(isset($ventas) && $ventas->count() > 1)
@@ -303,11 +303,6 @@
                                         <td>
                                             @if($montoAbonadoMostrar > 0)
                                                 <span class="text-success fw-bold fs-6">${{ number_format($montoAbonadoMostrar, 2) }}</span>
-                                                @if($abonoCorrespondiente && !empty($abonoCorrespondiente->id_abono))
-                                                    <a href="{{ route('portal.recibo.imprimir', ['token' => $cliente->token_seguimiento, 'abono_id' => $abonoCorrespondiente->id_abono]) }}" target="_blank" class="btn btn-sm btn-outline-primary py-0 px-2 ms-1 rounded-pill" style="font-size: 0.72rem;" title="Descargar Recibo">
-                                                        <i class="fas fa-print me-1"></i>Recibo
-                                                    </a>
-                                                @endif
                                             @else
                                                 <span class="text-muted">$0.00</span>
                                             @endif
