@@ -48,10 +48,29 @@ class ReportesController extends Controller
         // Obtener salidas (egresos) del día
         $salidas = Salida::whereDate('fecha', $fecha)->where('user_id', $userId)->get();
 
+        // Obtener rescisiones del día (informativo, no afecta sumas de caja operativa)
+        $rescisiones = \App\Models\Rescision::with(['cliente', 'user'])
+            ->whereDate('created_at', $fecha)
+            ->where('user_id', $userId)
+            ->get();
+        $totalRescisiones = (float) $rescisiones->sum('monto_abonos_lote');
+
         $totalEgresos = $salidas->sum('monto');
         $flujoNeto = $totalGeneral - $totalEgresos;
 
-        return view('reportes.cierre_caja', compact('abonos', 'salidas', 'fecha', 'totales', 'totalGeneral', 'totalEgresos', 'flujoNeto', 'usuarioSeleccionado', 'userId'));
+        return view('reportes.cierre_caja', compact(
+            'abonos', 
+            'salidas', 
+            'rescisiones',
+            'totalRescisiones',
+            'fecha', 
+            'totales', 
+            'totalGeneral', 
+            'totalEgresos', 
+            'flujoNeto', 
+            'usuarioSeleccionado', 
+            'userId'
+        ));
     }
 
     public function imprimirCierreCajaPdf(Request $request)
@@ -238,6 +257,40 @@ class ReportesController extends Controller
             }
         }
 
+        // 4. Rescisiones del día (informativo, no altera los totales de caja)
+        $rescisiones = \App\Models\Rescision::with(['cliente', 'user'])
+            ->whereDate('created_at', $fecha)
+            ->where('user_id', $userId)
+            ->get();
+
+        $rescisionesData = [];
+        $totalRescisiones = 0.0;
+        foreach ($rescisiones as $r) {
+            $clienteNombre = $r->cliente ? $r->cliente->nombres_apellidos : 'Cliente Desconocido';
+            $destinoTexto = match($r->destino_abonos) {
+                'acreditar_otro_lote' => 'Acreditado a lote conservado',
+                'devolucion_efectivo' => 'Devolución en efectivo',
+                default => 'Sin devolución'
+            };
+            $montoInvolucrado = (float) ($r->monto_abonos_lote ?: ($r->monto_transferido + $r->monto_devuelto));
+            $totalRescisiones += $montoInvolucrado;
+
+            $rescisionesData[] = [
+                'id_rescision' => $r->id_rescision,
+                'cliente' => $clienteNombre,
+                'lotes_afectados' => $r->lotes_afectados,
+                'lotes_conservados' => $r->lotes_conservados,
+                'tipo' => $r->tipo,
+                'destino_abonos' => $r->destino_abonos,
+                'destino_texto' => $destinoTexto,
+                'monto_abonos_lote' => $montoInvolucrado,
+                'monto_transferido' => (float) $r->monto_transferido,
+                'monto_devuelto' => (float) $r->monto_devuelto,
+                'hora' => $r->created_at ? $r->created_at->format('h:i a') : '-',
+                'comentario' => $r->comentario,
+            ];
+        }
+
         $cajeroNombre = $usuarioObj ? $usuarioObj->name : (auth()->user() ? auth()->user()->name : 'Cajero');
 
         $data = [
@@ -253,6 +306,8 @@ class ReportesController extends Controller
             'totalTransferencias' => $totalTransferencias,
             'abonosEfectivo' => $abonosEfectivo,
             'abonosTransferencia' => $abonosTransferencia,
+            'rescisionesData' => $rescisionesData,
+            'totalRescisiones' => $totalRescisiones,
         ];
 
         $pdf = Pdf::loadView('reportes.cierre_turno_pdf', $data)

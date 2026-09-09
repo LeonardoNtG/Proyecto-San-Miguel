@@ -841,6 +841,40 @@ class ReporteController extends Controller
             $lotificacionNombre = 'Proyecto';
         }
 
+        // Rescisiones del turno/fecha (informativo)
+        $rescisiones = \App\Models\Rescision::with(['cliente', 'user'])
+            ->whereDate('created_at', $cierre->fecha)
+            ->where('user_id', $cierre->user_id)
+            ->get();
+
+        $rescisionesData = [];
+        $totalRescisiones = 0.0;
+        foreach ($rescisiones as $r) {
+            $clienteNombre = $r->cliente ? $r->cliente->nombres_apellidos : 'Cliente Desconocido';
+            $destinoTexto = match($r->destino_abonos) {
+                'acreditar_otro_lote' => 'Acreditado a lote conservado',
+                'devolucion_efectivo' => 'Devolución en efectivo',
+                default => 'Sin devolución'
+            };
+            $montoInvolucrado = (float) ($r->monto_abonos_lote ?: ($r->monto_transferido + $r->monto_devuelto));
+            $totalRescisiones += $montoInvolucrado;
+
+            $rescisionesData[] = [
+                'id_rescision' => $r->id_rescision,
+                'cliente' => $clienteNombre,
+                'lotes_afectados' => $r->lotes_afectados,
+                'lotes_conservados' => $r->lotes_conservados,
+                'tipo' => $r->tipo,
+                'destino_abonos' => $r->destino_abonos,
+                'destino_texto' => $destinoTexto,
+                'monto_abonos_lote' => $montoInvolucrado,
+                'monto_transferido' => (float) $r->monto_transferido,
+                'monto_devuelto' => (float) $r->monto_devuelto,
+                'hora' => $r->created_at ? $r->created_at->format('h:i a') : '-',
+                'comentario' => $r->comentario,
+            ];
+        }
+
         $data = [
             'fechaFormateada' => \Carbon\Carbon::parse($cierre->fecha)->format('d/m/Y'),
             'horaGeneracion' => now()->format('h:i a'),
@@ -854,6 +888,8 @@ class ReporteController extends Controller
             'totalTransferencias' => $totalTransferencias,
             'abonosEfectivo' => $abonosEfectivo,
             'abonosTransferencia' => $abonosTransferencia,
+            'rescisionesData' => $rescisionesData,
+            'totalRescisiones' => $totalRescisiones,
         ];
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reportes.cierre_turno_pdf', $data)

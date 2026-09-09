@@ -377,5 +377,99 @@
         </div>
     </div>
 
+    {{-- TABLA DE DETALLE DE RESCISIONES (INFORMATIVO) --}}
+    <div class="card shadow-sm border-0 mb-4 bg-white">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom border-purple border-2" style="border-bottom-color: #9333ea !important;">
+            <div>
+                <h5 class="mb-0 fw-bold" style="color: #6b21a8 !important;">
+                    <i class="fas fa-undo-alt me-2" style="color: #9333ea;"></i> Detalle de Rescisiones de Contratos
+                </h5>
+                <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Información complementaria. No afecta ni altera la existencia de efectivo en caja.</small>
+            </div>
+            <span class="badge px-3 py-2 fw-bold" style="background-color: #f3e8ff !important; color: #6b21a8 !important; border: 1px solid #c084fc !important; font-size: 0.88rem;">
+                Total Rescindido: ${{ number_format($totalRescisiones ?? 0, 2) }}
+            </span>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light text-dark">
+                        <tr>
+                            <th class="ps-3" style="width: 20%;">Cliente</th>
+                            <th style="width: 15%;">Lote(s) Rescindido(s)</th>
+                            <th style="width: 10%;">Tipo</th>
+                            <th style="width: 20%;">Destino / Aplicación</th>
+                            <th style="width: 15%;">Motivo / Comentario</th>
+                            <th style="width: 8%;">Hora</th>
+                            <th class="text-end pe-3" style="width: 12%;">Monto Rescindido</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($rescisiones ?? [] as $resc)
+                        <tr>
+                            <td class="ps-3">
+                                @if($resc->cliente)
+                                    <a href="{{ route('registro.show', $resc->cliente->id_cliente) }}" class="fw-bold text-primary text-decoration-none" target="_blank">
+                                        {{ $resc->cliente->nombres_apellidos }}
+                                    </a>
+                                    <div class="text-muted small">Cédula: {{ $resc->cliente->identificacion ?: 'N/A' }}</div>
+                                @else
+                                    <span class="text-muted">Cliente no vinculado</span>
+                                @endif
+                            </td>
+                            <td>
+                                <span class="badge bg-danger-subtle text-danger border border-danger fw-bold py-1 px-2">
+                                    <i class="fas fa-undo me-1"></i> {{ $resc->lotes_afectados }}
+                                </span>
+                                <div class="small text-success mt-1"><i class="fas fa-check-circle me-1"></i> Liberado (Disponible)</div>
+                            </td>
+                            <td>
+                                <span class="badge {{ $resc->tipo === 'Parcial' ? 'bg-warning text-dark' : 'bg-danger' }}">
+                                    {{ $resc->tipo }}
+                                </span>
+                            </td>
+                            <td>
+                                @if($resc->destino_abonos === 'acreditar_otro_lote')
+                                    <span class="badge bg-success-subtle text-success border border-success py-1 px-2">
+                                        <i class="fas fa-arrow-right me-1"></i> Acreditado a lote conservado
+                                    </span>
+                                    <div class="small fw-bold text-success mt-1">Transf: ${{ number_format($resc->monto_transferido, 2) }}</div>
+                                @elseif($resc->destino_abonos === 'devolucion_efectivo')
+                                    <span class="badge bg-danger-subtle text-danger border border-danger py-1 px-2">
+                                        <i class="fas fa-money-bill-wave me-1"></i> Devolución pactada
+                                    </span>
+                                    <div class="small fw-bold text-danger mt-1">Devol: ${{ number_format($resc->monto_devuelto, 2) }}</div>
+                                @else
+                                    <span class="badge bg-secondary-subtle text-secondary border border-secondary py-1 px-2">
+                                        Sin devolución
+                                    </span>
+                                @endif
+                            </td>
+                            <td>
+                                <div class="small text-muted p-1 bg-light rounded" style="white-space: pre-wrap; word-break: break-word;">
+                                    {{ $resc->comentario ?: 'Sin observaciones' }}
+                                </div>
+                            </td>
+                            <td class="text-muted small">
+                                <i class="far fa-clock me-1"></i> {{ $resc->created_at ? $resc->created_at->format('h:i A') : '-' }}
+                            </td>
+                            <td class="text-end pe-3">
+                                <span class="fs-6 fw-bold" style="color: #7e22ce;">${{ number_format($resc->monto_abonos_lote, 2) }}</span>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="7" class="text-center py-4 text-muted">
+                                <i class="fas fa-undo-alt fa-2x mb-2 text-secondary opacity-50 d-block"></i>
+                                <span class="small">No se registraron rescisiones de contratos en esta fecha.</span>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
 </div>
 @endsection

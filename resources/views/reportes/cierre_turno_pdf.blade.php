@@ -280,6 +280,51 @@
         </tbody>
     </table>
 
+    <!-- CUADRO 3: RESCISIONES DE CONTRATOS (INFORMATIVO) -->
+    <div class="table-title" style="color: #6a1b9a;">CUADRO 3 <br> RESCISIONES DE CONTRATOS (INFORMATIVO)</div>
+    <table class="data-table" style="background-color: #faf5ff;">
+        <thead>
+            <tr>
+                <th style="width: 20%;">Nombre del Cliente</th>
+                <th style="width: 15%;">Lote(s) Rescindido(s)</th>
+                <th style="width: 10%;">Tipo</th>
+                <th style="width: 20%;">Destino / Aplicación</th>
+                <th class="num-col" style="width: 12%;">Monto Rescindido</th>
+                <th style="width: 8%;">Hora</th>
+                <th style="width: 15%;">Motivo</th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($rescisionesData ?? [] as $resc)
+            <tr>
+                <td><strong>{{ $resc['cliente'] }}</strong></td>
+                <td><span style="color:#b91c1c; font-weight:bold;">{{ $resc['lotes_afectados'] }}</span></td>
+                <td><span style="font-weight:bold; color: #4b5563;">{{ $resc['tipo'] }}</span></td>
+                <td>
+                    {{ $resc['destino_texto'] }}
+                    @if($resc['destino_abonos'] === 'acreditar_otro_lote')
+                        <br><span style="font-size:8px; color:#15803d; font-weight:bold;">(Transf: ${{ number_format($resc['monto_transferido'], 2) }})</span>
+                    @elseif($resc['destino_abonos'] === 'devolucion_efectivo')
+                        <br><span style="font-size:8px; color:#b91c1c; font-weight:bold;">(Devol: ${{ number_format($resc['monto_devuelto'], 2) }})</span>
+                    @endif
+                </td>
+                <td class="num-col" style="font-weight:bold; color:#6a1b9a;">${{ number_format($resc['monto_abonos_lote'], 2) }}</td>
+                <td>{{ $resc['hora'] }}</td>
+                <td style="font-size:8.5px; color:#475569;">{{ $resc['comentario'] ?: 'N/A' }}</td>
+            </tr>
+            @empty
+            <tr>
+                <td colspan="7" style="text-align:center; font-style:italic; color:#6b7280; padding: 6px;">No se registraron rescisiones de contratos en esta fecha.</td>
+            </tr>
+            @endforelse
+            <tr class="total-row">
+                <td colspan="4" style="color:#6a1b9a;">TOTAL REGISTRADO EN RESCISIONES</td>
+                <td class="num-col" style="color:#6a1b9a;">${{ number_format($totalRescisiones ?? 0, 2) }}</td>
+                <td colspan="2" style="font-size:8px; color:#6b7280; font-style:italic;">* No suma ni resta a la existencia en caja diaria</td>
+            </tr>
+        </tbody>
+    </table>
+
     <table class="signatures">
         <tr>
             <td>
