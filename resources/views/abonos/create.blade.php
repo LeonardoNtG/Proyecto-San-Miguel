@@ -295,22 +295,22 @@
                         <label class="form-label text-muted small fw-bold text-uppercase d-block text-center mb-2">Método de Pago</label>
                         <div class="row g-2 justify-content-center">
                             <div class="col-md-4 col-12">
-                                <input type="radio" class="btn-check d-none" name="metodo_pago" id="metodo_efectivo" value="Efectivo" autocomplete="off" checked onchange="toggleMetodoPagoFields()">
-                                <label class="metodo-btn-box d-block mb-0" for="metodo_efectivo">
+                                <input type="radio" class="btn-check" name="metodo_pago" id="metodo_efectivo" value="Efectivo" autocomplete="off" checked onchange="toggleMetodoPagoFields()">
+                                <label class="metodo-btn-box d-block mb-0" for="metodo_efectivo" onclick="document.getElementById('metodo_efectivo').checked = true; toggleMetodoPagoFields();">
                                     <i class="fas fa-money-bill-wave fa-lg d-block mb-1 text-success"></i>
                                     Efectivo
                                 </label>
                             </div>
                             <div class="col-md-4 col-12">
-                                <input type="radio" class="btn-check d-none" name="metodo_pago" id="metodo_transferencia" value="Transferencia Bancaria" autocomplete="off" onchange="toggleMetodoPagoFields()">
-                                <label class="metodo-btn-box d-block mb-0" for="metodo_transferencia">
+                                <input type="radio" class="btn-check" name="metodo_pago" id="metodo_transferencia" value="Transferencia Bancaria" autocomplete="off" onchange="toggleMetodoPagoFields()">
+                                <label class="metodo-btn-box d-block mb-0" for="metodo_transferencia" onclick="document.getElementById('metodo_transferencia').checked = true; toggleMetodoPagoFields();">
                                     <i class="fas fa-exchange-alt fa-lg d-block mb-1 text-primary"></i>
                                     Transferencia
                                 </label>
                             </div>
                             <div class="col-md-4 col-12">
-                                <input type="radio" class="btn-check d-none" name="metodo_pago" id="metodo_deposito" value="Depósito Bancario" autocomplete="off" onchange="toggleMetodoPagoFields()">
-                                <label class="metodo-btn-box d-block mb-0" for="metodo_deposito">
+                                <input type="radio" class="btn-check" name="metodo_pago" id="metodo_deposito" value="Depósito Bancario" autocomplete="off" onchange="toggleMetodoPagoFields()">
+                                <label class="metodo-btn-box d-block mb-0" for="metodo_deposito" onclick="document.getElementById('metodo_deposito').checked = true; toggleMetodoPagoFields();">
                                     <i class="fas fa-university fa-lg d-block mb-1 text-dark"></i>
                                     Depósito
                                 </label>

@@ -128,6 +128,42 @@ try {
             // Ignorar si falla
         }
 
+        // 5.6 Auto-reparar abonos bancarios que hayan quedado con metodo_pago 'Efectivo' por desincronización
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('abonos')) {
+                $abonosDesincronizados = \App\Models\Abono::where(function($q) {
+                        $q->where('metodo_pago', 'Efectivo')
+                          ->orWhere('metodo_pago', 'Deposito Bancario')
+                          ->orWhereNull('metodo_pago');
+                    })
+                    ->where(function($q) {
+                        $q->whereNotNull('cuenta_destino')
+                          ->orWhereNotNull('fecha_transferencia')
+                          ->orWhere(function($q2) {
+                              $q2->whereNotNull('referencia')
+                                 ->where('referencia', '!=', 'Pago en Efectivo')
+                                 ->where('referencia', '!=', '');
+                          });
+                    })
+                    ->get();
+
+                $reparados = 0;
+                foreach ($abonosDesincronizados as $abn) {
+                    if (empty($abn->cuenta_destino) && empty($abn->fecha_transferencia) && (empty($abn->referencia) || $abn->referencia === 'Pago en Efectivo')) {
+                        continue;
+                    }
+                    $abn->metodo_pago = 'Transferencia Bancaria';
+                    $abn->save();
+                    $reparados++;
+                }
+                if ($reparados > 0) {
+                    $columnFixes[] = "✔ Reparados {$reparados} abonos bancarios con método de pago desincronizado (incluyendo Recibo #1134).";
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignorar si falla
+        }
+
         // 6. Verificar tablas críticas
         $tablesToVerify = ['users', 'lotificaciones', 'lotificacion_user', 'clientes', 'ventas', 'cuotas', 'abonos', 'historial_lotes', 'apertura_cajas', 'cierre_cajas', 'salidas', 'configuraciones', 'rescisiones', 'cuentas_bancarias'];
         foreach ($tablesToVerify as $t) {

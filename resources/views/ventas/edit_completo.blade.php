@@ -249,11 +249,13 @@
                                     </td>
                                     <td>
                                         <select name="abonos[{{ $index }}][metodo_pago]" class="form-select form-select-sm">
-                                            <option value="Efectivo" {{ $abono->metodo_pago == 'Efectivo' ? 'selected' : '' }}>Efectivo</option>
-                                            <option value="Transferencia Bancaria" {{ $abono->metodo_pago == 'Transferencia Bancaria' ? 'selected' : '' }}>Transferencia</option>
-                                            <option value="Deposito Bancario" {{ $abono->metodo_pago == 'Deposito Bancario' ? 'selected' : '' }}>Depósito</option>
-                                            <option value="Cheque" {{ $abono->metodo_pago == 'Cheque' ? 'selected' : '' }}>Cheque</option>
+                                            <option value="Efectivo" {{ in_array($abono->metodo_pago, ['Efectivo', 'efectivo', '']) ? 'selected' : '' }}>Efectivo</option>
+                                            <option value="Transferencia Bancaria" {{ in_array($abono->metodo_pago, ['Transferencia Bancaria', 'Transferencia', 'transferencia']) ? 'selected' : '' }}>Transferencia</option>
+                                            <option value="Depósito Bancario" {{ in_array($abono->metodo_pago, ['Depósito Bancario', 'Deposito Bancario', 'Depósito', 'Deposito']) ? 'selected' : '' }}>Depósito</option>
+                                            <option value="Cheque" {{ in_array($abono->metodo_pago, ['Cheque', 'cheque']) ? 'selected' : '' }}>Cheque</option>
                                         </select>
+                                        <input type="hidden" name="abonos[{{ $index }}][cuenta_destino]" value="{{ $abono->cuenta_destino }}">
+                                        <input type="hidden" name="abonos[{{ $index }}][fecha_transferencia]" value="{{ $abono->fecha_transferencia }}">
                                     </td>
                                     <td>
                                         <input type="text" name="abonos[{{ $index }}][referencia]" class="form-control form-control-sm" value="{{ $abono->referencia }}" placeholder="Referencia / Observación">
@@ -367,7 +369,7 @@
                 <select name="abonos[${index}][metodo_pago]" class="form-select form-select-sm">
                     <option value="Efectivo" selected>Efectivo</option>
                     <option value="Transferencia Bancaria">Transferencia</option>
-                    <option value="Deposito Bancario">Depósito</option>
+                    <option value="Depósito Bancario">Depósito</option>
                     <option value="Cheque">Cheque</option>
                 </select>
             </td>

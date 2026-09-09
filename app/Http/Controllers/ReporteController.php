@@ -721,7 +721,12 @@ class ReporteController extends Controller
                 'created_at_ts' => $abono->created_at ? $abono->created_at->timestamp : 0,
             ];
 
-            if ($abono->metodo_pago === 'Efectivo') {
+            $metodoNormalizado = trim($abono->metodo_pago ?? '');
+            $esEfectivoPuro = ($metodoNormalizado === 'Efectivo' || empty($metodoNormalizado)) 
+                && empty($abono->cuenta_destino) 
+                && empty($abono->fecha_transferencia);
+
+            if ($esEfectivoPuro) {
                 $rawEfectivo[] = $item;
                 $totalEfectivo += $item['monto'];
             } else {
@@ -991,8 +996,11 @@ class ReporteController extends Controller
             }
 
             // Cálculos del turno / en vivo
-            $ingresosEfectivoTurno = (float) $abonosTurno->where('metodo_pago', 'Efectivo')->sum('monto_abonado');
-            $ingresosBancosTurno = (float) $abonosTurno->where('metodo_pago', '!=', 'Efectivo')->sum('monto_abonado');
+            $ingresosEfectivoTurno = (float) $abonosTurno->filter(function($a) {
+                $m = trim($a->metodo_pago ?? '');
+                return ($m === 'Efectivo' || empty($m)) && empty($a->cuenta_destino) && empty($a->fecha_transferencia);
+            })->sum('monto_abonado');
+            $ingresosBancosTurno = (float) $abonosTurno->sum('monto_abonado') - $ingresosEfectivoTurno;
             $totalIngresosTurno = (float) $abonosTurno->sum('monto_abonado');
             $totalSalidasTurno = (float) $salidasTurno->sum('monto');
             $salidasEfectivoTurno = (float) $salidasTurno->filter(fn($s) => empty($s->metodo_pago) || $s->metodo_pago === 'Efectivo')->sum('monto');
@@ -1001,8 +1009,11 @@ class ReporteController extends Controller
             $efectivoEnGaveta = $montoInicialTurno + $ingresosEfectivoTurno - $salidasEfectivoTurno;
 
             // Totales de todo el día para este usuario
-            $diaEfectivo = (float) $abonosDia->where('metodo_pago', 'Efectivo')->sum('monto_abonado');
-            $diaBancos = (float) $abonosDia->where('metodo_pago', '!=', 'Efectivo')->sum('monto_abonado');
+            $diaEfectivo = (float) $abonosDia->filter(function($a) {
+                $m = trim($a->metodo_pago ?? '');
+                return ($m === 'Efectivo' || empty($m)) && empty($a->cuenta_destino) && empty($a->fecha_transferencia);
+            })->sum('monto_abonado');
+            $diaBancos = (float) $abonosDia->sum('monto_abonado') - $diaEfectivo;
             $diaTotalRecaudado = (float) $abonosDia->sum('monto_abonado');
             $diaTotalEgresos = (float) $salidasDia->sum('monto');
 

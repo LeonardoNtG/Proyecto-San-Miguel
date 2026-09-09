@@ -147,7 +147,12 @@ class ReportesController extends Controller
                 'created_at_ts' => $abono->created_at ? $abono->created_at->timestamp : 0,
             ];
 
-            if ($abono->metodo_pago === 'Efectivo') {
+            $metodoNormalizado = trim($abono->metodo_pago ?? '');
+            $esEfectivoPuro = ($metodoNormalizado === 'Efectivo' || empty($metodoNormalizado)) 
+                && empty($abono->cuenta_destino) 
+                && empty($abono->fecha_transferencia);
+
+            if ($esEfectivoPuro) {
                 $rawEfectivo[] = $item;
                 $totalEfectivo += $item['monto'];
             } else {
