@@ -94,61 +94,24 @@
     @if($tieneMultiplesContratos || $totalLotesCount > 1)
     {{-- RESUMEN GLOBAL DE CARTERA Y DEUDA TOTAL (PARA CAJERA / ASESOR) --}}
     <div class="card shadow mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
-        <div class="card-header text-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);">
+        <div class="card-header text-white py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);">
             <div class="d-flex align-items-center">
-                <i class="fas fa-wallet fa-lg me-2 text-warning"></i>
+                <i class="fas fa-layer-group me-2 text-warning"></i>
                 <div>
-                    <h5 class="m-0 fw-bold">Resumen Global de Cartera — {{ $cliente->nombres_apellidos }}</h5>
-                    <small class="opacity-85 text-white">
-                        <i class="fas fa-layer-group me-1"></i> Cliente con <strong>{{ $cliente->ventas->count() }} Contratos</strong> ({{ $totalLotesCount }} Lotes en total)
+                    <h6 class="m-0 fw-bold text-white">Resumen de Contratos y Deuda — {{ $cliente->nombres_apellidos }}</h6>
+                    <small class="opacity-85 text-white" style="font-size: 0.8rem;">
+                        Cliente con <strong>{{ $cliente->ventas->count() }} Contratos</strong> ({{ $totalLotesCount }} Lotes) — Seleccione para ver su estado y plan de pagos:
                     </small>
                 </div>
             </div>
             <div>
                 <span class="badge bg-warning text-dark fw-bold px-3 py-2 fs-6 shadow-sm border border-light">
-                    <i class="fas fa-exclamation-circle me-1"></i> DEUDA TOTAL DEL CLIENTE: ${{ number_format($totalDeudaGlobal, 2) }}
+                    <i class="fas fa-exclamation-circle me-1"></i> DEUDA TOTAL: ${{ number_format($totalDeudaGlobal, 2) }}
                 </span>
             </div>
         </div>
         <div class="card-body p-3 bg-light">
-            {{-- KPI CARDS GLOBALES --}}
-            <div class="row g-2 mb-3">
-                <div class="col-md-3 col-6">
-                    <div class="p-3 bg-white rounded border-start border-danger border-4 shadow-sm h-100">
-                        <span class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem;">Deuda Total (Saldo Global)</span>
-                        <h4 class="mb-0 fw-bold text-danger mt-1">${{ number_format($totalDeudaGlobal, 2) }}</h4>
-                        <small class="text-muted"><i class="fas fa-file-invoice-dollar text-danger me-1"></i> Por pagar en cartera</small>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="p-3 bg-white rounded border-start border-success border-4 shadow-sm h-100">
-                        <span class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem;">Total Abonado Global</span>
-                        <h4 class="mb-0 fw-bold text-success mt-1">${{ number_format($totalAbonadoGlobal, 2) }}</h4>
-                        <small class="text-muted"><i class="fas fa-check-circle text-success me-1"></i> Pagado en todos sus lotes</small>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="p-3 bg-white rounded border-start border-primary border-4 shadow-sm h-100">
-                        <span class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem;">Cuota Mensual Combinada</span>
-                        <h4 class="mb-0 fw-bold text-primary mt-1">${{ number_format($totalCuotaMensualGlobal, 2) }} <span style="font-size: 0.8rem; font-weight: normal;">/ mes</span></h4>
-                        <small class="text-muted"><i class="fas fa-calendar-alt text-primary me-1"></i> Suma de todos sus lotes</small>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6">
-                    <div class="p-3 bg-white rounded border-start border-info border-4 shadow-sm h-100">
-                        <span class="text-muted text-uppercase fw-bold" style="font-size: 0.72rem;">Valor Total Contratado</span>
-                        <h4 class="mb-0 fw-bold text-dark mt-1">${{ number_format($totalPrecioGlobal, 2) }}</h4>
-                        <small class="text-muted"><i class="fas fa-map-marked-alt text-info me-1"></i> {{ $totalLotesCount }} Lotes adquiridos</small>
-                    </div>
-                </div>
-            </div>
-
             {{-- LISTADO Y SELECTOR DE CONTRATOS --}}
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="fw-bold text-dark" style="font-size: 0.85rem;">
-                    <i class="fas fa-hand-pointer text-primary me-1"></i> Selecciona un lote para consultar su plan de cuotas y recibos abajo:
-                </span>
-            </div>
             <div class="row g-2">
                 @foreach($cliente->ventas as $v)
                     @php
