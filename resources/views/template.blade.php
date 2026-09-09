@@ -108,11 +108,11 @@
                         <h6 class="collapse-header mt-2">Caja y Reportes:</h6>
                         <a class="collapse-item" href="{{ route('reportes.index') }}">Apertura y Egresos</a>
                         <a class="collapse-item" href="{{ route('reportes.cierre_caja') }}">Reporte Diario</a>
-                        @if(auth()->user() && (auth()->user()->hasRole('Administrador') || auth()->user()->can('ver-reportes')))
+                        @role('Administrador')
                         <a class="collapse-item {{ request()->routeIs('reportes.monitor_cajas') ? 'active' : '' }}" href="{{ route('reportes.monitor_cajas') }}">
                             <i class="fas fa-desktop text-primary me-1"></i> Monitoreo de Cajas
                         </a>
-                        @endif
+                        @endrole
                         <a class="collapse-item {{ request()->routeIs('recibos_provisionales.*') ? 'active' : '' }}" href="{{ route('recibos_provisionales.index') }}">
                             <i class="fas fa-file-invoice text-warning me-1"></i> Recibo Provisional
                         </a>
@@ -142,7 +142,9 @@
                 <div id="collapseReportes" class="collapse" aria-labelledby="headingReportes" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded shadow-sm">
                         <h6 class="collapse-header text-primary fw-bold">Finanzas y Flujo:</h6>
+                        @role('Administrador')
                         <a class="collapse-item {{ request()->routeIs('reportes.monitor_cajas') ? 'active' : '' }}" href="{{ route('reportes.monitor_cajas') }}"><i class="fas fa-cash-register me-1 text-success"></i> Monitor de Cajas en Vivo</a>
+                        @endrole
                         <a class="collapse-item" href="{{ route('reportes.financiero') }}"><i class="fas fa-file-invoice-dollar me-1"></i> Reporte Financiero</a>
                         <a class="collapse-item" href="{{ route('dashboard.grafico') }}"><i class="fas fa-chart-pie me-1"></i> Gráficos y Estadísticas</a>
                         <a class="collapse-item" href="{{ route('reportes.proyeccion_flujo') }}"><i class="fas fa-chart-line me-1"></i> Proyección de Flujo</a>

@@ -29,11 +29,16 @@ class Abono extends Model
         'cuenta_destino',
         'fecha_transferencia',
         'comentario',
+        'es_migracion',
         'ruta_recibo',
         'recibo_firmado',
         'fecha_recibo_firmado',
         'user_recibo_firmado_id',
         'user_id'
+    ];
+
+    protected $casts = [
+        'es_migracion' => 'boolean',
     ];
     
     // Relación: Un Abono pertenece a una Venta (Many-to-One)

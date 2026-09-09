@@ -255,6 +255,7 @@ class AbonoController extends Controller
                     'cuenta_destino'=> $request->cuenta_destino,
                     'fecha_transferencia' => $fechaTransferencia,
                     'comentario'    => $request->comentario,
+                    'es_migracion'  => $request->boolean('es_migracion', false),
                     'ruta_recibo'   => $ruta_imagen,
                     'user_id'       => auth()->id()
                 ];
@@ -326,6 +327,7 @@ class AbonoController extends Controller
                     'cuenta_destino'=> $request->cuenta_destino,
                     'fecha_transferencia' => $fechaTransferencia,
                     'comentario'    => $request->comentario,
+                    'es_migracion'  => $request->boolean('es_migracion', false),
                     'ruta_recibo'   => $ruta_imagen,
                     'user_id'       => auth()->id()
                 ];
@@ -420,6 +422,12 @@ class AbonoController extends Controller
 
     public static function recalcularCuotas($id_venta) {
         $venta = \App\Models\Venta::withoutGlobalScope('lotificacion')->findOrFail($id_venta);
+
+        // Rec.5: Registrar en auditoría cada vez que se recalculan cuotas
+        \App\Models\Auditoria::log('Recalculó Cuotas', 'Venta', $id_venta,
+            'Recálculo disparado para contrato #' . $id_venta .
+            ' (cliente #' . $venta->id_cliente . ')'
+        );
         
         // 1. Sincronizar fechas de vencimiento de las cuotas con la fecha base del contrato (Mes 0 para Cuota 1)
         $fechaBase = $venta->fecha_venta ?: ($venta->created_at ? $venta->created_at->format('Y-m-d') : now()->format('Y-m-d'));

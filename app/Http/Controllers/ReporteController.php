@@ -669,6 +669,7 @@ class ReporteController extends Controller
             ->where('user_id', $cierre->user_id)
             ->whereBetween('created_at', [$inicioTurno, $finTurno])
             ->whereDate('fecha_pago', $fechaCierre)
+            ->where('es_migracion', false)
             ->get();
 
         $salidas = \App\Models\Salida::where('user_id', $cierre->user_id)
@@ -866,9 +867,7 @@ class ReporteController extends Controller
      */
     public function monitorCajas(Request $request)
     {
-        if (!auth()->user()->hasRole('Administrador') && !auth()->user()->can('ver-reportes')) {
-            abort(403, 'No tiene permisos para acceder al monitoreo global de cajas.');
-        }
+        abort_unless(auth()->user()->hasRole('Administrador'), 403, 'Acceso restringido: solo los Administradores pueden ver el monitoreo global de cajas.');
 
         $fecha = $request->input('fecha', Carbon::today()->format('Y-m-d'));
         $filtroUsuarioId = $request->input('user_id');
@@ -905,6 +904,7 @@ class ReporteController extends Controller
             $abonosDia = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
                 ->whereDate('fecha_pago', $fecha)
                 ->where('user_id', $user->id)
+                ->where('es_migracion', false)
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -941,6 +941,7 @@ class ReporteController extends Controller
                     ->where('user_id', $user->id)
                     ->where('created_at', '>=', $ultimaApertura->created_at)
                     ->whereDate('fecha_pago', $fecha)
+                    ->where('es_migracion', false)
                     ->orderBy('created_at', 'desc')
                     ->get();
 

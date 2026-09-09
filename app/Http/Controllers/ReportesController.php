@@ -26,6 +26,7 @@ class ReportesController extends Controller
         $abonos = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
             ->whereDate('fecha_pago', $fecha)
             ->where('user_id', $userId)
+            ->where('es_migracion', false)
             ->get();
 
         // Calcular totales por método de pago
@@ -67,6 +68,7 @@ class ReportesController extends Controller
         $abonos = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
             ->whereDate('fecha_pago', $fecha)
             ->where('user_id', $userId)
+            ->where('es_migracion', false)
             ->get();
 
         // 2. Obtener salidas de la fecha

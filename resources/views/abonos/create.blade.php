@@ -362,11 +362,25 @@
                     </div>
 
                     {{-- CAJA DE COMENTARIOS / OBSERVACIONES (OPCIONAL PARA CUALQUIER MÉTODO DE PAGO) --}}
-                    <div class="mb-4">
+                    <div class="mb-3">
                         <label for="comentario" class="form-label text-muted small fw-bold text-uppercase">
                             <i class="fas fa-comment-dots me-1 text-primary"></i> Comentarios / Observaciones <span class="text-muted fw-normal">(Opcional)</span>
                         </label>
                         <textarea class="form-control" id="comentario" name="comentario" rows="2" placeholder="Notas adicionales sobre este pago (ej: billetes de $20 entregados, realizado por familiar, etc.)"></textarea>
+                    </div>
+
+                    {{-- MIGRACIÓN HISTÓRICA --}}
+                    <div class="mb-4 p-3 rounded-3 border border-warning bg-warning bg-opacity-10">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="es_migracion" name="es_migracion" value="1">
+                            <label class="form-check-label fw-bold text-warning-emphasis" for="es_migracion">
+                                <i class="fas fa-history me-1"></i> Este abono es de <strong>migración histórica</strong>
+                            </label>
+                        </div>
+                        <div class="small text-muted mt-1 ms-4">
+                            Marca esta opción si estás ingresando un pago que ya fue cobrado en una fecha anterior (migración de datos).
+                            Quedará registrado como abono histórico y <strong>no afectará el cierre de caja del día actual</strong>.
+                        </div>
                     </div>
 
                     {{-- FECHA Y CONCEPTO --}}

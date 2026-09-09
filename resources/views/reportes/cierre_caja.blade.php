@@ -123,11 +123,11 @@
                         <i class="fas fa-file-pdf text-danger me-1"></i> Imprimir Reporte PDF
                     </a>
 
-                    @if(auth()->user()->hasRole('Administrador') || auth()->user()->can('ver-reportes'))
+                    @role('Administrador')
                         <a href="{{ route('reportes.monitor_cajas', ['fecha' => $fecha]) }}" class="btn btn-sm btn-outline-primary fw-bold px-3 shadow-sm">
                             <i class="fas fa-desktop me-1"></i> Monitor de Cajas
                         </a>
-                    @endif
+                    @endrole
                 </div>
             </div>
         </div>

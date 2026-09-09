@@ -114,13 +114,17 @@ Route::middleware(['auth'])->group(function () {
     // Módulo de Caja (Arqueo, Apertura, Cierre de Turno y Reporte Diario)
     Route::prefix('reportes')->name('reportes.')->group(function () {
         Route::get('/', [ReporteController::class, 'index'])->name('index');
-        Route::get('monitor-cajas', [ReporteController::class, 'monitorCajas'])->name('monitor_cajas');
         Route::post('abrir-caja', [ReporteController::class, 'abrirCaja'])->name('abrirCaja');
         Route::post('cerrar-caja', [ReporteController::class, 'cerrarCaja'])->name('cerrarCaja');
         Route::get('cierre-caja', [ReportesController::class, 'cierreCaja'])->name('cierre_caja');
         Route::get('cierre-caja/pdf', [ReportesController::class, 'imprimirCierreCajaPdf'])->name('cierre_caja.pdf');
         Route::get('cierre-turno/{id}/pdf', [ReporteController::class, 'imprimirCierreTurnoPdf'])->name('cierre_turno.pdf');
         Route::delete('salidas/{id}', [ReporteController::class, 'destroy'])->name('destroy');
+
+        // Monitor de Cajas: solo Administradores
+        Route::middleware('role:Administrador')->group(function () {
+            Route::get('monitor-cajas', [ReporteController::class, 'monitorCajas'])->name('monitor_cajas');
+        });
     });
 
     // APIs para Selects Dinámicos
