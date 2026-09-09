@@ -176,15 +176,15 @@
         <table class="summary-table">
             <tr>
                 <td class="summary-label" style="color:#0073e6;">Saldo anterior:</td>
-                <td class="summary-value" style="color:#0073e6;">{{ number_format($saldoInicial, 2) }}</td>
+                <td class="summary-value" style="color:#0073e6;">{{ ($esProyectoSinSaldoAnterior ?? false) ? '0.00' : number_format($saldoInicial, 2) }}</td>
             </tr>
             <tr>
                 <td class="summary-label" style="color:#0073e6;">Abonos en efectivo:</td>
                 <td class="summary-value" style="color:#0073e6;">{{ number_format($totalEfectivo, 2) }}</td>
             </tr>
             <tr>
-                <td class="summary-label" style="color:#6a1b9a;">Ha ingresado a caja (Saldo anterior + Efectivo de hoy):</td>
-                <td class="summary-value" style="color:#6a1b9a;">{{ number_format($saldoInicial + $totalEfectivo, 2) }}</td>
+                <td class="summary-label" style="color:#6a1b9a;">Ha ingresado a caja ({{ ($esProyectoSinSaldoAnterior ?? false) ? 'Efectivo de hoy' : 'Saldo anterior + Efectivo de hoy' }}):</td>
+                <td class="summary-value" style="color:#6a1b9a;">{{ number_format((($esProyectoSinSaldoAnterior ?? false) ? 0 : $saldoInicial) + $totalEfectivo, 2) }}</td>
             </tr>
             <tr>
                 <td class="summary-label" style="color:#0073e6;">Salidas de hoy:</td>

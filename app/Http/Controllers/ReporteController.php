@@ -809,10 +809,6 @@ class ReporteController extends Controller
 
         $totalSalidas = $salidas->sum('monto');
         
-        // Existencia real de efectivo en la gaveta
-        $saldoInicial = $cierre->saldo_inicial;
-        $existenciaEnCaja = $saldoInicial + $totalEfectivo - $totalSalidasEfectivo;
-        
         $lotificacionNombre = null;
         $logoBase64 = null;
         $lot = null;
@@ -845,6 +841,21 @@ class ReporteController extends Controller
         } else {
             $lotificacionNombre = 'Proyecto';
         }
+
+        // Proyectos que NO incluyen saldo anterior en el cierre (saldo inicial = 0 y no se suma al total)
+        $nombreProyNorm = mb_strtolower($lotificacionNombre ?? '');
+        $esProyectoSinSaldoAnterior = str_contains($nombreProyNorm, 'colinas santa clara') 
+            || str_contains($nombreProyNorm, 'santa clara') 
+            || str_contains($nombreProyNorm, 'la campana') 
+            || str_contains($nombreProyNorm, 'campana');
+
+        $saldoInicial = $cierre->saldo_inicial;
+        if ($esProyectoSinSaldoAnterior) {
+            $saldoInicial = 0.0;
+        }
+
+        // Existencia real de efectivo en la gaveta
+        $existenciaEnCaja = $saldoInicial + $totalEfectivo - $totalSalidasEfectivo;
 
         // Rescisiones del turno/fecha (informativo)
         $rescisiones = \App\Models\Rescision::with(['cliente', 'user'])
@@ -887,6 +898,7 @@ class ReporteController extends Controller
             'lotificacionNombre' => $lotificacionNombre,
             'logoBase64' => $logoBase64,
             'saldoInicial' => $saldoInicial,
+            'esProyectoSinSaldoAnterior' => $esProyectoSinSaldoAnterior,
             'totalEfectivo' => $totalEfectivo,
             'totalSalidas' => $totalSalidasEfectivo,
             'saldoFinalCaja' => $existenciaEnCaja,

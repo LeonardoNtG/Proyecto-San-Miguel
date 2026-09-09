@@ -232,8 +232,6 @@ class ReportesController extends Controller
                 $totalSalidasEfectivo += $salida->monto;
             }
         }
-        $existenciaEnCaja = $saldoInicial + $totalEfectivo - $totalSalidasEfectivo;
-
         // Nombre y logo de la lotificación activa
         $lotificacionNombre = 'Proyecto';
         $logoBase64 = null;
@@ -261,6 +259,19 @@ class ReportesController extends Controller
                 }
             }
         }
+
+        // Proyectos que NO incluyen saldo anterior en el cierre (saldo inicial = 0 y no se suma al total)
+        $nombreProyNorm = mb_strtolower($lotificacionNombre ?? '');
+        $esProyectoSinSaldoAnterior = str_contains($nombreProyNorm, 'colinas santa clara') 
+            || str_contains($nombreProyNorm, 'santa clara') 
+            || str_contains($nombreProyNorm, 'la campana') 
+            || str_contains($nombreProyNorm, 'campana');
+
+        if ($esProyectoSinSaldoAnterior) {
+            $saldoInicial = 0.0;
+        }
+
+        $existenciaEnCaja = $saldoInicial + $totalEfectivo - $totalSalidasEfectivo;
 
         // 4. Rescisiones del día (informativo, no altera los totales de caja)
         $rescisiones = \App\Models\Rescision::with(['cliente', 'user'])
@@ -305,6 +316,7 @@ class ReportesController extends Controller
             'lotificacionNombre' => $lotificacionNombre,
             'logoBase64' => $logoBase64,
             'saldoInicial' => $saldoInicial,
+            'esProyectoSinSaldoAnterior' => $esProyectoSinSaldoAnterior,
             'totalEfectivo' => $totalEfectivo,
             'totalSalidas' => $totalSalidasEfectivo,
             'saldoFinalCaja' => $existenciaEnCaja,
