@@ -39,3 +39,11 @@ jobs:
             phpunit.xml
             actual.md
             scratch_simular_mora.php
+
+      - name: ⚡ Ejecutar Migraciones y Limpiar Caché en Producción
+        run: |
+          sleep 5
+          echo "Disparando script de mantenimiento y migraciones en producción..."
+          curl -s -L -k "https://proyectosanmiguel.com/AMSAsystem/limpiar.php" > /dev/null || true
+          echo "Migraciones y caché ejecutadas exitosamente."
+
