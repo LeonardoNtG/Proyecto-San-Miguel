@@ -949,36 +949,6 @@ class ReporteController extends Controller
             $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Activo';
         }
 
-        // Auto-asignar lotificacion_id a registros legacy de cajas que tengan NULL
-        $legacyAperturas = \App\Models\AperturaCaja::whereNull('lotificacion_id')->get();
-        foreach ($legacyAperturas as $legAp) {
-            $abono = Abono::withoutGlobalScope('lotificacion')
-                ->where('user_id', $legAp->user_id)
-                ->whereDate('fecha_pago', $legAp->fecha)
-                ->with('venta')
-                ->first();
-            $u = \App\Models\User::with('lotificaciones')->find($legAp->user_id);
-            $lotId = ($abono && $abono->venta && $abono->venta->lotificacion_id) 
-                ? $abono->venta->lotificacion_id 
-                : ($u?->lotificaciones->first()?->id ?? 2);
-            $legAp->lotificacion_id = $lotId;
-            $legAp->save();
-        }
-
-        $legacyCierres = \App\Models\CierreCaja::whereNull('lotificacion_id')->get();
-        foreach ($legacyCierres as $legC) {
-            $u = \App\Models\User::with('lotificaciones')->find($legC->user_id);
-            $legC->lotificacion_id = $u?->lotificaciones->first()?->id ?? 2;
-            $legC->save();
-        }
-
-        $legacySalidas = Salida::withoutGlobalScope('lotificacion')->whereNull('lotificacion_id')->get();
-        foreach ($legacySalidas as $legS) {
-            $u = \App\Models\User::with('lotificaciones')->find($legS->user_id);
-            $legS->lotificacion_id = $u?->lotificaciones->first()?->id ?? 2;
-            $legS->save();
-        }
-
         // Obtener IDs de usuarios con movimientos de abonos en la fecha dada para el proyecto seleccionado
         $userIdsConAbonos = Abono::withoutGlobalScope('lotificacion')
             ->whereDate('fecha_pago', $fecha)
@@ -1010,11 +980,18 @@ class ReporteController extends Controller
         $totalCierresRealizados = 0;
 
         foreach ($usuarios as $user) {
+            $userTieneSoloEsteProyecto = ($user->lotificaciones->count() === 1 && $user->lotificaciones->contains('id', $targetLotificacionId));
+
             // Aperturas del día para este usuario estrictamente para este proyecto
             $aperturasQuery = \App\Models\AperturaCaja::whereDate('fecha', $fecha)
                 ->where('user_id', $user->id);
             if (!$esGlobal && $targetLotificacionId) {
-                $aperturasQuery->where('lotificacion_id', $targetLotificacionId);
+                $aperturasQuery->where(function($q) use ($targetLotificacionId, $userTieneSoloEsteProyecto) {
+                    $q->where('lotificacion_id', $targetLotificacionId);
+                    if ($userTieneSoloEsteProyecto) {
+                        $q->orWhereNull('lotificacion_id');
+                    }
+                });
             }
             $aperturas = $aperturasQuery->orderBy('created_at', 'asc')->get();
 
@@ -1022,7 +999,12 @@ class ReporteController extends Controller
             $cierresQuery = \App\Models\CierreCaja::whereDate('fecha', $fecha)
                 ->where('user_id', $user->id);
             if (!$esGlobal && $targetLotificacionId) {
-                $cierresQuery->where('lotificacion_id', $targetLotificacionId);
+                $cierresQuery->where(function($q) use ($targetLotificacionId, $userTieneSoloEsteProyecto) {
+                    $q->where('lotificacion_id', $targetLotificacionId);
+                    if ($userTieneSoloEsteProyecto) {
+                        $q->orWhereNull('lotificacion_id');
+                    }
+                });
             }
             $cierres = $cierresQuery->orderBy('created_at', 'asc')->get();
 
@@ -1050,7 +1032,12 @@ class ReporteController extends Controller
                 ->where('user_id', $user->id);
 
             if (!$esGlobal && $targetLotificacionId) {
-                $salidasDiaQuery->where('lotificacion_id', $targetLotificacionId);
+                $salidasDiaQuery->where(function($q) use ($targetLotificacionId, $userTieneSoloEsteProyecto) {
+                    $q->where('lotificacion_id', $targetLotificacionId);
+                    if ($userTieneSoloEsteProyecto) {
+                        $q->orWhereNull('lotificacion_id');
+                    }
+                });
             }
             $salidasDia = $salidasDiaQuery->orderBy('created_at', 'desc')->get();
 
