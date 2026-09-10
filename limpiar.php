@@ -207,7 +207,9 @@ try {
                     $columnFixes[] = "✔ Asignado lotificacion_id a {$actualizadasRes} rescisiones que no tenían proyecto asignado.";
                 }
             }
-        // 5.9 Limpieza Segura de La Campana (Regla de Oro: Solo La Campana, Preservar Inventario)
+        } catch (\Throwable $e) {
+            // Ignorar si falla
+        }
         $campanaCleanReport = null;
         if (isset($_GET['limpiar_campana']) && $_GET['limpiar_campana'] === '1') {
             try {
