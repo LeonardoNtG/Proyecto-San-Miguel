@@ -207,8 +207,70 @@ try {
                     $columnFixes[] = "✔ Asignado lotificacion_id a {$actualizadasRes} rescisiones que no tenían proyecto asignado.";
                 }
             }
-        } catch (\Throwable $e) {
-            // Ignorar si falla
+        // 5.9 Limpieza Segura de La Campana (Regla de Oro: Solo La Campana, Preservar Inventario)
+        $campanaCleanReport = null;
+        if (isset($_GET['limpiar_campana']) && $_GET['limpiar_campana'] === '1') {
+            try {
+                \Illuminate\Support\Facades\DB::beginTransaction();
+                $campana = \App\Models\Lotificacion::where('nombre', 'like', '%Campana%')->orWhere('id', 1)->first();
+                if ($campana) {
+                    $ventasCampana = \App\Models\Venta::withoutGlobalScope('lotificacion')->where('lotificacion_id', $campana->id)->get();
+                    $ventaIds = $ventasCampana->pluck('id_venta')->toArray();
+                    $clienteIdsCampana = $ventasCampana->pluck('id_cliente')->unique()->toArray();
+
+                    $rescisionesEliminadas = \App\Models\Rescision::withoutGlobalScope('lotificacion')
+                        ->where('lotificacion_id', $campana->id)
+                        ->orWhereIn('id_venta', $ventaIds)
+                        ->delete();
+
+                    $abonosEliminados = \App\Models\Abono::withoutGlobalScope('lotificacion')
+                        ->whereIn('id_venta', $ventaIds)
+                        ->delete();
+
+                    $cuotasEliminadas = \App\Models\Cuota::withoutGlobalScope('lotificacion')
+                        ->whereIn('id_venta', $ventaIds)
+                        ->delete();
+
+                    $bloquesCampana = \App\Models\Bloque::withoutGlobalScope('lotificacion')->where('lotificacion_id', $campana->id)->pluck('id_bloque')->toArray();
+                    $lotesCampana = \App\Models\Lote::withoutGlobalScope('lotificacion')->whereIn('id_bloque', $bloquesCampana)->pluck('id_lote')->toArray();
+
+                    $historialEliminado = \App\Models\HistorialLote::whereIn('id_venta', $ventaIds)
+                        ->orWhereIn('id_lote', $lotesCampana)
+                        ->delete();
+
+                    $reservasEliminadas = \App\Models\Reserva::withoutGlobalScope('lotificacion')
+                        ->where('lotificacion_id', $campana->id)
+                        ->delete();
+
+                    $ventasEliminadas = \App\Models\Venta::withoutGlobalScope('lotificacion')
+                        ->where('lotificacion_id', $campana->id)
+                        ->delete();
+
+                    // Preservar inventario y resetear lotes
+                    $lotesActualizados = \App\Models\Lote::withoutGlobalScope('lotificacion')
+                        ->whereIn('id_bloque', $bloquesCampana)
+                        ->update(['estado' => 'Disponible']);
+
+                    $clientesEliminadosCount = 0;
+                    foreach ($clienteIdsCampana as $cId) {
+                        $tieneOtrasVentas = \App\Models\Venta::withoutGlobalScope('lotificacion')
+                            ->where('id_cliente', $cId)
+                            ->exists();
+                        if (!$tieneOtrasVentas) {
+                            \App\Models\Cliente::withoutGlobalScope('lotificacion')->where('id_cliente', $cId)->delete();
+                            $clientesEliminadosCount++;
+                        }
+                    }
+
+                    \Illuminate\Support\Facades\DB::commit();
+
+                    $campanaCleanReport = "✔ Limpieza de La Campana ejecutada exitosamente: {$ventasEliminadas} ventas, {$abonosEliminados} abonos, {$cuotasEliminadas} cuotas, {$clientesEliminadosCount} clientes eliminados. {$lotesActualizados} lotes preservados en inventario y reseteados a 'Disponible'. Otros proyectos 100% intactos.";
+                    $columnFixes[] = $campanaCleanReport;
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\DB::rollBack();
+                $columnFixes[] = "❌ Error en limpieza de La Campana: " . $e->getMessage();
+            }
         }
 
         // 6. Verificar tablas críticas
@@ -291,6 +353,7 @@ if (file_exists($logFile)) {
             <a href="./inicio" class="btn">🚀 Probar Inicio (/inicio)</a>
             <a href="./registro" class="btn" style="background: #059669;">👥 Probar Clientes (/registro)</a>
             <a href="./abonos/11/imprimir" class="btn" style="background: #7c3aed;">🖨️ Ver Recibo 11</a>
+            <a href="./limpiar.php?limpiar_campana=1" class="btn" style="background: #dc2626;" onclick="return confirm('¿Seguro que desea resetear clientes y contratos SOLO de La Campana manteniendo el inventario de lotes?');">🧹 Limpiar Clientes de La Campana</a>
         </div>
 
         <?php
