@@ -201,50 +201,7 @@ return new class extends Migration
                 ->get();
 
             foreach ($ventasTotales as $v) {
-                // Regenerar cuotas
-                DB::table('cuotas')->where('id_venta', $v->id_venta)->delete();
-                
-                $precioFinal = (float)$v->precio_final;
-                $cuotaMensual = max(1, (float)$v->cuota_mensual);
-                $plazoMeses = max(1, (int)$v->plazo_meses);
-                $fechaBase = $v->fecha_venta ? Carbon::parse($v->fecha_venta) : Carbon::now();
-
-                $totalAbonado = (float)DB::table('abonos')->where('id_venta', $v->id_venta)->sum('monto_abonado');
-                $saldoRestanteAbonos = $totalAbonado;
-
-                for ($i = 1; $i <= $plazoMeses; $i++) {
-                    $montoCuota = min($cuotaMensual, max(0, $precioFinal - (($i - 1) * $cuotaMensual)));
-                    if ($montoCuota <= 0) break;
-
-                    $fechaVenc = $fechaBase->copy()->addMonths($i - 1);
-                    $montoPagadoCuota = 0;
-                    $saldoPendienteCuota = $montoCuota;
-                    $estadoCuota = 'Pendiente';
-
-                    if ($saldoRestanteAbonos >= $montoCuota) {
-                        $montoPagadoCuota = $montoCuota;
-                        $saldoPendienteCuota = 0;
-                        $estadoCuota = 'Pagado';
-                        $saldoRestanteAbonos -= $montoCuota;
-                    } elseif ($saldoRestanteAbonos > 0) {
-                        $montoPagadoCuota = $saldoRestanteAbonos;
-                        $saldoPendienteCuota = $montoCuota - $saldoRestanteAbonos;
-                        $estadoCuota = 'Parcial';
-                        $saldoRestanteAbonos = 0;
-                    }
-
-                    DB::table('cuotas')->insert([
-                        'id_venta'       => $v->id_venta,
-                        'numero_cuota'   => $i,
-                        'fecha_pago'     => $fechaVenc->format('Y-m-d'),
-                        'monto_cuota'    => $montoCuota,
-                        'monto_pagado'   => $montoPagadoCuota,
-                        'saldo_restante' => $saldoPendienteCuota,
-                        'estado'         => $estadoCuota,
-                        'created_at'     => now(),
-                        'updated_at'     => now(),
-                    ]);
-                }
+                \App\Http\Controllers\AbonoController::recalcularCuotas($v->id_venta);
             }
 
             // ─────────────────────────────────────────────────────────────
