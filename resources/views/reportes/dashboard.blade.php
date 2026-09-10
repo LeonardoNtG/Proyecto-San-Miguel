@@ -10,7 +10,12 @@
 <div class="rf-page-header">
     <div>
         <h1><i class="fas fa-chart-line me-2 text-primary"></i> Gráficos y Estadísticas</h1>
-        <div class="rf-subtitulo">{{ $etiquetaGrupo }} &middot; Generado el {{ $generadoEl }}</div>
+        <div class="rf-subtitulo">
+            <span class="badge bg-{{ $esGlobal ? 'warning text-dark' : 'primary text-white' }} me-2 px-2 py-1">
+                <i class="fas fa-project-diagram me-1"></i> {{ $etiquetaProyecto }}
+            </span>
+            {{ $etiquetaGrupo }} &middot; Generado el {{ $generadoEl }}
+        </div>
     </div>
     <div class="rf-acciones-exportar d-flex gap-2">
         <button type="button" id="gr-btn-imprimir" class="btn btn-danger">
@@ -25,7 +30,22 @@
 <div class="rf-filtros">
     <form id="gr-form-filtros" method="GET" action="{{ route('dashboard.grafico') }}">
         <div class="row g-3 align-items-end">
-            <div class="col-6 col-md-3">
+            @if(isset($esAdmin) && $esAdmin)
+            <div class="col-12 col-md-3">
+                <label for="gr-proyecto" class="font-weight-bold text-primary"><i class="fas fa-building me-1"></i> Proyecto / Consolidado</label>
+                <select id="gr-proyecto" name="proyecto_id" class="form-select border-primary" onchange="document.getElementById('gr-form-filtros').submit();">
+                    <option value="actual" @selected($proyectoFiltro === 'actual')>Proyecto Actual ({{ $userLotificaciones->firstWhere('id', session('lotificacion_id'))->nombre ?? 'Activo' }})</option>
+                    <option value="global" @selected($proyectoFiltro === 'global' || $proyectoFiltro === 'todos')>⭐ CONSOLIDADO GLOBAL (TODAS)</option>
+                    <optgroup label="Filtrar por Proyecto Específico">
+                        @foreach ($proyectosDisponibles as $proy)
+                            <option value="{{ $proy->id }}" @selected((string)$proyectoFiltro === (string)$proy->id)>{{ $proy->nombre }}</option>
+                        @endforeach
+                    </optgroup>
+                </select>
+            </div>
+            @endif
+
+            <div class="col-6 col-md-{{ isset($esAdmin) && $esAdmin ? '3' : '3' }}">
                 <label for="gr-agrupacion">Agrupar por</label>
                 <select id="gr-agrupacion" name="agrupacion" class="form-select">
                     <option value="dia" @selected($agrupacion === 'dia')>Día</option>

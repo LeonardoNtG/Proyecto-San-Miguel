@@ -22,6 +22,13 @@ class Bloque extends Model
         'descripcion',
     ];
 
+    public function resolveRouteBinding($value, $field = null)
+    {
+        return $this->withoutGlobalScope('lotificacion')
+            ->where($field ?? $this->getRouteKeyName(), $value)
+            ->firstOrFail();
+    }
+
     public function lotificacion()
     {
         return $this->belongsTo(Lotificacion::class, 'lotificacion_id');

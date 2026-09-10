@@ -59,7 +59,7 @@
     <h1 class="h3 mb-0 text-gray-800"><i class="fas fa-user-plus text-primary"></i> Registro de Cliente y Promesa de Venta</h1>
 </div>
 
-<form action="{{ route('registro.store') }}" method="POST">
+<form id="form-registro-venta" action="{{ route('registro.store') }}" method="POST">
     @csrf
 
     {{-- SECCIÓN 1: DATOS PERSONALES DEL CLIENTE --}}
@@ -70,20 +70,23 @@
         <div class="card-body bg-light">
             <div class="row g-3">
                 <div class="col-md-5 mb-3">
-                    <label for="nombre_completo" class="form-label font-weight-bold text-secondary">Nombre Completo / Representante</label>
-                    <input type="text" class="form-control" id="nombre_completo" name="nombres_apellidos" value="{{ old('nombres_apellidos') }}" required>
+                    <label for="nombre_completo" class="form-label font-weight-bold text-secondary">Nombre Completo / Representante <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control text-uppercase" id="nombre_completo" name="nombres_apellidos" value="{{ old('nombres_apellidos') }}" style="text-transform: uppercase;" required>
                 </div>
                 <div class="col-md-3 mb-3">
-                    <label for="cedula" class="form-label font-weight-bold text-secondary">Cédula</label>
-                    <input type="text" class="form-control" id="cedula" name="identificacion" value="{{ old('identificacion') }}" placeholder="000-000000-0000A" required>
+                    <label for="cedula" class="form-label font-weight-bold text-secondary">Cédula <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control text-uppercase font-monospace fw-bold" id="cedula" name="identificacion" value="{{ old('identificacion') }}" placeholder="000-000000-0000A" maxlength="16" style="text-transform: uppercase;" required>
+                    <small class="text-muted"><i class="fas fa-id-card text-primary"></i> Formato: XXX-XXXXXX-XXXXX</small>
                 </div>
                 <div class="col-md-2 mb-3">
-                    <label for="pv_num" class="form-label font-weight-bold text-secondary">N° PV</label>
-                    <input type="text" class="form-control" id="pv_num" name="pv_num" value="{{ old('pv_num') }}" placeholder="PV-001" required>
+                    <label for="pv_num" class="form-label font-weight-bold text-secondary">N° PV (Promesa)</label>
+                    <input type="text" class="form-control text-uppercase" id="pv_num" name="pv_num" value="{{ old('pv_num', 'PP') }}" placeholder="PP" style="text-transform: uppercase;">
+                    <small class="text-muted"><i class="fas fa-info-circle text-info"></i> Por defecto PP</small>
                 </div>
                 <div class="col-md-2 mb-3">
                     <label for="expediente_num" class="form-label font-weight-bold text-secondary">N° Expediente</label>
-                    <input type="text" class="form-control" id="expediente_num" name="expediente_num" value="{{ old('expediente_num') }}" placeholder="EXP-005" required>
+                    <input type="text" class="form-control bg-light font-monospace fw-bold text-primary text-uppercase" id="expediente_num" name="expediente_num" value="{{ old('expediente_num', $siguienteExpediente ?? '') }}" style="text-transform: uppercase;" readonly>
+                    <small class="text-muted"><i class="fas fa-magic text-primary"></i> Automático</small>
                 </div>
             </div>
 
@@ -93,72 +96,129 @@
                     <input type="tel" class="form-control" id="telefono" name="telefono" value="{{ old('telefono') }}" placeholder="+505 0000-0000">
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label for="estado_civil" class="form-label font-weight-bold text-secondary">Estado Civil</label>
-                    <select class="custom-select form-control" id="estado_civil" name="estado_civil" required>
+                    <label for="estado_civil" class="form-label font-weight-bold text-secondary">Estado Civil <span class="text-danger">*</span></label>
+                    <select class="custom-select form-control text-uppercase" id="estado_civil" name="estado_civil" style="text-transform: uppercase;" required>
                         <option value="">Seleccione...</option>
-                        <option value="soltero" @selected(old('estado_civil') == 'soltero')>Soltero(a)</option>
-                        <option value="casado" @selected(old('estado_civil') == 'casado')>Casado(a)</option>
-                        <option value="union_libre" @selected(old('estado_civil') == 'union_libre')>Unión Libre</option>
-                        <option value="divorciado" @selected(old('estado_civil') == 'divorciado')>Divorciado(a)</option>
-                        <option value="viudo" @selected(old('estado_civil') == 'viudo')>Viudo(a)</option>
+                        <option value="SOLTERO" @selected(strtoupper(old('estado_civil')) == 'SOLTERO')>Soltero(a)</option>
+                        <option value="CASADO" @selected(strtoupper(old('estado_civil')) == 'CASADO')>Casado(a)</option>
+                        <option value="UNION_DE_HECHO" @selected(strtoupper(old('estado_civil')) == 'UNION_DE_HECHO')>Unión de Hecho</option>
+                        <option value="DIVORCIADO" @selected(strtoupper(old('estado_civil')) == 'DIVORCIADO')>Divorciado(a)</option>
+                        <option value="VIUDO" @selected(strtoupper(old('estado_civil')) == 'VIUDO')>Viudo(a)</option>
                     </select>
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label for="oficio" class="form-label font-weight-bold text-secondary">Oficio</label>
-                    <input type="text" class="form-control" id="oficio" name="oficio" value="{{ old('oficio') }}">
+                    <label for="profesion_oficio" class="form-label font-weight-bold text-secondary">Profesión u Oficio</label>
+                    <input type="text" class="form-control text-uppercase" id="profesion_oficio" name="profesion_oficio" value="{{ old('profesion_oficio') }}" style="text-transform: uppercase;">
                 </div>
             </div>
 
-            <div class="mb-3">
-                <label for="direccion" class="form-label font-weight-bold text-secondary">Dirección Exacta</label>
-                <textarea class="form-control" id="direccion" name="direccion" rows="2" placeholder="Ingrese la dirección completa del cliente">{{ old('direccion') }}</textarea>
+            <div class="row g-3">
+                <div class="col-md-6 mb-3">
+                    <label for="domicilio" class="form-label font-weight-bold text-secondary">Domicilio / Municipio</label>
+                    <input type="text" class="form-control text-uppercase" id="domicilio" name="domicilio" value="{{ old('domicilio') }}" placeholder="Ej: San Miguel, San Rafael del Sur" style="text-transform: uppercase;">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label for="direccion" class="form-label font-weight-bold text-secondary">Dirección Exacta</label>
+                    <textarea class="form-control text-uppercase" id="direccion" name="direccion" rows="1" style="text-transform: uppercase;">{{ old('direccion') }}</textarea>
+                </div>
             </div>
         </div>
     </div>
 
-    {{-- SECCIÓN 2: DATOS DE LA VENTA / LOTE --}}
+    {{-- SECCIÓN 2: ASIGNACIÓN DE LOTES (INVENTARIO) --}}
     <div class="card shadow-sm border-left-info mb-4">
         <div class="card-header py-3 bg-white">
-            <h6 class="m-0 font-weight-bold text-info"><i class="fas fa-map-marked-alt"></i> Selección de Lotes</h6>
+            <h6 class="m-0 font-weight-bold text-info"><i class="fas fa-layer-group"></i> Asignación de Terreno / Lotes</h6>
         </div>
         <div class="card-body bg-light">
-            <div class="row g-3">
-                {{-- Proyecto (Select) --}}
-                <div class="col-md-4 mb-3">
-                    <label for="proyecto_select" class="form-label font-weight-bold text-secondary">1. Seleccione Proyecto</label>
-                    <select class="custom-select form-control border-info" id="proyecto_select" name="lotificacion_id" required>
-                        <option value="">-- Escoger Proyecto --</option>
-                        @isset($proyectos)
-                            @foreach ($proyectos as $proyecto)
-                                <option value="{{ $proyecto->id }}" @selected(old('lotificacion_id') == $proyecto->id)>{{ $proyecto->nombre }}</option>
-                            @endforeach
-                        @endisset
-                    </select>
-                </div>
 
-                {{-- Bloque (Select dinámico) --}}
-                <div class="col-md-4 mb-3">
-                    <label for="bloque" class="form-label font-weight-bold text-secondary">2. Seleccione Bloque</label>
-                    <select class="custom-select form-control border-info" id="bloque_select" name="bloque_id" required disabled>
-                        <option value="">Seleccione un Proyecto primero</option>
-                    </select>
-                </div>
-
-                <div class="col-md-4 mb-3">
-                    <label for="lotes_seleccionados" class="form-label font-weight-bold text-secondary">3. Lotes a Vender (Máx. 20)</label>
-                    <select class="custom-select form-control border-info shadow-sm select2-multiple" id="lote_select" name="lotes_ids[]" multiple required disabled style="width: 100%;">
-                        <option value="">Seleccione un Bloque primero</option>
-                    </select>
-                    <small class="text-muted"><i class="fas fa-info-circle"></i> Haga clic y escriba para buscar los lotes. Puede seleccionar varios.</small>
+            {{-- TIPO DE CONTRATO --}}
+            <div class="row g-3 mb-3">
+                <div class="col-12">
+                    <label class="form-label font-weight-bold text-secondary d-block">
+                        <i class="fas fa-file-contract text-info me-1"></i> Tipo de Contrato <span class="text-danger">*</span>
+                    </label>
+                    <div class="btn-group w-100" role="group" id="group_tipo_contrato">
+                        <input type="radio" class="btn-check" name="tipo_contrato" id="tipo_unificado" value="unificado" autocomplete="off" checked>
+                        <label class="btn btn-outline-primary py-2 fw-bold" for="tipo_unificado">
+                            <i class="fas fa-layer-group me-1"></i> Contrato Unificado
+                            <small class="d-block fw-normal opacity-75">Un plan de pago para todos los lotes</small>
+                        </label>
+                        <input type="radio" class="btn-check" name="tipo_contrato" id="tipo_individual" value="individual" autocomplete="off">
+                        <label class="btn btn-outline-warning py-2 fw-bold" for="tipo_individual">
+                            <i class="fas fa-user-friends me-1"></i> Contratos por Lote
+                            <small class="d-block fw-normal opacity-75">Cada lote con su propio plan y beneficiario</small>
+                        </label>
+                    </div>
+                    <small class="text-muted mt-1 d-block">
+                        <i class="fas fa-info-circle text-warning"></i>
+                        <strong>Contratos por Lote</strong>: Úselo cuando cada lote tiene un futuro propietario diferente (hermanos, socios, familiares). Cada lote genera su propio plan de cuotas independiente.
+                    </small>
                 </div>
             </div>
+
+            <div class="row g-3">
+                <!-- Proyecto Bloqueado -->
+                <div class="col-md-4 mb-3">
+                    <label class="form-label font-weight-bold text-secondary">
+                        <i class="fas fa-building text-primary"></i> Proyecto Activo
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-primary text-white"><i class="fas fa-lock"></i></span>
+                        <input type="text" class="form-control bg-white fw-bold text-primary" value="{{ $lotificacionActiva->nombre ?? 'Proyecto Activo' }}" readonly>
+                    </div>
+                    <small class="text-muted"><i class="fas fa-info-circle"></i> Para registrar en otro proyecto, cámbielo en la barra superior.</small>
+                </div>
+
+                <!-- Bloque -->
+                <div class="col-md-4 mb-3">
+                    <label for="bloque_select" class="form-label font-weight-bold text-secondary">Bloque / Manzana <span class="text-danger">*</span></label>
+                    <select class="custom-select form-control" id="bloque_select" name="id_bloque" required>
+                        <option value="">-- Seleccionar Bloque --</option>
+                        @foreach ($bloques as $bloque)
+                            <option value="{{ $bloque->id_bloque }}" @selected(old('id_bloque') == $bloque->id_bloque)>
+                                {{ $bloque->nombre }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <!-- Lotes (Múltiple) -->
+                <div class="col-md-4 mb-3">
+                    <label for="lote_select" class="form-label font-weight-bold text-secondary">Lote(s) a Asignar <span class="text-danger">*</span></label>
+                    <select class="custom-select form-control" id="lote_select" name="lotes_ids[]" multiple="multiple" required disabled>
+                    </select>
+                    <small class="text-muted" id="hint_lote_select">Puede seleccionar múltiples lotes si es una venta unificada.</small>
+                </div>
+            </div>
+
+            {{-- BENEFICIARIO FINAL: solo visible cuando se selecciona "Contratos por Lote" --}}
+            <div class="row g-3 mt-2 p-3 border rounded bg-white shadow-sm" id="seccion_beneficiario" style="display:none;">
+                <div class="col-12 mb-1">
+                    <h6 class="text-warning fw-bold mb-0">
+                        <i class="fas fa-user-tie me-1"></i> Beneficiario Final / Futuro Titular
+                        <span class="badge bg-warning text-dark ms-1 fw-normal small">Opcional</span>
+                    </h6>
+                    <small class="text-muted">Si el lote será transferido a otra persona al finalizar los pagos (hermano, socio, familiar), indíquelo aquí. El contrato permanece a nombre del representante hasta que se escriture.</small>
+                </div>
+                <div class="col-md-5 mb-2">
+                    <label for="beneficiario_final" class="form-label font-weight-bold text-secondary">Nombre del Beneficiario Final</label>
+                    <input type="text" class="form-control" id="beneficiario_final" name="beneficiario_final" placeholder="Ej: Carlos García (Hermano - USA)" value="{{ old('beneficiario_final') }}">
+                </div>
+                <div class="col-md-7 mb-2">
+                    <label for="nota_beneficiario" class="form-label font-weight-bold text-secondary">Nota / Aclaración Legal</label>
+                    <input type="text" class="form-control" id="nota_beneficiario" name="nota_beneficiario" placeholder="Ej: Hermano en el exterior. Escritura final a su nombre al finalizar el contrato." value="{{ old('nota_beneficiario') }}">
+                </div>
+            </div>
+
         </div>
     </div>
 
-    {{-- SECCIÓN 3: PLAN DE PAGOS --}}
+
+    {{-- SECCIÓN 3: PLAN FINANCIERO DE LA VENTA --}}
     <div class="card shadow-sm border-left-success mb-4">
         <div class="card-header py-3 bg-white">
-            <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-hand-holding-usd"></i> Detalles Financieros (Plan de Pagos)</h6>
+            <h6 class="m-0 font-weight-bold text-success"><i class="fas fa-hand-holding-usd"></i> Condiciones Financieras del Contrato</h6>
         </div>
         <div class="card-body bg-light">
             <!-- Tarjetas de Totales -->
@@ -195,52 +255,100 @@
             <!-- Inputs de Prima y Fecha -->
             <div class="row g-3 mb-2">
                 <div class="col-md-6 mb-3">
-                    <label for="primer_abono" class="form-label font-weight-bold text-secondary"><i class="fas fa-money-bill-wave text-success"></i> Prima / Enganche</label>
+                    <label for="primer_abono" class="form-label font-weight-bold text-secondary"><i class="fas fa-money-bill-wave text-success"></i> Prima / Enganche <span class="text-danger">*</span></label>
                     <div class="input-group input-group-lg shadow-sm">
                         <span class="input-group-text bg-success text-white border-success">$</span>
                         <input type="number" step="0.01" min="0" class="form-control border-success" id="primer_abono" name="primer_abono" placeholder="0.00" value="{{ old('primer_abono') }}" required>
                     </div>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label for="fecha_ultimo_abono" class="form-label font-weight-bold text-secondary"><i class="fas fa-calendar-alt text-primary"></i> Fecha del 1° Pago</label>
+                    <label for="fecha_ultimo_abono" class="form-label font-weight-bold text-secondary"><i class="fas fa-calendar-alt text-primary"></i> Fecha del 1° Pago <span class="text-danger">*</span></label>
                     <div class="input-group input-group-lg shadow-sm">
                         <span class="input-group-text bg-white border-end-0"><i class="fas fa-calendar text-muted"></i></span>
-                        <input type="date" class="form-control border-start-0 ps-0" id="fecha_ultimo_abono" name="fecha_ultimo_abono" value="{{ old('fecha_ultimo_abono', now()->format('Y-m-d')) }}">
+                        <input type="date" class="form-control border-start-0 ps-0" id="fecha_ultimo_abono" name="fecha_ultimo_abono" value="{{ old('fecha_ultimo_abono', now()->format('Y-m-d')) }}" required>
                     </div>
                 </div>
             </div>
 
-            <!-- Datos de pago de la Prima -->
-            <div class="row g-3 bg-white p-2 mb-3 rounded border">
-                <div class="col-md-3 mb-3">
-                    <label for="metodo_pago_prima" class="form-label font-weight-bold text-secondary">Método de Pago (Prima)</label>
-                    <select class="form-select" id="metodo_pago_prima" name="metodo_pago_prima" required onchange="togglePrimaFields()">
-                        <option value="Efectivo" {{ old('metodo_pago_prima') == 'Efectivo' ? 'selected' : '' }}>Efectivo</option>
-                        <option value="Transferencia Bancaria" {{ old('metodo_pago_prima') == 'Transferencia Bancaria' ? 'selected' : '' }}>Transferencia Bancaria</option>
-                        <option value="Depósito Bancario" {{ old('metodo_pago_prima') == 'Depósito Bancario' ? 'selected' : '' }}>Depósito Bancario</option>
-                        <option value="Cheque" {{ old('metodo_pago_prima') == 'Cheque' ? 'selected' : '' }}>Cheque</option>
-                    </select>
+            <!-- Datos de pago de la Prima con Selector Rápido de 1 Clic -->
+            <div class="bg-white p-3 mb-3 rounded border shadow-sm">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4 mb-2" id="div_metodo_pago_prima">
+                        <label class="form-label font-weight-bold text-secondary d-block">
+                            <i class="fas fa-wallet text-primary me-1"></i> Método de Pago (Prima) <span class="text-danger">*</span>
+                        </label>
+                        <div class="btn-group w-100 d-flex flex-wrap shadow-sm" role="group" id="group_metodo_pago_prima">
+                            <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_efectivo" value="Efectivo" autocomplete="off" {{ old('metodo_pago_prima', 'Efectivo') == 'Efectivo' ? 'checked' : '' }} onchange="togglePrimaFields()">
+                            <label class="btn btn-outline-success py-2 fw-bold flex-fill" for="metodo_prima_efectivo">
+                                <i class="fas fa-money-bill-wave me-1"></i> Efectivo
+                            </label>
+
+                            <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_transferencia" value="Transferencia Bancaria" autocomplete="off" {{ old('metodo_pago_prima') == 'Transferencia Bancaria' ? 'checked' : '' }} onchange="togglePrimaFields()">
+                            <label class="btn btn-outline-primary py-2 fw-bold flex-fill" for="metodo_prima_transferencia">
+                                <i class="fas fa-exchange-alt me-1"></i> Transf.
+                            </label>
+
+                            <input type="radio" class="btn-check" name="metodo_pago_prima" id="metodo_prima_deposito" value="Depósito Bancario" autocomplete="off" {{ old('metodo_pago_prima') == 'Depósito Bancario' ? 'checked' : '' }} onchange="togglePrimaFields()">
+                            <label class="btn btn-outline-info py-2 fw-bold flex-fill" for="metodo_prima_deposito">
+                                <i class="fas fa-university me-1"></i> Depósito
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4 mb-2" id="div_cuenta_prima" style="display: none;">
+                        <label for="cuenta_destino_prima" class="form-label font-weight-bold text-secondary">
+                            <i class="fas fa-university text-primary me-1"></i> Banco / Cuenta Destino
+                        </label>
+                        <div class="input-group flex-nowrap">
+                            <select class="form-select" id="cuenta_destino_prima" name="cuenta_destino_prima">
+                                <option value="">-- Seleccione Cuenta Destino --</option>
+                                @if(isset($cuentasBancarias) && $cuentasBancarias->isNotEmpty())
+                                    @foreach($cuentasBancarias as $cta)
+                                        <option value="{{ $cta->texto_completo }}" {{ old('cuenta_destino_prima') == $cta->texto_completo ? 'selected' : '' }}>
+                                            {{ $cta->texto_completo }}
+                                        </option>
+                                    @endforeach
+                                @endif
+                            </select>
+                            <button type="button" class="btn btn-primary px-3" id="btn_abrir_modal_cuenta_prima" data-bs-toggle="modal" data-bs-target="#modalNuevaCuenta" title="Agregar Nueva Cuenta Bancaria" style="flex-shrink: 0;">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 mb-2" id="div_fecha_transf_prima" style="display: none;">
+                        <label for="fecha_transferencia_prima" class="form-label font-weight-bold text-secondary">
+                            <i class="fas fa-calendar-alt text-primary me-1"></i> F. de Transferencia
+                        </label>
+                        <input type="date" class="form-control" id="fecha_transferencia_prima" name="fecha_transferencia_prima" value="{{ old('fecha_transferencia_prima', now()->format('Y-m-d')) }}">
+                    </div>
+                    
+                    <div class="col-md-2 mb-2" id="div_referencia_prima">
+                        <label for="referencia_prima" class="form-label font-weight-bold text-secondary" id="label_referencia_prima">Referencia</label>
+                        <input type="text" class="form-control" id="referencia_prima" name="referencia_prima" placeholder="Registro Inicial de Venta">
+                    </div>
                 </div>
-                <div class="col-md-4 mb-3" id="div_cuenta_prima" style="display: none;">
-                    <label for="cuenta_destino_prima" class="form-label font-weight-bold text-secondary">Cuenta Destino</label>
-                    <input type="text" class="form-control" id="cuenta_destino_prima" name="cuenta_destino_prima" placeholder="Ej: BANPRO - Empresa">
-                </div>
-                <div class="col-md-5 mb-3" id="div_referencia_prima">
-                    <label for="referencia_prima" class="form-label font-weight-bold text-secondary" id="label_referencia_prima">Comentarios / Referencia</label>
-                    <input type="text" class="form-control" id="referencia_prima" name="referencia_prima" placeholder="Registro Inicial de Venta">
+                
+                <div class="row mt-2">
+                    <div class="col-12">
+                        <label for="comentario_prima" class="form-label font-weight-bold text-secondary">
+                            <i class="fas fa-comment-dots text-primary me-1"></i> Comentarios / Observaciones <span class="text-muted fw-normal">(Opcional)</span>
+                        </label>
+                        <textarea class="form-control" id="comentario_prima" name="comentario_prima" rows="2" placeholder="Notas u observaciones sobre el registro y pago inicial (opcional)">{{ old('comentario_prima') }}</textarea>
+                    </div>
                 </div>
             </div>
 
             <div class="row g-3 align-items-end">
                 <div class="col-md-4 mb-3">
-                    <label for="plazo_cuotas" class="form-label font-weight-bold text-secondary">Plazo de Financiamiento</label>
+                    <label for="plazo_cuotas" class="form-label font-weight-bold text-secondary">Plazo de Financiamiento <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <input type="number" class="form-control" id="plazo_cuotas" name="plazo_meses" value="{{ old('plazo_meses') }}" required placeholder="Ej: 60">
                         <span class="input-group-text">Meses</span>
                     </div>
                 </div>
                 <div class="col-md-4 mb-3">
-                    <label for="cuotas" class="form-label font-weight-bold text-secondary">Cuota Mensual Sugerida</label>
+                    <label for="cuotas" class="form-label font-weight-bold text-secondary">Cuota Mensual Sugerida <span class="text-danger">*</span></label>
                     <div class="input-group">
                         <span class="input-group-text text-danger font-weight-bold">$</span>
                         <input type="number" step="0.01" class="form-control font-weight-bold" style="font-size: 1.1rem; color: #e74a3b;" id="cuotas" name="cuota_mensual" placeholder="0.00" value="{{ old('cuota_mensual') }}" required>
@@ -252,10 +360,156 @@
     </div>
 
     <div class="d-flex justify-content-end mb-5">
-        <a href="{{ route('registro.index') }}" class="btn btn-secondary btn-lg mr-3 shadow-sm"><i class="fas fa-times"></i> Cancelar</a>
-        <button type="submit" class="btn btn-success btn-lg shadow-sm px-5"><i class="fas fa-check-circle"></i> Confirmar y Guardar Venta</button>
+        <a href="{{ route('registro.index') }}" class="btn btn-secondary btn-lg me-3 shadow-sm"><i class="fas fa-times"></i> Cancelar</a>
+        <button type="button" id="btn-preparar-registro" class="btn btn-success btn-lg shadow-sm px-5 py-2">
+            <i class="fas fa-check-circle me-1"></i> Revisar y Registrar Venta
+        </button>
     </div>
 </form>
+
+{{-- ================================================= --}}
+{{-- MODAL DE RESUMEN Y CONFIRMACIÓN DE VENTA --}}
+{{-- ================================================= --}}
+<div class="modal fade" id="modalConfirmarVenta" tabindex="-1" aria-labelledby="modalConfirmarVentaLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow-lg border-0">
+            <div class="modal-header bg-primary text-white py-3 d-flex justify-content-between align-items-center">
+                <h5 class="modal-title fw-bold text-white mb-0" id="modalConfirmarVentaLabel">
+                    <i class="fas fa-file-contract me-2"></i> Resumen de Promesa de Venta
+                </h5>
+                <button type="button" class="close text-white" id="btn-x-modal-venta" data-bs-dismiss="modal" data-dismiss="modal" aria-label="Cerrar" style="font-size: 1.8rem; line-height: 1; border: none; background: transparent; opacity: 1; color: #fff;">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body p-4 bg-white">
+                <div class="alert alert-info py-2 px-3 mb-3 d-flex align-items-center border-info">
+                    <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
+                    <div>
+                        <strong class="text-dark">Confirmación Consciente de Venta:</strong>
+                        <div class="small text-secondary">Verifique que todos los datos del cliente, asignación de lotes y condiciones de financiamiento sean correctos antes de guardar.</div>
+                    </div>
+                </div>
+
+                {{-- PROYECTO & CLIENTE --}}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <span class="text-secondary d-block small text-uppercase fw-bold">Cliente / Titular</span>
+                            <span class="fs-5 fw-bold text-dark d-block" id="modal-resumen-cliente">-</span>
+                            <div class="small text-dark mt-1">
+                                <span>Cédula: <strong class="text-dark font-weight-bold" id="modal-resumen-cedula">-</strong></span> &middot;
+                                <span>Tel: <strong class="text-dark font-weight-bold" id="modal-resumen-telefono">-</strong></span>
+                            </div>
+                            <div class="mt-2">
+                                <span class="badge bg-secondary text-white me-1 px-2 py-1" id="modal-resumen-pv">PV: -</span>
+                                <span class="badge bg-dark text-white px-2 py-1" id="modal-resumen-exp">Exp: -</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border h-100">
+                            <span class="text-secondary d-block small text-uppercase fw-bold">Proyecto y Ubicación</span>
+                            <span class="badge bg-primary text-white fs-6 mb-2 mt-1 px-3 py-1">
+                                <i class="fas fa-map-marker-alt me-1"></i> {{ $lotificacionActiva->nombre ?? 'Proyecto Activo' }}
+                            </span>
+                            <div class="text-dark">
+                                <span>Bloque: <strong class="text-primary fw-bold" id="modal-resumen-bloque">-</strong></span>
+                            </div>
+                            <div class="mt-1" id="modal-resumen-lotes-container">
+                                <!-- Badges de lotes -->
+                            </div>
+                            <div class="small text-dark mt-2">
+                                Extensión Total: <strong class="text-dark font-weight-bold" id="modal-resumen-extension">0.00 vrs²</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- PLAN FINANCIERO --}}
+                <div class="card border-primary mb-2">
+                    <div class="card-header bg-light py-2 border-bottom">
+                        <strong class="text-primary small text-uppercase"><i class="fas fa-coins me-1"></i> Plan Financiero y Cuotas</strong>
+                    </div>
+                    <div class="card-body p-3 bg-white">
+                        <div class="row text-center align-items-center">
+                            <div class="col-6 col-md-3 border-end">
+                                <span class="text-muted small d-block">Precio Total</span>
+                                <span class="fs-5 fw-bold text-dark" id="modal-resumen-precio">$0.00</span>
+                            </div>
+                            <div class="col-6 col-md-3 border-end">
+                                <span class="text-muted small d-block">Prima Inicial</span>
+                                <span class="fs-5 fw-bold text-success" id="modal-resumen-prima">$0.00</span>
+                            </div>
+                            <div class="col-6 col-md-3 border-end">
+                                <span class="text-muted small d-block">Plazo Total</span>
+                                <span class="fs-5 fw-bold text-primary" id="modal-resumen-plazo">0 Meses</span>
+                            </div>
+                            <div class="col-6 col-md-3">
+                                <span class="text-muted small d-block">Cuota Mensual</span>
+                                <span class="fs-5 fw-bold text-danger" id="modal-resumen-cuota">$0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-3 border-top">
+                <button type="button" class="btn btn-secondary text-white px-4 fw-bold" id="btn-cancelar-modal-venta" data-bs-dismiss="modal" data-dismiss="modal">
+                    <i class="fas fa-edit me-1"></i> Modificar Datos
+                </button>
+                <button type="button" id="btn-confirmar-guardar-venta" class="btn btn-success text-white px-4 fw-bold shadow-sm">
+                    <i class="fas fa-check-circle me-1"></i> Confirmar y Registrar Venta
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- MODAL PARA AGREGAR NUEVA CUENTA BANCARIA DINÁMICAMENTE --}}
+<div class="modal fade" id="modalNuevaCuenta" tabindex="-1" aria-labelledby="modalNuevaCuentaLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content shadow border-0">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title fw-bold" id="modalNuevaCuentaLabel"><i class="fas fa-university me-2"></i> Agregar Nueva Cuenta Bancaria</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form id="formNuevaCuentaBancaria">
+                @csrf
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">Complete los datos de la cuenta bancaria para registrarla y seleccionarla automáticamente.</p>
+                    
+                    <div class="mb-3">
+                        <label for="modal_banco" class="form-label small fw-bold text-dark">Banco / Entidad Financiera</label>
+                        <input type="text" class="form-control" id="modal_banco" name="banco" placeholder="Ej: Banpro, BAC, LAFISE, Ficohsa, BDF" required>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-4">
+                            <label for="modal_moneda" class="form-label small fw-bold text-dark">Moneda</label>
+                            <select class="form-select" id="modal_moneda" name="moneda" required>
+                                <option value="$">$ (Dólares)</option>
+                                <option value="C$">C$ (Córdobas)</option>
+                            </select>
+                        </div>
+                        <div class="col-8">
+                            <label for="modal_numero_cuenta" class="form-label small fw-bold text-dark">Número de Cuenta</label>
+                            <input type="text" class="form-control font-monospace" id="modal_numero_cuenta" name="numero_cuenta" placeholder="Ej: 10021210290831" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="modal_titular" class="form-label small fw-bold text-dark">Nombre del Titular</label>
+                        <input type="text" class="form-control" id="modal_titular" name="titular" placeholder="Ej: Nombre de la persona o empresa titular" required>
+                    </div>
+                    <div id="modal_cuenta_error" class="alert alert-danger py-2 small" style="display: none;"></div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary fw-bold" id="btnGuardarNuevaCuenta">
+                        <i class="fas fa-save me-1"></i> Guardar Cuenta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
 @endsection 
 
@@ -312,52 +566,10 @@ $(document).ready(function() {
         }
     }
 
-    $('#proyecto_select').change(function() {
-        var proyecto = $(this).val();
-        var bloqueSelect = $('#bloque_select');
-        var loteSelect = $('#lote_select');
-
-        bloqueSelect.html('<option value=""></option>').prop('disabled', true);
-        bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Cargando bloques...' });
-        
-        loteSelect.html('<option value=""></option>').prop('disabled', true);
-        loteSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccione un Bloque primero' });
-        $('#extension_lote').val('');
-        $('#extension_lote_value').val('');
-        $('#monto_lote').val('');
-        calcularCuota();
-
-        if (proyecto) {
-            var ajaxUrl = '{{ url("api/lotificaciones") }}' + '/' + encodeURIComponent(proyecto) + '/bloques';
-
-            $.ajax({
-                url: ajaxUrl,
-                type: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    bloqueSelect.html('<option value=""></option>');
-
-                    if (data.length > 0) {
-                        $.each(data, function(key, bloque) {
-                            bloqueSelect.append('<option value="' + bloque.id_bloque + '">Bloque ' + bloque.nombre + '</option>');
-                        });
-                        bloqueSelect.prop('disabled', false);
-                        bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccione Bloque' });
-                    } else {
-                        bloqueSelect.prop('disabled', true);
-                        bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'No hay bloques en este proyecto' });
-                    }
-                },
-                error: function(xhr, status, error) {
-                    bloqueSelect.html('<option value=""></option>').prop('disabled', true);
-                    bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Error al cargar bloques' });
-                    console.error("AJAX Error:", error, status, xhr.responseText);
-                }
-            });
-        } else {
-            bloqueSelect.html('<option value=""></option>').prop('disabled', true);
-            bloqueSelect.select2('destroy').select2({ theme: 'bootstrap-5', width: '100%', placeholder: 'Seleccione un Proyecto primero' });
-        }
+    $('#bloque_select').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Seleccione Bloque'
     });
 
     $('#bloque_select').change(function() {
@@ -446,10 +658,91 @@ $(document).ready(function() {
     // cuota sugerida, pero el usuario puede ajustarla manualmente después.
     $('#monto_lote, #plazo_cuotas, #primer_abono').on('input', calcularCuota);
     
-    // Disparar el evento change si hay un proyecto preseleccionado al cargar la página
-    if ($('#proyecto_select').val()) {
-        $('#proyecto_select').trigger('change');
+    // Disparar el evento change si hay un bloque preseleccionado al cargar la página
+    if ($('#bloque_select').val()) {
+        $('#bloque_select').trigger('change');
     }
+
+    // Modal de Confirmación Consciente de Venta
+    var modalConfirmarVentaEl = document.getElementById('modalConfirmarVenta');
+    var modalConfirmarVenta = new bootstrap.Modal(modalConfirmarVentaEl);
+    var formRegistro = document.getElementById('form-registro-venta');
+
+    $('#btn-preparar-registro').on('click', function(e) {
+        e.preventDefault();
+
+        if (!formRegistro.checkValidity()) {
+            formRegistro.reportValidity();
+            return;
+        }
+
+        var lotesSeleccionados = $('#lote_select').val();
+        if (!lotesSeleccionados || lotesSeleccionados.length === 0) {
+            alert('Debe seleccionar al menos un lote para poder realizar la venta.');
+            $('#lote_select').select2('open');
+            return;
+        }
+
+        // Poblar datos en el modal
+        $('#modal-resumen-cliente').text($('#nombre_completo').val() || '-');
+        $('#modal-resumen-cedula').text($('#cedula').val() || '-');
+        $('#modal-resumen-telefono').text($('#telefono').val() || 'No indicado');
+        $('#modal-resumen-pv').text('PV: ' + ($('#pv_num').val() || '-'));
+        $('#modal-resumen-exp').text('Exp: ' + ($('#expediente_num').val() || '-'));
+
+        var bloqueTexto = $('#bloque_select option:selected').text();
+        $('#modal-resumen-bloque').text(bloqueTexto.trim());
+
+        // Lotes badges
+        var containerLotes = $('#modal-resumen-lotes-container');
+        containerLotes.empty();
+        $('#lote_select option:selected').each(function() {
+            containerLotes.append('<span class="badge bg-dark text-white me-1 mb-1">Lote ' + $(this).text() + '</span>');
+        });
+
+        var extMetros = parseFloat($('#extension_lote').val()) || 0;
+        var factorVara = 1.418415;
+        var extVaras = extMetros * factorVara;
+        if (Math.abs(Math.round(extVaras) - extVaras) < 0.02) {
+            extVaras = Math.round(extVaras);
+        }
+        $('#modal-resumen-extension').html(parseFloat(extVaras).toFixed(2) + ' vrs² <span class="text-muted ms-1">(' + extMetros.toFixed(2) + ' m²)</span>');
+
+        var precioVal = parseFloat($('#monto_lote').val()) || 0;
+        var primaVal = parseFloat($('#primer_abono').val()) || 0;
+        var plazoVal = parseInt($('#plazo_cuotas').val()) || 0;
+        var cuotaVal = parseFloat($('#cuotas').val()) || 0;
+
+        if (primaVal > precioVal) {
+            alert('La prima o enganche ($' + primaVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ') no puede ser mayor al precio total de la venta ($' + precioVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ').');
+            $('#primer_abono').focus();
+            return;
+        }
+
+        $('#modal-resumen-precio').text('$' + precioVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        $('#modal-resumen-prima').text('$' + primaVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+        $('#modal-resumen-plazo').text(plazoVal + ' Meses');
+        $('#modal-resumen-cuota').text('$' + cuotaVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+
+        modalConfirmarVenta.show();
+    });
+
+    // Cerrar modal al hacer clic en "Modificar Datos" o en "X"
+    $('#btn-cancelar-modal-venta, #btn-x-modal-venta').on('click', function(e) {
+        e.preventDefault();
+        try {
+            modalConfirmarVenta.hide();
+        } catch(err) {}
+        $('#modalConfirmarVenta').modal('hide');
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open').css('padding-right', '');
+    });
+
+    $('#btn-confirmar-guardar-venta').on('click', function(e) {
+        e.preventDefault();
+        $(this).prop('disabled', true).html('<span class="spinner-border spinner-border-sm me-2"></span>Registrando Venta...');
+        document.getElementById('form-registro-venta').submit();
+    });
 });
 </script>
             <script src="{{ asset('js/jqueryEM.js') }}"></script>
@@ -467,31 +760,190 @@ $(document).ready(function() {
     
     <script>
     function togglePrimaFields() {
-        var metodo = document.getElementById('metodo_pago_prima').value;
+        var checkedRadio = document.querySelector('input[name="metodo_pago_prima"]:checked');
+        var metodo = checkedRadio ? checkedRadio.value : (document.getElementById('metodo_pago_prima') ? document.getElementById('metodo_pago_prima').value : 'Efectivo');
+        var divMetodo = document.getElementById('div_metodo_pago_prima');
         var divCuenta = document.getElementById('div_cuenta_prima');
         var inputCuenta = document.getElementById('cuenta_destino_prima');
+        var divFechaTransf = document.getElementById('div_fecha_transf_prima');
         var labelRef = document.getElementById('label_referencia_prima');
         var inputRef = document.getElementById('referencia_prima');
+        var divRef = document.getElementById('div_referencia_prima');
 
-        if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario' || metodo === 'Cheque') {
-            divCuenta.style.display = 'block';
-            inputCuenta.required = true;
-            labelRef.innerText = 'N° de Referencia / Comprobante';
-            inputRef.placeholder = 'N° de transacción';
-            inputRef.required = (metodo !== 'Cheque');
+        if (metodo === 'Transferencia Bancaria' || metodo === 'Depósito Bancario') {
+            if (divMetodo) divMetodo.className = 'col-md-3 mb-2';
+            if (divCuenta) {
+                divCuenta.style.display = 'block';
+                divCuenta.className = 'col-md-4 mb-2';
+            }
+            if (divFechaTransf) {
+                divFechaTransf.style.display = 'block';
+                divFechaTransf.className = 'col-md-3 mb-2';
+            }
+            if (inputCuenta) inputCuenta.required = true;
+            if (divRef) divRef.className = 'col-md-2 mb-2';
+            if (labelRef) labelRef.innerText = 'N° Referencia';
+            if (inputRef) {
+                inputRef.placeholder = 'N° de transacción';
+                inputRef.required = true;
+            }
         } else {
-            divCuenta.style.display = 'none';
-            inputCuenta.required = false;
-            inputCuenta.value = '';
-            labelRef.innerText = 'Comentarios / Referencia';
-            inputRef.placeholder = 'Registro Inicial de Venta';
-            inputRef.required = false;
+            if (divMetodo) divMetodo.className = 'col-md-6 mb-2';
+            if (divCuenta) divCuenta.style.display = 'none';
+            if (divFechaTransf) divFechaTransf.style.display = 'none';
+            if (inputCuenta) {
+                inputCuenta.required = false;
+                inputCuenta.value = '';
+            }
+            if (divRef) divRef.className = 'col-md-6 mb-2';
+            if (labelRef) labelRef.innerText = 'Comentarios / Referencia';
+            if (inputRef) {
+                inputRef.placeholder = 'Registro Inicial de Venta';
+                inputRef.required = false;
+            }
         }
     }
     
+    // Mostrar u ocultar la sección de Beneficiario Final según el tipo de contrato
+    function toggleBeneficiario() {
+        var esIndividual = document.getElementById('tipo_individual') && document.getElementById('tipo_individual').checked;
+        var seccion = document.getElementById('seccion_beneficiario');
+        if (seccion) {
+            seccion.style.display = esIndividual ? 'flex' : 'none';
+        }
+    }
+
+    // Formateador automático de Cédula (XXX-XXXXXX-XXXXX)
+    function formatearCedula(input) {
+        let cursor = input.selectionStart;
+        let originalLen = input.value.length;
+        let val = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (val.length > 14) val = val.substring(0, 14);
+
+        let formatted = '';
+        if (val.length > 0) {
+            formatted += val.substring(0, Math.min(3, val.length));
+        }
+        if (val.length > 3) {
+            formatted += '-' + val.substring(3, Math.min(9, val.length));
+        }
+        if (val.length > 9) {
+            formatted += '-' + val.substring(9, 14);
+        }
+        input.value = formatted;
+    }
+
     // Ejecutar al cargar la página por si hay valores "old"
     document.addEventListener("DOMContentLoaded", function() {
         togglePrimaFields();
+        toggleBeneficiario();
+
+        // Escuchar cambios en los radio de tipo de contrato
+        document.querySelectorAll('input[name="tipo_contrato"]').forEach(function(radio) {
+            radio.addEventListener('change', toggleBeneficiario);
+        });
+
+        // Máscara y mayúsculas en cédula
+        const cedulaInput = document.getElementById('cedula');
+        if (cedulaInput) {
+            cedulaInput.addEventListener('input', function() {
+                formatearCedula(this);
+            });
+            cedulaInput.addEventListener('blur', function() {
+                formatearCedula(this);
+            });
+        }
+
+        // Forzar mayúsculas en todos los campos con clase text-uppercase
+        document.querySelectorAll('.text-uppercase').forEach(function(el) {
+            el.addEventListener('input', function() {
+                if (this.id !== 'cedula') {
+                    this.value = this.value.toUpperCase();
+                }
+            });
+        });
+
+        // Manejo AJAX para creación rápida de cuenta bancaria
+        var formNuevaCuenta = document.getElementById('formNuevaCuentaBancaria');
+        if (formNuevaCuenta) {
+            formNuevaCuenta.addEventListener('submit', function(e) {
+                e.preventDefault();
+                var btnGuardar = document.getElementById('btnGuardarNuevaCuenta');
+                var errorBox = document.getElementById('modal_cuenta_error');
+                if (errorBox) errorBox.style.display = 'none';
+
+                if (btnGuardar) {
+                    btnGuardar.disabled = true;
+                    btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+                }
+
+                var formData = new FormData(formNuevaCuenta);
+
+                fetch("{{ route('api.cuentas_bancarias.store') }}", {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                        'Accept': 'application/json'
+                    },
+                    body: formData
+                })
+                .then(function(res) {
+                    return res.json().then(function(data) {
+                        return { status: res.status, data: data };
+                    });
+                })
+                .then(function(result) {
+                    if (result.status === 200 && result.data.success) {
+                        var cta = result.data.cuenta;
+                        var selectCuenta = document.getElementById('cuenta_destino_prima');
+                        if (selectCuenta) {
+                            var newOption = document.createElement('option');
+                            newOption.value = cta.texto_completo;
+                            newOption.text = cta.texto_completo;
+                            newOption.selected = true;
+                            selectCuenta.appendChild(newOption);
+                        }
+
+                        // Cerrar modal de forma segura compatible con BS4/BS5/jQuery/DOM
+                        var modalEl = document.getElementById('modalNuevaCuenta');
+                        if (typeof $ !== 'undefined' && typeof $('#modalNuevaCuenta').modal === 'function') {
+                            $('#modalNuevaCuenta').modal('hide');
+                        } else if (modalEl) {
+                            var closeBtn = modalEl.querySelector('[data-bs-dismiss="modal"], [data-dismiss="modal"]');
+                            if (closeBtn) {
+                                closeBtn.click();
+                            } else if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                                (bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl)).hide();
+                            }
+                        }
+
+                        // Limpiar formulario modal
+                        formNuevaCuenta.reset();
+                    } else {
+                        var msg = result.data.message || 'Ocurrió un error al guardar la cuenta bancaria.';
+                        if (result.data.errors) {
+                            msg = Object.values(result.data.errors).flat().join('<br>');
+                        }
+                        if (errorBox) {
+                            errorBox.innerHTML = msg;
+                            errorBox.style.display = 'block';
+                        }
+                    }
+                })
+                .catch(function(err) {
+                    if (errorBox) {
+                        errorBox.innerHTML = 'Error de conexión: ' + err.message;
+                        errorBox.style.display = 'block';
+                    }
+                })
+                .finally(function() {
+                    if (btnGuardar) {
+                        btnGuardar.disabled = false;
+                        btnGuardar.innerHTML = '<i class="fas fa-save me-1"></i> Guardar Cuenta';
+                    }
+                });
+            });
+        }
     });
     </script>
 @endsection

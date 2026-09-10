@@ -7,7 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class CierreCaja extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\ScopedByLotificacion;
+    
     protected $fillable = [
         'fecha',
         'saldo_inicial',
@@ -15,6 +16,7 @@ class CierreCaja extends Model
         'egresos',
         'saldo_final',
         'user_id',
+        'lotificacion_id',
         'efectivo_real',
         'diferencia',
         'comentario'

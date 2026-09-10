@@ -19,27 +19,28 @@
                 <h4 class="mb-3 text-info">Datos del Cliente / Representante</h4>
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <label for="nombre_completo" class="form-label">Nombre Completo / Representante</label>
-                        <input type="text" class="form-control" id="nombre_completo" name="nombres_apellidos" 
-                               value="{{ old('nombres_apellidos', $cliente->nombres_apellidos) }}" required>
+                        <label for="nombre_completo" class="form-label">Nombre Completo / Representante <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control text-uppercase" id="nombre_completo" name="nombres_apellidos" 
+                               value="{{ old('nombres_apellidos', $cliente->nombres_apellidos) }}" style="text-transform: uppercase;" required>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label for="cedula" class="form-label">Cédula</label>
-                        <input type="text" class="form-control" id="cedula" name="identificacion" 
-                               value="{{ old('identificacion', $cliente->identificacion) }}" required>
+                        <label for="cedula" class="form-label">Cédula <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control text-uppercase font-monospace fw-bold" id="cedula" name="identificacion" 
+                               value="{{ old('identificacion', $cliente->identificacion) }}" maxlength="16" placeholder="000-000000-0000A" style="text-transform: uppercase;" required>
+                        <small class="text-muted"><i class="fas fa-id-card text-primary"></i> Formato: XXX-XXXXXX-XXXXX</small>
                     </div>
                     <div class="col-md-3 mb-3">
-                        <label for="pv_num" class="form-label">N° Promesa Venta (PV)</label>
-                        <input type="text" class="form-control" id="pv_num" name="pv_num" 
-                               value="{{ old('pv_num', $cliente->pv_num) }}" required>
+                        <label for="pv_num" class="form-label">N° Promesa Venta (PV) <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control text-uppercase" id="pv_num" name="pv_num" 
+                               value="{{ old('pv_num', $cliente->pv_num) }}" style="text-transform: uppercase;" required>
                     </div>
                 </div>
 
                 <div class="row">
                     <div class="col-md-3 mb-3">
-                        <label for="expediente_num" class="form-label">N° de Expediente</label>
-                        <input type="text" class="form-control" id="expediente_num" name="expediente_num" 
-                               value="{{ old('expediente_num', $cliente->expediente_num) }}" required>
+                        <label for="expediente_num" class="form-label">N° de Expediente <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control text-uppercase font-monospace fw-bold" id="expediente_num" name="expediente_num" 
+                               value="{{ old('expediente_num', $cliente->expediente_num) }}" style="text-transform: uppercase;" required>
                     </div>
                     <div class="col-md-3 mb-3">
                         <label for="telefono" class="form-label">Teléfono</label>
@@ -48,90 +49,37 @@
                     </div>
                     <div class="col-md-3 mb-3">
                         <label for="estado_civil" class="form-label">Estado Civil</label>
-                        <select class="form-control custom-select" id="estado_civil" name="estado_civil" required>
+                        <select class="form-control custom-select text-uppercase" id="estado_civil" name="estado_civil" style="text-transform: uppercase;" required>
                             <option value="">Seleccione...</option>
-                            @php $ec = old('estado_civil', $cliente->estado_civil); @endphp
-                            @foreach (['soltero', 'casado', 'union_libre', 'divorciado', 'viudo'] as $opcion)
-                                <option value="{{ $opcion }}" {{ $ec == $opcion ? 'selected' : '' }}>
-                                    {{ ucfirst(str_replace('_', ' ', $opcion)) }}
+                            @php $ec = strtoupper(old('estado_civil', $cliente->estado_civil)); @endphp
+                            @foreach (['SOLTERO' => 'Soltero(a)', 'CASADO' => 'Casado(a)', 'UNION_LIBRE' => 'Unión Libre', 'UNION_DE_HECHO' => 'Unión de Hecho', 'DIVORCIADO' => 'Divorciado(a)', 'VIUDO' => 'Viudo(a)'] as $opcion => $label)
+                                <option value="{{ $opcion }}" {{ ($ec == $opcion || $ec == strtolower($opcion)) ? 'selected' : '' }}>
+                                    {{ $label }}
                                 </option>
                             @endforeach
                         </select>
                     </div>
                     <div class="col-md-3 mb-3">
                         <label for="oficio" class="form-label">Oficio</label>
-                        <input type="text" class="form-control" id="oficio" name="oficio"
-                               value="{{ old('oficio', $cliente->oficio) }}">
+                        <input type="text" class="form-control text-uppercase" id="oficio" name="oficio"
+                               value="{{ old('oficio', $cliente->oficio) }}" style="text-transform: uppercase;">
                     </div>
                 </div>
 
                 <div class="mb-4">
                     <label for="direccion" class="form-label">Dirección</label>
-                    <textarea class="form-control" id="direccion" name="direccion" rows="2">{{ old('direccion', $cliente->direccion) }}</textarea>
+                    <textarea class="form-control text-uppercase" id="direccion" name="direccion" rows="2" style="text-transform: uppercase;">{{ old('direccion', $cliente->direccion) }}</textarea>
                 </div>
                 
-                <hr class="my-4">
-
-                {{-- ================================================= --}}
-                {{--  ESTADO DE LA VENTA --}}
-                {{-- ================================================= --}}
-                @if($venta)
-                    <h4 class="mb-3 text-info">Estado y Parámetros de la Venta</h4>
-
-                    <div class="alert alert-warning mb-4">
-                        Solo el Estado del Contrato es editable desde aquí. Para cambiar lotes, precio o cuotas, es mejor rescindir y crear una nueva venta.
-                    </div>
-                    @php $esRescindido = ($venta->estado_contrato == 'Rescindido'); @endphp
-                    <div class="mb-3">
-                        <label for="estado_contrato" class="form-label fw-bold">Estado del Contrato:</label>
-                        <select class="form-control custom-select {{ $esRescindido ? 'border-danger bg-light' : '' }}" 
-                         id="estado_contrato" 
-                        name="estado_contrato" 
-                        {{ $esRescindido ? 'disabled' : '' }} required>
-        
-                     @foreach (['Vigente', 'Rescindido', 'Finalizado'] as $opcion)
-                    <option value="{{ $opcion }}" {{ (old('estado_contrato', $venta->estado_contrato) == $opcion) ? 'selected' : '' }}>
-                 {{ $opcion }}
-                </option>
-                 @endforeach
-             </select>
-    
-         @if($esRescindido)
-         <input type="hidden" name="estado_contrato" value="Rescindido">
-             <div class="form-text text-danger">
-             <i class="fas fa-exclamation-triangle"></i> Este contrato ha sido rescindido y no puede reactivarse.
-             </div>
-         @endif
-        </div>
-                    <div class="row">
-                        <div class="col-md-12 mb-4">
-                            <label class="form-label fw-bold text-secondary">Lotes Adquiridos en este Contrato</label>
-                            <div class="p-3 border rounded bg-white">
-                                @forelse($venta->lotes as $lote)
-                                    <span class="badge bg-info text-dark p-2 mr-2 mb-2" style="font-size: 0.95rem;">
-                                        <i class="fas fa-map-marker-alt"></i> Bloque {{ $lote->bloque ? $lote->bloque->nombre : 'N/D' }} | Lote {{ $lote->numero_lote }}
-                                    </span>
-                                @empty
-                                    <span class="text-muted">No hay lotes asignados a esta venta.</span>
-                                @endforelse
-                            </div>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="precio_final" class="form-label fw-bold text-secondary">Precio Final (USD)</label>
-                            {{-- Solo lectura para referencia --}}
-                            <input type="text" class="form-control bg-white" value="${{ number_format($venta->precio_final, 2) }}" readonly>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="cuota_mensual" class="form-label fw-bold text-secondary">Cuota Mensual (USD)</label>
-                            {{-- Solo lectura para referencia --}}
-                            <input type="text" class="form-control bg-white" value="${{ number_format($venta->cuota_mensual, 2) }}" readonly>
-                        </div>
-                    </div>
-                @else
-                    <div class="alert alert-danger">No hay una venta activa asociada a este cliente para editar.</div>
-                @endif
+                <div class="mb-4 p-3 bg-light border rounded">
+                    <label for="motivo_modificacion" class="form-label fw-bold text-dark">
+                        <i class="fas fa-clipboard-list text-warning"></i> Motivo de la Modificación o Cesión: <span class="text-danger">*</span>
+                    </label>
+                    <textarea class="form-control" id="motivo_modificacion" name="motivo_modificacion" rows="2" 
+                              placeholder="Ejemplo: Cesión de derechos de lote a familiar / Corrección ortográfica en apellido / Actualización de número de cédula / Cambio de número de teléfono..." required>{{ old('motivo_modificacion') }}</textarea>
+                    <small class="text-muted"><i class="fas fa-shield-alt text-primary"></i> Este motivo y los datos anteriores quedarán registrados en el historial de auditoría y expediente del cliente como respaldo legal.</small>
+                </div>
                 
-
                 <hr class="my-4">
                 
                 <button type="submit" class="btn btn-warning btn-lg">
@@ -142,38 +90,43 @@
             
         </div>
     </div>
-@section('scripts')
 
-<script>
-document.getElementById('estado_contrato').addEventListener('change', function() {
-    if (this.value === 'Rescindido') {
-        const confirmacion = confirm(
-            "¡ADVERTENCIA CRÍTICA!\n\n" +
-            "Si marca este contrato como 'Rescindido':\n" +
-            "1. Los lotes asociados quedarán DISPONIBLES de inmediato.\n" +
-            "2. Esta acción NO se puede deshacer desde esta pantalla.\n" +
-            "3. Para reactivar al cliente, deberá crear un contrato nuevo.\n\n" +
-            "¿Está absolutamente seguro de continuar?"
-        );
-        
-        if (!confirmacion) {
-            this.value = 'Vigente'; // Revertir si cancela
-        }
-    }
-});
-</script>
     <script>
-            <script src="{{ asset('js/jqueryEM.js') }}"></script>
+    function formatearCedula(input) {
+        let val = input.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        if (val.length > 14) val = val.substring(0, 14);
 
-    <!-- Custom scripts for all pages-->
-    <script src="{{ asset('js/sbAdmin2M.js') }}"></script>
+        let formatted = '';
+        if (val.length > 0) {
+            formatted += val.substring(0, Math.min(3, val.length));
+        }
+        if (val.length > 3) {
+            formatted += '-' + val.substring(3, Math.min(9, val.length));
+        }
+        if (val.length > 9) {
+            formatted += '-' + val.substring(9, 14);
+        }
+        input.value = formatted;
+    }
 
-    <!-- Page level plugins -->
-    <script src="{{ asset('js/chartM.js') }}"></script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const cedulaInput = document.getElementById('cedula');
+        if (cedulaInput) {
+            cedulaInput.addEventListener('input', function() {
+                formatearCedula(this);
+            });
+            cedulaInput.addEventListener('blur', function() {
+                formatearCedula(this);
+            });
+        }
 
-    <!-- Page level custom scripts -->
-    <script src="{{ asset('js/chartAD.js') }}"></script>
-    <script src="{{ asset('js/chartPD.js') }}"></script>
+        document.querySelectorAll('.text-uppercase').forEach(function(el) {
+            el.addEventListener('input', function() {
+                if (this.id !== 'cedula') {
+                    this.value = this.value.toUpperCase();
+                }
+            });
+        });
+    });
     </script>
-    @endsection
 @endsection

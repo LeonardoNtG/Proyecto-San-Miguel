@@ -127,8 +127,10 @@ class LoteController extends Controller
     public function edit(Lote $lote)
     {
         $bloque = $lote->bloque;
+        $ventaActiva = $lote->ventaActiva;
+        $cliente = $ventaActiva ? $ventaActiva->cliente : null;
 
-        return view('lotes.edit', compact('lote', 'bloque'));
+        return view('lotes.edit', compact('lote', 'bloque', 'ventaActiva', 'cliente'));
     }
 
     /**
@@ -145,12 +147,17 @@ class LoteController extends Controller
             ],
             'area_metros' => 'required|numeric|min:0.01',
             'precio_base' => 'required|numeric|min:0.01',
-            'estado' => ['required', Rule::in(['Disponible', 'Reservado', 'Vendido'])],
+            'estado' => ['nullable', Rule::in(['Disponible', 'Reservado', 'Vendido'])],
         ]);
 
-        $lote->update($validated);
+        $lote->update(array_filter($validated, fn($v) => !is_null($v)));
 
-        return redirect()->route('lotes.index', $lote->id_bloque)->with('success', 'Lote actualizado exitosamente.');
+        $msg = 'Lote "' . $lote->numero_lote . '" actualizado exitosamente.';
+        if ($lote->estado === 'Vendido' || $lote->estado === 'Reservado') {
+            $msg .= ' (Nota: Los contratos financieros existentes mantienen sus cuotas y saldos pactados).';
+        }
+
+        return redirect()->route('lotes.index', $lote->id_bloque)->with('success', $msg);
     }
 
     /**

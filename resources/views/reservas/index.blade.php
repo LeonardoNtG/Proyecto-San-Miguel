@@ -42,7 +42,7 @@
                         <td>{{ $reserva->cliente->nombres_apellidos }}</td>
                         <td>
                             @foreach($reserva->lotes as $lote)
-                                <span class="badge bg-info text-dark">L-{{ $lote->numero_lote }}</span>
+                                <span class="badge bg-dark text-white px-2 py-1 mb-1">Lote {{ $lote->numero_lote }}</span>
                             @endforeach
                         </td>
                         <td>${{ number_format($reserva->monto_reserva, 2) }}</td>

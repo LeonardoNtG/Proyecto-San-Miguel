@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Abono;
 use App\Models\Salida;
 use App\Models\CierreCaja;
+use App\Models\Rescision;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -61,6 +62,43 @@ class ReporteController extends Controller
         $anio = (int) $request->get('anio', now()->year);
         $mes = (int) $request->get('mes', now()->month);
         $fechaSeleccionada = $request->get('fecha', now()->format('Y-m-d'));
+        $proyectoFiltro = $request->get('proyecto_id', 'actual');
+
+        $esAdmin = auth()->check() && auth()->user()->hasRole('Administrador');
+        $activeLotificacionId = session('lotificacion_id');
+
+        $esGlobal = false;
+        $targetLotificacionId = null;
+
+        $abonosRelations = [
+            'user',
+            'venta' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+            'venta.cliente' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+            'venta.lotes' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+            'venta.lotes.bloque' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+            'venta.lotificacion' => fn($q) => $q->withoutGlobalScope('lotificacion')
+        ];
+
+        if ($esAdmin && ($proyectoFiltro === 'global' || $proyectoFiltro === 'todos')) {
+            $esGlobal = true;
+            $etiquetaProyecto = 'CONSOLIDADO GLOBAL (TODAS LAS LOTIFICACIONES)';
+            $abonosQuery = Abono::withoutGlobalScope('lotificacion')->with($abonosRelations);
+        } elseif ($esAdmin && is_numeric($proyectoFiltro)) {
+            $targetLotificacionId = (int) $proyectoFiltro;
+            $lotObj = \App\Models\Lotificacion::find($targetLotificacionId);
+            $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Seleccionado';
+            $abonosQuery = Abono::withoutGlobalScope('lotificacion')
+                ->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId))
+                ->with($abonosRelations);
+        } else {
+            // Usuario normal o Admin en modo proyecto actual
+            $targetLotificacionId = $activeLotificacionId;
+            $lotObj = \App\Models\Lotificacion::find($activeLotificacionId);
+            $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Actual';
+            $abonosQuery = Abono::withoutGlobalScope('lotificacion')
+                ->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $activeLotificacionId))
+                ->with($abonosRelations);
+        }
 
         if (!in_array($periodo, ['hoy', 'dia', 'mes', 'anio', 'ytd'], true)) {
             $periodo = 'mes';
@@ -110,59 +148,174 @@ class ReporteController extends Controller
                 break;
         }
 
-        $abonos = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
+        $abonos = $abonosQuery
             ->whereBetween('fecha_pago', [$inicio->format('Y-m-d'), $fin->format('Y-m-d')])
             ->orderBy('fecha_pago')
             ->orderBy('created_at')
             ->get();
 
-        $salidas = Salida::whereBetween('fecha', [$inicio->format('Y-m-d'), $fin->format('Y-m-d')])
-            ->orderBy('fecha')
-            ->orderBy('created_at')
-            ->get();
+        $totalRecaudado = (float) $abonos->sum('monto_abonado');
+        $cantidadAbonos = $abonos->count();
+        $clientesUnicos = $abonos->pluck('venta.cliente.id_cliente')->filter()->unique()->count();
+        $ticketPromedio = $cantidadAbonos > 0 ? ($totalRecaudado / $cantidadAbonos) : 0;
 
-        $totalIngresos = (float) $abonos->sum('monto_abonado');
-        $totalGastos = (float) $salidas->sum('monto');
-        $balanceNeto = $totalIngresos - $totalGastos;
+        // 1. Desglose por Concepto / Tipo de Cobro
+        $desgloseConceptos = $abonos->groupBy(function($item) {
+            $tipo = trim($item->tipo_pago ?? '');
+            if (empty($tipo)) return 'Sin Especificar';
+            if (stripos($tipo, 'Prima') !== false || stripos($tipo, 'Primer') !== false) return 'Primas / Enganches';
+            if (stripos($tipo, 'Mensualidad') !== false || stripos($tipo, 'Cuota') !== false) return 'Cuotas Ordinarias';
+            if (stripos($tipo, 'Reserva') !== false || stripos($tipo, 'Anticipo') !== false) return 'Reservas / Anticipos';
+            return $tipo;
+        })->map(function($items, $concepto) use ($totalRecaudado) {
+            $monto = (float) $items->sum('monto_abonado');
+            $cantidad = $items->count();
+            $porcentaje = $totalRecaudado > 0 ? ($monto / $totalRecaudado) * 100 : 0;
+            return [
+                'concepto' => $concepto,
+                'cantidad' => $cantidad,
+                'monto' => $monto,
+                'porcentaje' => round($porcentaje, 1),
+            ];
+        })->sortByDesc('monto')->values();
 
-        // Efectivo que venía arrastrado (sin cerrar) antes de iniciar el periodo filtrado
-        $saldoAnterior = $this->calcularSaldoAnterior($inicio->format('Y-m-d'));
-        $totalConSaldoAnterior = $saldoAnterior + $totalIngresos;
+        // 2. Desglose por Canal / Método de Pago
+        $desgloseMetodos = $abonos->groupBy(function($item) {
+            return trim($item->metodo_pago) ?: 'Efectivo';
+        })->map(function($items, $metodo) use ($totalRecaudado) {
+            $monto = (float) $items->sum('monto_abonado');
+            $cantidad = $items->count();
+            $porcentaje = $totalRecaudado > 0 ? ($monto / $totalRecaudado) * 100 : 0;
+            return [
+                'metodo' => $metodo,
+                'cantidad' => $cantidad,
+                'monto' => $monto,
+                'porcentaje' => round($porcentaje, 1),
+            ];
+        })->sortByDesc('monto')->values();
 
-        $clientesAbonaron = $abonos->pluck('venta.cliente.id_cliente')->filter()->unique()->count();
+        // Totales de bancarización
+        $totalBancos = (float) $abonos->filter(function($a) {
+            $m = strtolower($a->metodo_pago ?? '');
+            return str_contains($m, 'transferencia') || str_contains($m, 'depósito') || str_contains($m, 'deposito') || str_contains($m, 'cheque');
+        })->sum('monto_abonado');
+
+        $totalEfectivo = $totalRecaudado - $totalBancos;
+        $porcentajeBancarizado = $totalRecaudado > 0 ? round(($totalBancos / $totalRecaudado) * 100, 1) : 0;
+        $porcentajeEfectivo = $totalRecaudado > 0 ? round(($totalEfectivo / $totalRecaudado) * 100, 1) : 0;
+
+        // 3. Desglose por Proyecto
+        $desgloseProyectos = $abonos->groupBy(function($item) {
+            return $item->venta && $item->venta->lotificacion ? $item->venta->lotificacion->nombre : 'Sin Proyecto';
+        })->map(function($items, $proyNombre) use ($totalRecaudado) {
+            $monto = (float) $items->sum('monto_abonado');
+            $cantidad = $items->count();
+            $clientes = $items->pluck('venta.cliente.id_cliente')->filter()->unique()->count();
+            $porcentaje = $totalRecaudado > 0 ? ($monto / $totalRecaudado) * 100 : 0;
+            return [
+                'proyecto' => $proyNombre,
+                'clientes' => $clientes,
+                'cantidad' => $cantidad,
+                'monto' => $monto,
+                'porcentaje' => round($porcentaje, 1),
+            ];
+        })->sortByDesc('monto')->values();
 
         $filasAbonos = $abonos->map(function ($abono) {
             $venta = $abono->venta;
-            $cliente = $venta->cliente ?? null;
-            $lotes = $venta->lotes ?? collect();
+            $cliente = $venta ? $venta->cliente : null;
+            $lotes = $venta ? $venta->lotes : collect();
 
             $lotesTexto = $lotes->isNotEmpty()
-                ? $lotes->map(fn ($lote) => ($lote->bloque->nombre ?? 'N/A') . '-' . $lote->numero_lote)->implode(', ')
+                ? $lotes->map(function ($lote) {
+                    $bloqueNom = $lote->bloque->nombre ?? '';
+                    $numLote = $lote->numero_lote;
+                    if ($bloqueNom && !str_starts_with(strtoupper($numLote), strtoupper($bloqueNom))) {
+                        return $bloqueNom . '-' . $numLote;
+                    }
+                    return $numLote;
+                })->implode(', ')
                 : 'N/A';
 
             $bloquesTexto = $lotes->isNotEmpty()
                 ? $lotes->pluck('bloque.nombre')->filter()->unique()->implode(', ')
                 : 'N/A';
 
+            $proyectoNombre = $venta && $venta->lotificacion ? $venta->lotificacion->nombre : 'N/A';
+            $cajeroNombre = $abono->user ? $abono->user->name : 'Sistema';
+
             return [
+                'id_abono' => $abono->id_abono,
+                'recibo_codigo' => 'REC-' . str_pad($abono->id_abono, 5, '0', STR_PAD_LEFT),
                 'fecha' => Carbon::parse($abono->fecha_pago)->format('d/m/Y'),
                 'hora' => $abono->created_at ? $abono->created_at->format('h:i A') : '-',
-                'cliente' => $cliente->nombres_apellidos ?? 'Cliente Desconocido',
-                'pv' => $cliente->pv_num ?? '-',
-                'bloques' => $bloquesTexto,
-                'lotes' => $lotesTexto,
+                'cliente' => $cliente ? $cliente->nombres_apellidos : 'Cliente Desconocido',
+                'identificacion' => $cliente ? ($cliente->identificacion ?: 'S/C') : '-',
+                'expediente' => $cliente ? ($cliente->expediente_num ?: ($cliente->pv_num ?: '-')) : '-',
+                'pv' => $cliente ? ($cliente->pv_num ?: '-') : '-',
+                'bloques' => $bloquesTexto ?: 'N/A',
+                'lotes' => $lotesTexto ?: 'N/A',
+                'proyecto' => $proyectoNombre,
                 'monto' => (float) $abono->monto_abonado,
-                'tipo' => $abono->tipo_pago,
+                'tipo' => $abono->tipo_pago ?: 'Cuota / Abono',
+                'metodo' => $abono->metodo_pago ?: 'Efectivo',
                 'referencia' => $abono->referencia ?: '-',
+                'cajero' => $cajeroNombre,
             ];
         })->values();
 
-        $filasSalidas = $salidas->map(function ($salida) {
+        // 4. Rescisiones y Devoluciones Contables del Periodo
+        $rescisionesQuery = Rescision::withoutGlobalScope('lotificacion')
+            ->with([
+                'cliente' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                'user',
+                'lotificacion'
+            ]);
+
+        if (!$esGlobal && $targetLotificacionId) {
+            $rescisionesQuery->where('lotificacion_id', $targetLotificacionId);
+        }
+
+        $rescisiones = $rescisionesQuery
+            ->whereBetween('created_at', [$inicio->format('Y-m-d 00:00:00'), $fin->format('Y-m-d 23:59:59')])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $totalDevolucionesRescisiones = (float) $rescisiones->where('destino_abonos', 'devolucion_efectivo')->sum('monto_devuelto');
+        $totalRescisionesTransferidas = (float) $rescisiones->where('destino_abonos', 'acreditar_otro_lote')->sum('monto_transferido');
+        $cantidadRescisiones = $rescisiones->count();
+        $recaudacionNeta = $totalRecaudado - $totalDevolucionesRescisiones;
+
+        $filasRescisiones = $rescisiones->map(function ($r) {
+            $cliente = $r->cliente;
+            $usuario = $r->user;
+            $proy = $r->lotificacion;
+
+            $destinoLabel = match($r->destino_abonos) {
+                'devolucion_efectivo' => 'Devolución Contable a Cliente',
+                'acreditar_otro_lote' => 'Acreditado a Lote Conservado / Otro Contrato',
+                'sin_devolucion' => 'Sin Devolución (Retenido por Cláusula)',
+                default => $r->destino_abonos
+            };
+
             return [
-                'fecha' => $salida->fecha ? Carbon::parse($salida->fecha)->format('d/m/Y') : '-',
-                'hora' => $salida->created_at ? $salida->created_at->format('h:i A') : '-',
-                'descripcion' => $salida->descripcion,
-                'monto' => (float) $salida->monto,
+                'id_rescision' => $r->id_rescision,
+                'codigo' => 'RESC-' . str_pad($r->id_rescision, 4, '0', STR_PAD_LEFT),
+                'fecha' => Carbon::parse($r->created_at)->format('d/m/Y'),
+                'hora' => Carbon::parse($r->created_at)->format('h:i A'),
+                'cliente' => $cliente ? $cliente->nombres_apellidos : 'Cliente Desconocido',
+                'identificacion' => $cliente ? ($cliente->identificacion ?: 'S/C') : '-',
+                'expediente' => $cliente ? ($cliente->expediente_num ?: ($cliente->pv_num ?: '-')) : '-',
+                'tipo' => $r->tipo, // Parcial o Total
+                'lotes_afectados' => $r->lotes_afectados ?: 'N/A',
+                'lotes_conservados' => $r->lotes_conservados ?: '-',
+                'destino_abonos_raw' => $r->destino_abonos,
+                'destino_label' => $destinoLabel,
+                'monto_devuelto' => (float) $r->monto_devuelto,
+                'monto_transferido' => (float) $r->monto_transferido,
+                'comentario' => $r->comentario ?: 'Sin observaciones',
+                'cajero' => $usuario ? $usuario->name : 'Sistema',
+                'proyecto' => $proy ? $proy->nombre : 'N/A',
             ];
         })->values();
 
@@ -172,21 +325,37 @@ class ReporteController extends Controller
             'mes' => $mes,
             'fechaSeleccionada' => $fechaSeleccionada,
             'etiquetaPeriodo' => $etiquetaPeriodo,
+            'esGlobal' => $esGlobal,
+            'etiquetaProyecto' => $etiquetaProyecto,
+            'proyectoFiltro' => $proyectoFiltro,
+            'esAdmin' => $esAdmin,
+            'proyectosDisponibles' => \App\Models\Lotificacion::orderBy('nombre')->get(),
             'inicio' => $inicio,
             'fin' => $fin,
-            'totalIngresos' => $totalIngresos,
-            'totalGastos' => $totalGastos,
-            'balanceNeto' => $balanceNeto,
-            'saldoAnterior' => $saldoAnterior,
-            'totalConSaldoAnterior' => $totalConSaldoAnterior,
-            'clientesAbonaron' => $clientesAbonaron,
-            'cantidadAbonos' => $abonos->count(),
-            'cantidadSalidas' => $salidas->count(),
+            'totalRecaudado' => $totalRecaudado,
+            'totalIngresos' => $totalRecaudado, // Compatibilidad
+            'cantidadAbonos' => $cantidadAbonos,
+            'clientesUnicos' => $clientesUnicos,
+            'clientesAbonaron' => $clientesUnicos, // Compatibilidad
+            'ticketPromedio' => $ticketPromedio,
+            'totalBancos' => $totalBancos,
+            'totalEfectivo' => $totalEfectivo,
+            'porcentajeBancarizado' => $porcentajeBancarizado,
+            'porcentajeEfectivo' => $porcentajeEfectivo,
+            'desgloseConceptos' => $desgloseConceptos,
+            'desgloseMetodos' => $desgloseMetodos,
+            'desgloseProyectos' => $desgloseProyectos,
             'filasAbonos' => $filasAbonos,
-            'filasSalidas' => $filasSalidas,
+            'rescisiones' => $rescisiones,
+            'filasRescisiones' => $filasRescisiones,
+            'cantidadRescisiones' => $cantidadRescisiones,
+            'totalDevolucionesRescisiones' => $totalDevolucionesRescisiones,
+            'totalRescisionesTransferidas' => $totalRescisionesTransferidas,
+            'recaudacionNeta' => $recaudacionNeta,
             'aniosDisponibles' => $this->aniosDisponibles(),
             'rangoArchivo' => $inicio->format('Ymd') . '-' . $fin->format('Ymd'),
             'generadoEl' => now()->locale('es')->translatedFormat('d/m/Y h:i A'),
+            'generadoPor' => auth()->check() ? auth()->user()->name : 'Auditor del Sistema',
         ];
     }
 
@@ -249,13 +418,21 @@ class ReporteController extends Controller
 
         $ingresosHoy = $listaIngresos->sum('monto_abonado');
         $egresosHoy = $listaSalidas->sum('monto');
-
-        $efectivoTotalSuma = $saldoInicial + $ingresosHoy;
-        $saldoFinalCaja = $efectivoTotalSuma - $egresosHoy;
+        $saldoFinalCaja = $saldoInicial + $ingresosHoy - $egresosHoy;
+        
+        $cierresHoy = \App\Models\CierreCaja::where('fecha', $fecha)->where('user_id', auth()->id())->latest()->get();
 
         return view('reportes.diario', compact(
-            'fecha', 'saldoInicial', 'ingresosHoy', 
-            'egresosHoy', 'listaSalidas', 'listaIngresos', 'efectivoTotalSuma', 'saldoFinalCaja', 'cajaAbierta', 'cajaCerrada'
+            'saldoInicial',
+            'ingresosHoy',
+            'egresosHoy',
+            'saldoFinalCaja',
+            'fecha',
+            'cajaAbierta',
+            'cajaCerrada',
+            'listaSalidas',
+            'listaIngresos',
+            'cierresHoy'
         ));
     }
 
@@ -269,7 +446,8 @@ class ReporteController extends Controller
         \App\Models\AperturaCaja::create([
             'fecha' => $request->fecha,
             'monto_inicial' => $request->monto_inicial,
-            'user_id' => auth()->id()
+            'user_id' => auth()->id(),
+            'lotificacion_id' => session('lotificacion_id'),
         ]);
 
         return redirect()->back()->with('success', 'Caja abierta correctamente. Ahora puede operar en su nuevo turno.');
@@ -300,7 +478,8 @@ class ReporteController extends Controller
             'descripcion' => $request->descripcion,
             'metodo_pago' => $request->metodo_pago,
             'fecha' => $request->fecha,
-            'user_id' => auth()->id()
+            'user_id' => auth()->id(),
+            'lotificacion_id' => session('lotificacion_id'),
         ]);
 
         \App\Models\Auditoria::log('Registró Egreso', 'Salida', $salida->id, "Monto: $" . number_format($request->monto, 2));
@@ -361,6 +540,7 @@ class ReporteController extends Controller
         CierreCaja::create([
             'fecha' => $fecha,
             'user_id' => auth()->id(),
+            'lotificacion_id' => session('lotificacion_id'),
             'saldo_inicial' => $saldoInicial,
             'ingresos' => $ingresos,
             'egresos' => $egresos,
@@ -381,27 +561,44 @@ class ReporteController extends Controller
      * posteriores al último cierre que todavía NO se han cerrado (aunque
      * hayan pasado varios días sin usar "Realizar Cierre de Caja").
      */
-    private function calcularSaldoAnterior(string $fecha): float
+    private function calcularSaldoAnterior(string $fecha, bool $esGlobal = false, ?int $targetLotificacionId = null): float
     {
-        $ultimoCierre = CierreCaja::where('fecha', '<', $fecha)
-            ->where('user_id', auth()->id())
-            ->orderByDesc('fecha')
-            ->first();
+        if (!$esGlobal && $targetLotificacionId === null) {
+            $targetLotificacionId = session('lotificacion_id');
+        }
+
+        $cierreQuery = CierreCaja::withoutGlobalScope('lotificacion')
+            ->where('fecha', '<', $fecha)
+            ->where('user_id', auth()->id());
+
+        if (!$esGlobal && $targetLotificacionId) {
+            $cierreQuery->where('lotificacion_id', $targetLotificacionId);
+        }
+
+        $ultimoCierre = $cierreQuery->orderByDesc('fecha')->first();
 
         $saldo = 0.0;
         $desde = $ultimoCierre ? Carbon::parse($ultimoCierre->fecha)->addDay()->format('Y-m-d') : null;
         $hasta = Carbon::parse($fecha)->subDay()->format('Y-m-d');
 
         if (!$desde || $desde <= $hasta) {
-            $ingresosPendientes = Abono::when($desde, fn ($q) => $q->where('fecha_pago', '>=', $desde))
+            $ingresosQuery = Abono::withoutGlobalScope('lotificacion')
+                ->when($desde, fn ($q) => $q->where('fecha_pago', '>=', $desde))
                 ->where('fecha_pago', '<=', $hasta)
-                ->where('user_id', auth()->id())
-                ->sum('monto_abonado');
+                ->where('user_id', auth()->id());
 
-            $egresosPendientes = Salida::when($desde, fn ($q) => $q->where('fecha', '>=', $desde))
+            $egresosQuery = Salida::withoutGlobalScope('lotificacion')
+                ->when($desde, fn ($q) => $q->where('fecha', '>=', $desde))
                 ->where('fecha', '<=', $hasta)
-                ->where('user_id', auth()->id())
-                ->sum('monto');
+                ->where('user_id', auth()->id());
+
+            if (!$esGlobal && $targetLotificacionId) {
+                $ingresosQuery->whereHas('venta', fn($q) => $q->where('lotificacion_id', $targetLotificacionId));
+                $egresosQuery->where('lotificacion_id', $targetLotificacionId);
+            }
+
+            $ingresosPendientes = $ingresosQuery->sum('monto_abonado');
+            $egresosPendientes = $egresosQuery->sum('monto');
 
             $saldo += (float) $ingresosPendientes - (float) $egresosPendientes;
         }
@@ -453,4 +650,556 @@ class ReporteController extends Controller
 
         return redirect()->back()->with('success', 'Salida eliminada correctamente.');
     }
+
+    public function imprimirCierreTurnoPdf($id)
+    {
+        $cierre = \App\Models\CierreCaja::with('user')->findOrFail($id);
+        
+        if ($cierre->user_id !== auth()->id() && !auth()->user()->hasRole('Administrador')) {
+            abort(403, 'No autorizado para ver este cierre.');
+        }
+
+        $apertura = \App\Models\AperturaCaja::where('user_id', $cierre->user_id)
+            ->where('created_at', '<=', $cierre->created_at)
+            ->latest()
+            ->first();
+
+        $inicioTurno = $apertura ? $apertura->created_at : $cierre->created_at->startOfDay();
+        $finTurno = $cierre->created_at;
+
+        $fechaCierre = Carbon::parse($cierre->fecha)->format('Y-m-d');
+        $abonos = \App\Models\Abono::with(['venta.cliente', 'venta.lotes.bloque'])
+            ->where('user_id', $cierre->user_id)
+            ->whereBetween('created_at', [$inicioTurno, $finTurno])
+            ->whereDate('fecha_pago', $fechaCierre)
+            ->where('es_migracion', false)
+            ->get();
+
+        $salidas = \App\Models\Salida::where('user_id', $cierre->user_id)
+            ->whereBetween('created_at', [$inicioTurno, $finTurno])
+            ->get();
+
+        $rawEfectivo = [];
+        $rawTransferencias = [];
+        $totalEfectivo = 0.0;
+        $totalTransferencias = 0.0;
+
+        foreach ($abonos as $abono) {
+            $cliente = $abono->venta && $abono->venta->cliente ? $abono->venta->cliente->nombres_apellidos : 'Cliente Desconocido';
+            $lotes = '';
+            $bloques = '';
+            $lotesBloquesTexto = '';
+            if ($abono->venta) {
+                $lotesArr = [];
+                $bloquesArr = [];
+                $lbArr = [];
+                foreach ($abono->venta->lotes as $lote) {
+                    $lotesArr[] = $lote->numero_lote;
+                    if ($lote->bloque) {
+                        $bloquesArr[] = $lote->bloque->nombre;
+                    }
+                    $lbArr[] = "Lote {$lote->numero_lote}";
+                }
+                $lotes = implode(', ', array_unique($lotesArr));
+                $bloques = implode(', ', array_unique($bloquesArr));
+                $lotesBloquesTexto = implode(', ', array_unique($lbArr));
+            }
+
+            $item = [
+                'id_abono' => $abono->id_abono,
+                'cliente' => $cliente,
+                'lotes' => $lotes,
+                'bloques' => $bloques,
+                'lotes_texto' => $lotesBloquesTexto ?: "Lote {$lotes}",
+                'monto' => (float) $abono->monto_abonado,
+                'hora' => $abono->created_at ? $abono->created_at->format('h:i a') : '-',
+                'fecha_pago' => $abono->fecha_pago ? \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') : '-',
+                'fecha_hora_registro' => $abono->created_at ? $abono->created_at->format('d/m/Y h:i a') : \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y'),
+                'fecha_transferencia' => $abono->fecha_transferencia ? \Carbon\Carbon::parse($abono->fecha_transferencia)->format('d/m/Y') : \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y'),
+                'referencia' => $abono->referencia ?? 'Pago en Efectivo',
+                'numero_recibo' => $abono->numero_recibo_formateado ?? ($abono->numero_recibo ? 'REC-' . $abono->numero_recibo : 'N/A'),
+                'metodo_pago' => $abono->metodo_pago,
+                'cuenta_destino' => $abono->cuenta_destino ?? 'N/A',
+                'grupo_recibo' => $abono->grupo_recibo ?? null,
+                'created_at_ts' => $abono->created_at ? $abono->created_at->timestamp : 0,
+            ];
+
+            $metodoNormalizado = trim($abono->metodo_pago ?? '');
+            $esEfectivoPuro = ($metodoNormalizado === 'Efectivo' || empty($metodoNormalizado)) 
+                && empty($abono->cuenta_destino) 
+                && empty($abono->fecha_transferencia);
+
+            if ($esEfectivoPuro) {
+                $rawEfectivo[] = $item;
+                $totalEfectivo += $item['monto'];
+            } else {
+                $rawTransferencias[] = $item;
+                $totalTransferencias += $item['monto'];
+            }
+        }
+
+        // Agrupar abonos en efectivo que pertenezcan a la misma operación / recibo
+        $abonosEfectivo = [];
+        $gruposEfectivo = [];
+
+        foreach ($rawEfectivo as $item) {
+            if (!empty($item['grupo_recibo'])) {
+                $key = 'GRUPO_' . $item['grupo_recibo'];
+            } elseif (!empty($item['numero_recibo']) && $item['numero_recibo'] !== 'N/A') {
+                $key = 'REC_' . md5(mb_strtolower($item['cliente']) . '_' . $item['numero_recibo']);
+            } elseif ($item['created_at_ts'] > 0) {
+                $minuteKey = floor($item['created_at_ts'] / 60);
+                $key = 'TIME_' . md5(mb_strtolower($item['cliente']) . '_' . $item['fecha_pago'] . '_' . $minuteKey);
+            } else {
+                $key = 'SINGLE_' . $item['id_abono'];
+            }
+
+            if (!isset($gruposEfectivo[$key])) {
+                $gruposEfectivo[$key] = $item;
+                $gruposEfectivo[$key]['lotes_lista'] = [$item['lotes_texto']];
+            } else {
+                $gruposEfectivo[$key]['monto'] += $item['monto'];
+                if (!in_array($item['lotes_texto'], $gruposEfectivo[$key]['lotes_lista'])) {
+                    $gruposEfectivo[$key]['lotes_lista'][] = $item['lotes_texto'];
+                }
+            }
+        }
+
+        foreach ($gruposEfectivo as $g) {
+            $g['lotes_texto'] = implode(', ', $g['lotes_lista']);
+            $abonosEfectivo[] = $g;
+        }
+
+        // Agrupar transferencias de la misma transacción bancaria (mismo cliente y misma referencia o grupo_recibo)
+        $abonosTransferencia = [];
+        $gruposTransf = [];
+
+        foreach ($rawTransferencias as $item) {
+            $refKey = trim((string)$item['referencia']);
+            $hasValidRef = !empty($refKey) && $refKey !== 'N/A' && $refKey !== 'null';
+
+            if (!empty($item['grupo_recibo'])) {
+                $key = 'GRUPO_' . $item['grupo_recibo'];
+            } elseif ($hasValidRef) {
+                $key = 'REF_' . md5(mb_strtolower($item['cliente']) . '_' . mb_strtolower($refKey) . '_' . mb_strtolower($item['cuenta_destino']));
+            } else {
+                $key = 'SINGLE_' . $item['id_abono'];
+            }
+
+            if (!isset($gruposTransf[$key])) {
+                $gruposTransf[$key] = $item;
+                $gruposTransf[$key]['lotes_lista'] = [$item['lotes_texto']];
+            } else {
+                $gruposTransf[$key]['monto'] += $item['monto'];
+                if (!in_array($item['lotes_texto'], $gruposTransf[$key]['lotes_lista'])) {
+                    $gruposTransf[$key]['lotes_lista'][] = $item['lotes_texto'];
+                }
+            }
+        }
+
+        foreach ($gruposTransf as $g) {
+            $g['lotes_texto'] = implode(', ', $g['lotes_lista']);
+            $abonosTransferencia[] = $g;
+        }
+
+        // Salidas en efectivo vs otras salidas
+        $totalSalidasEfectivo = 0;
+        foreach ($salidas as $salida) {
+            if (empty($salida->metodo_pago) || $salida->metodo_pago === 'Efectivo') {
+                $totalSalidasEfectivo += $salida->monto;
+            }
+        }
+
+        $totalSalidas = $salidas->sum('monto');
+        
+        $lotificacionNombre = null;
+        $logoBase64 = null;
+        $lot = null;
+
+        if (!empty($cierre->lotificacion_id)) {
+            $lot = \App\Models\Lotificacion::find($cierre->lotificacion_id);
+        }
+        if (!$lot) {
+            try {
+                $lot = app(\App\Services\LotificacionService::class)->getActiveLotificacion();
+            } catch (\Exception $e) {}
+        }
+        if (!$lot && session('lotificacion_id')) {
+            $lot = \App\Models\Lotificacion::find(session('lotificacion_id'));
+        }
+
+        if ($lot) {
+            $lotificacionNombre = $lot->nombre;
+            if (!empty($lot->logo)) {
+                $path = public_path('storage/' . $lot->logo);
+                if (!file_exists($path)) {
+                    $path = storage_path('app/public/' . $lot->logo);
+                }
+                if (file_exists($path)) {
+                    $type = pathinfo($path, PATHINFO_EXTENSION);
+                    $dataImg = file_get_contents($path);
+                    $logoBase64 = 'data:image/' . $type . ';base64,' . base64_encode($dataImg);
+                }
+            }
+        } else {
+            $lotificacionNombre = 'Proyecto';
+        }
+
+        // Proyectos que NO incluyen saldo anterior en el cierre (saldo inicial = 0 y no se suma al total)
+        $nombreProyNorm = mb_strtolower($lotificacionNombre ?? '');
+        $esProyectoSinSaldoAnterior = str_contains($nombreProyNorm, 'colinas santa clara') 
+            || str_contains($nombreProyNorm, 'santa clara') 
+            || str_contains($nombreProyNorm, 'la campana') 
+            || str_contains($nombreProyNorm, 'campana');
+
+        $saldoInicial = $cierre->saldo_inicial;
+        if ($esProyectoSinSaldoAnterior) {
+            $saldoInicial = 0.0;
+        }
+
+        // Existencia real de efectivo en la gaveta
+        $existenciaEnCaja = $saldoInicial + $totalEfectivo - $totalSalidasEfectivo;
+
+        // Rescisiones del turno/fecha (informativo)
+        $rescisiones = \App\Models\Rescision::with(['cliente', 'user'])
+            ->whereDate('created_at', $cierre->fecha)
+            ->where('user_id', $cierre->user_id)
+            ->get();
+
+        $rescisionesData = [];
+        $totalRescisiones = 0.0;
+        foreach ($rescisiones as $r) {
+            $clienteNombre = $r->cliente ? $r->cliente->nombres_apellidos : 'Cliente Desconocido';
+            $destinoTexto = match($r->destino_abonos) {
+                'acreditar_otro_lote' => 'Acreditado a lote conservado',
+                'devolucion_efectivo' => 'Devolución en efectivo',
+                default => 'Sin devolución'
+            };
+            $montoInvolucrado = (float) ($r->monto_abonos_lote ?: ($r->monto_transferido + $r->monto_devuelto));
+            $totalRescisiones += $montoInvolucrado;
+
+            $rescisionesData[] = [
+                'id_rescision' => $r->id_rescision,
+                'cliente' => $clienteNombre,
+                'lotes_afectados' => $r->lotes_afectados,
+                'lotes_conservados' => $r->lotes_conservados,
+                'tipo' => $r->tipo,
+                'destino_abonos' => $r->destino_abonos,
+                'destino_texto' => $destinoTexto,
+                'monto_abonos_lote' => $montoInvolucrado,
+                'monto_transferido' => (float) $r->monto_transferido,
+                'monto_devuelto' => (float) $r->monto_devuelto,
+                'hora' => $r->created_at ? $r->created_at->format('h:i a') : '-',
+                'comentario' => $r->comentario,
+            ];
+        }
+
+        $data = [
+            'fechaFormateada' => \Carbon\Carbon::parse($cierre->fecha)->format('d/m/Y'),
+            'fechaTexto' => \Carbon\Carbon::parse($cierre->fecha)->locale('es')->translatedFormat('d \d\e F \d\e Y'),
+            'horaGeneracion' => now()->format('h:i a'),
+            'cajero' => $cierre->user ? $cierre->user->name : 'Cajero',
+            'lotificacionNombre' => $lotificacionNombre,
+            'logoBase64' => $logoBase64,
+            'saldoInicial' => $saldoInicial,
+            'esProyectoSinSaldoAnterior' => $esProyectoSinSaldoAnterior,
+            'totalEfectivo' => $totalEfectivo,
+            'totalSalidas' => $totalSalidasEfectivo,
+            'saldoFinalCaja' => $existenciaEnCaja,
+            'totalTransferencias' => $totalTransferencias,
+            'totalAbonadoDia' => $totalEfectivo + $totalTransferencias,
+            'abonosEfectivo' => $abonosEfectivo,
+            'abonosTransferencia' => $abonosTransferencia,
+            'rescisionesData' => $rescisionesData,
+            'totalRescisiones' => $totalRescisiones,
+            'codigoReporte' => 'CC-' . \Carbon\Carbon::parse($cierre->fecha)->format('Ymd') . '-' . str_pad($cierre->id, 3, '0', STR_PAD_LEFT),
+            'comentario' => $cierre->comentario,
+        ];
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reportes.cierre_turno_pdf', $data)
+            ->setPaper('letter', 'portrait');
+
+        return $pdf->download('Cierre_Turno_' . \Carbon\Carbon::parse($cierre->fecha)->format('Ymd') . '_' . $cierre->id . '.pdf');
+    }
+
+    /**
+     * Panel de Monitoreo de Cajas y Cierres de Usuarios en Tiempo Real (Vista de Administración).
+     */
+    public function monitorCajas(Request $request)
+    {
+        abort_unless(auth()->user()->hasRole('Administrador'), 403, 'Acceso restringido: solo los Administradores pueden ver el monitoreo global de cajas.');
+
+        $fecha = $request->input('fecha', Carbon::today()->format('Y-m-d'));
+        $filtroUsuarioId = $request->input('user_id');
+        $proyectoFiltro = $request->input('proyecto_id', 'actual');
+
+        $activeLotificacionId = session('lotificacion_id');
+        $proyectosDisponibles = \App\Models\Lotificacion::orderBy('nombre', 'asc')->get();
+
+        $esGlobal = false;
+        $targetLotificacionId = null;
+
+        if ($proyectoFiltro === 'global' || $proyectoFiltro === 'todos') {
+            $esGlobal = true;
+            $etiquetaProyecto = 'CONSOLIDADO GLOBAL (TODAS LAS LOTIFICACIONES)';
+        } elseif (is_numeric($proyectoFiltro)) {
+            $targetLotificacionId = (int) $proyectoFiltro;
+            $lotObj = $proyectosDisponibles->firstWhere('id', $targetLotificacionId);
+            $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Seleccionado';
+        } else {
+            // Por defecto: Proyecto Activo en sesión
+            $targetLotificacionId = $activeLotificacionId ? (int)$activeLotificacionId : ($proyectosDisponibles->first()->id ?? 1);
+            $lotObj = $proyectosDisponibles->firstWhere('id', $targetLotificacionId);
+            $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Activo';
+        }
+
+        // Obtener IDs de usuarios con movimientos de abonos en la fecha dada para el proyecto seleccionado
+        $userIdsConAbonos = Abono::withoutGlobalScope('lotificacion')
+            ->whereDate('fecha_pago', $fecha)
+            ->where('es_migracion', false)
+            ->when(!$esGlobal && $targetLotificacionId, function($q) use ($targetLotificacionId) {
+                $q->whereHas('venta', fn($vq) => $vq->withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId));
+            })
+            ->pluck('user_id')
+            ->filter();
+
+        // Obtener usuarios a mostrar: estrictamente asignados a este proyecto o que hayan cobrado abonos en este proyecto hoy
+        $usuariosQuery = \App\Models\User::with(['roles', 'lotificaciones'])->orderBy('name', 'asc');
+        if ($filtroUsuarioId) {
+            $usuariosQuery->where('id', $filtroUsuarioId);
+        } elseif (!$esGlobal && $targetLotificacionId) {
+            $usuariosQuery->where(function($q) use ($targetLotificacionId, $userIdsConAbonos) {
+                $q->whereHas('lotificaciones', fn($lq) => $lq->where('lotificaciones.id', $targetLotificacionId))
+                  ->orWhereIn('id', $userIdsConAbonos);
+            });
+        }
+        $usuarios = $usuariosQuery->get();
+
+        $usuariosData = [];
+        $totalRecaudadoGlobal = 0.0;
+        $totalEfectivoGlobal = 0.0;
+        $totalBancosGlobal = 0.0;
+        $totalEgresosGlobal = 0.0;
+        $totalCajasAbiertas = 0;
+        $totalCierresRealizados = 0;
+
+        foreach ($usuarios as $user) {
+            $userTieneSoloEsteProyecto = ($user->lotificaciones->count() === 1 && $user->lotificaciones->contains('id', $targetLotificacionId));
+
+            // Aperturas del día para este usuario estrictamente para este proyecto
+            $aperturasQuery = \App\Models\AperturaCaja::whereDate('fecha', $fecha)
+                ->where('user_id', $user->id);
+            if (!$esGlobal && $targetLotificacionId) {
+                $aperturasQuery->where(function($q) use ($targetLotificacionId, $userTieneSoloEsteProyecto) {
+                    $q->where('lotificacion_id', $targetLotificacionId);
+                    if ($userTieneSoloEsteProyecto) {
+                        $q->orWhereNull('lotificacion_id');
+                    }
+                });
+            }
+            $aperturas = $aperturasQuery->orderBy('created_at', 'asc')->get();
+
+            // Cierres del día para este usuario estrictamente para este proyecto
+            $cierresQuery = \App\Models\CierreCaja::whereDate('fecha', $fecha)
+                ->where('user_id', $user->id);
+            if (!$esGlobal && $targetLotificacionId) {
+                $cierresQuery->where(function($q) use ($targetLotificacionId, $userTieneSoloEsteProyecto) {
+                    $q->where('lotificacion_id', $targetLotificacionId);
+                    if ($userTieneSoloEsteProyecto) {
+                        $q->orWhereNull('lotificacion_id');
+                    }
+                });
+            }
+            $cierres = $cierresQuery->orderBy('created_at', 'asc')->get();
+
+            // Abonos registrados para la fecha por este usuario (filtrado por proyecto si no es global)
+            $abonosDiaQuery = Abono::withoutGlobalScope('lotificacion')
+                ->with([
+                    'venta' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                    'venta.cliente' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                    'venta.lotes' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                    'venta.lotes.bloque' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                    'venta.lotificacion' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                ])
+                ->whereDate('fecha_pago', $fecha)
+                ->where('user_id', $user->id)
+                ->where('es_migracion', false);
+
+            if (!$esGlobal && $targetLotificacionId) {
+                $abonosDiaQuery->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId));
+            }
+            $abonosDia = $abonosDiaQuery->orderBy('created_at', 'desc')->get();
+
+            // Salidas registradas en la fecha por este usuario estrictamente para este proyecto
+            $salidasDiaQuery = Salida::withoutGlobalScope('lotificacion')
+                ->whereDate('fecha', $fecha)
+                ->where('user_id', $user->id);
+
+            if (!$esGlobal && $targetLotificacionId) {
+                $salidasDiaQuery->where(function($q) use ($targetLotificacionId, $userTieneSoloEsteProyecto) {
+                    $q->where('lotificacion_id', $targetLotificacionId);
+                    if ($userTieneSoloEsteProyecto) {
+                        $q->orWhereNull('lotificacion_id');
+                    }
+                });
+            }
+            $salidasDia = $salidasDiaQuery->orderBy('created_at', 'desc')->get();
+
+            $ultimaApertura = $aperturas->last();
+            $ultimoCierre = $cierres->last();
+
+            // Determinar estado actual
+            $estado = 'SIN_APERTURA';
+            $turnoActivo = false;
+            $inicioTurno = null;
+            $montoInicialTurno = 0.0;
+
+            if ($ultimaApertura && (!$ultimoCierre || $ultimoCierre->created_at < $ultimaApertura->created_at)) {
+                $estado = 'EN_VIVO'; // Turno abierto actualmente
+                $turnoActivo = true;
+                $inicioTurno = $ultimaApertura->created_at;
+                $montoInicialTurno = (float) $ultimaApertura->monto_inicial;
+                $totalCajasAbiertas++;
+            } elseif ($ultimoCierre) {
+                $estado = 'CERRADO'; // Turno cerrado
+            }
+
+            $totalCierresRealizados += $cierres->count();
+
+            // Movimientos del turno en vivo (si está abierto) o acumulados del día
+            if ($turnoActivo && $ultimaApertura) {
+                $abonosTurnoQuery = Abono::withoutGlobalScope('lotificacion')
+                    ->with([
+                        'venta' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                        'venta.cliente' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                        'venta.lotes' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                        'venta.lotes.bloque' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                        'venta.lotificacion' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                    ])
+                    ->where('user_id', $user->id)
+                    ->where('created_at', '>=', $ultimaApertura->created_at)
+                    ->whereDate('fecha_pago', $fecha)
+                    ->where('es_migracion', false);
+
+                if (!$esGlobal && $targetLotificacionId) {
+                    $abonosTurnoQuery->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId));
+                }
+                $abonosTurno = $abonosTurnoQuery->orderBy('created_at', 'desc')->get();
+
+                $salidasTurnoQuery = Salida::withoutGlobalScope('lotificacion')
+                    ->where('user_id', $user->id)
+                    ->where('created_at', '>=', $ultimaApertura->created_at);
+
+                if (!$esGlobal && $targetLotificacionId) {
+                    $salidasTurnoQuery->where(function($q) use ($targetLotificacionId, $userTieneSoloEsteProyecto) {
+                        $q->where('lotificacion_id', $targetLotificacionId);
+                        if ($userTieneSoloEsteProyecto) {
+                            $q->orWhereNull('lotificacion_id');
+                        }
+                    });
+                }
+                $salidasTurno = $salidasTurnoQuery->orderBy('created_at', 'desc')->get();
+            } else {
+                $abonosTurno = $abonosDia;
+                $salidasTurno = $salidasDia;
+            }
+
+            // Cálculos del turno / en vivo
+            $ingresosEfectivoTurno = (float) $abonosTurno->filter(function($a) {
+                $m = trim($a->metodo_pago ?? '');
+                return ($m === 'Efectivo' || empty($m)) && empty($a->cuenta_destino) && empty($a->fecha_transferencia);
+            })->sum('monto_abonado');
+            $ingresosBancosTurno = (float) $abonosTurno->sum('monto_abonado') - $ingresosEfectivoTurno;
+            $totalIngresosTurno = (float) $abonosTurno->sum('monto_abonado');
+            $totalSalidasTurno = (float) $salidasTurno->sum('monto');
+            $salidasEfectivoTurno = (float) $salidasTurno->filter(fn($s) => empty($s->metodo_pago) || $s->metodo_pago === 'Efectivo')->sum('monto');
+            
+            // Efectivo estimado en gaveta en este momento
+            $efectivoEnGaveta = $montoInicialTurno + $ingresosEfectivoTurno - $salidasEfectivoTurno;
+
+            // Totales de todo el día para este usuario
+            $diaEfectivo = (float) $abonosDia->filter(function($a) {
+                $m = trim($a->metodo_pago ?? '');
+                return ($m === 'Efectivo' || empty($m)) && empty($a->cuenta_destino) && empty($a->fecha_transferencia);
+            })->sum('monto_abonado');
+            $diaBancos = (float) $abonosDia->sum('monto_abonado') - $diaEfectivo;
+            $diaTotalRecaudado = (float) $abonosDia->sum('monto_abonado');
+            $diaTotalEgresos = (float) $salidasDia->sum('monto');
+
+            // Acumular a KPIs globales
+            $totalRecaudadoGlobal += $diaTotalRecaudado;
+            $totalEfectivoGlobal += $diaEfectivo;
+            $totalBancosGlobal += $diaBancos;
+            $totalEgresosGlobal += $diaTotalEgresos;
+
+            $tieneActividad = ($aperturas->count() > 0 || $cierres->count() > 0 || $abonosDia->count() > 0 || $salidasDia->count() > 0);
+
+            $usuariosData[] = [
+                'user' => $user,
+                'estado' => $estado,
+                'turnoActivo' => $turnoActivo,
+                'tieneActividad' => $tieneActividad,
+                'aperturas' => $aperturas,
+                'cierres' => $cierres,
+                'ultimaApertura' => $ultimaApertura,
+                'ultimoCierre' => $ultimoCierre,
+                'montoInicialTurno' => $montoInicialTurno,
+                'ingresosEfectivoTurno' => $ingresosEfectivoTurno,
+                'ingresosBancosTurno' => $ingresosBancosTurno,
+                'totalIngresosTurno' => $totalIngresosTurno,
+                'totalSalidasTurno' => $totalSalidasTurno,
+                'salidasEfectivoTurno' => $salidasEfectivoTurno,
+                'efectivoEnGaveta' => $efectivoEnGaveta,
+                'abonosTurno' => $abonosTurno,
+                'salidasTurno' => $salidasTurno,
+                'abonosDia' => $abonosDia,
+                'salidasDia' => $salidasDia,
+                'diaEfectivo' => $diaEfectivo,
+                'diaBancos' => $diaBancos,
+                'diaTotalRecaudado' => $diaTotalRecaudado,
+                'diaTotalEgresos' => $diaTotalEgresos,
+                'cantAbonosDia' => $abonosDia->count(),
+            ];
+        }
+
+        // Ordenar usuarios: primero los que tienen turno abierto en vivo, luego los que tienen actividad, luego el resto
+        usort($usuariosData, function($a, $b) {
+            if ($a['turnoActivo'] && !$b['turnoActivo']) return -1;
+            if (!$a['turnoActivo'] && $b['turnoActivo']) return 1;
+            if ($a['tieneActividad'] && !$b['tieneActividad']) return -1;
+            if (!$a['tieneActividad'] && $b['tieneActividad']) return 1;
+            return strcmp($a['user']->name, $b['user']->name);
+        });
+
+        $kpis = [
+            'totalRecaudadoGlobal' => $totalRecaudadoGlobal,
+            'totalEfectivoGlobal' => $totalEfectivoGlobal,
+            'totalBancosGlobal' => $totalBancosGlobal,
+            'totalEgresosGlobal' => $totalEgresosGlobal,
+            'flujoNetoGlobal' => $totalRecaudadoGlobal - $totalEgresosGlobal,
+            'totalCajasAbiertas' => $totalCajasAbiertas,
+            'totalCierresRealizados' => $totalCierresRealizados,
+            'totalUsuariosActivos' => count(array_filter($usuariosData, fn($u) => $u['tieneActividad'])),
+        ];
+
+        $todosLosUsuariosQuery = \App\Models\User::orderBy('name', 'asc');
+        if (!$esGlobal && $targetLotificacionId) {
+            $todosLosUsuariosQuery->whereHas('lotificaciones', fn($lq) => $lq->where('lotificaciones.id', $targetLotificacionId));
+        }
+        $todosLosUsuarios = $todosLosUsuariosQuery->get();
+
+        return view('reportes.monitor_cajas', compact(
+            'fecha',
+            'usuariosData',
+            'kpis',
+            'todosLosUsuarios',
+            'filtroUsuarioId',
+            'proyectosDisponibles',
+            'proyectoFiltro',
+            'etiquetaProyecto',
+            'esGlobal',
+            'targetLotificacionId'
+        ));
+    }
 }
+

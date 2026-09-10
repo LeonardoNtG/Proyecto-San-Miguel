@@ -24,7 +24,11 @@ class ClienteController extends Controller
         $search = $request->get('search');
         $filtro = $request->get('filtro', 'activos'); // activos o rescindidos
 
-        $clientesQuery = Cliente::with('ventas')->orderBy('id_cliente', 'desc');
+        $clientesQuery = Cliente::with([
+            'ventas.lotes.bloque',
+            'ventas.lotificacion',
+            'ventas.abonos'
+        ])->orderBy('id_cliente', 'desc');
 
         if ($filtro === 'rescindidos') {
             // Clientes que SOLO tienen ventas rescindidas, o al menos mostrar los rescindidos
@@ -55,8 +59,8 @@ class ClienteController extends Controller
         $clientes = $clientesQuery->paginate(15);
         $clientes->each(function ($cliente) {
             $cliente->ventas->each(function ($venta) {
-                // Sumar los abonos relacionados con esta venta
-                $totalAbonado = $venta->abonos()->sum('monto_abonado');
+                // Sumar los abonos relacionados con esta venta desde la colección precargada
+                $totalAbonado = (float) $venta->abonos->sum('monto_abonado');
                 $venta->total_abonado = $totalAbonado;
             });
         });
@@ -99,13 +103,15 @@ class ClienteController extends Controller
         
         return view('estados_cuenta', compact('clientes', 'search'));
     }
-
     public function create()
     {
-        // Proyectos (Lotificaciones) disponibles
-        $proyectos = \App\Models\Lotificacion::orderBy('nombre')->get();
+        $activeLotificacionId = session('lotificacion_id');
+        $lotificacionActiva = \App\Models\Lotificacion::find($activeLotificacionId);
+        $bloques = Bloque::where('lotificacion_id', $activeLotificacionId)->orderBy('nombre')->get();
+        $siguienteExpediente = Cliente::generarSiguienteExpediente();
+        $cuentasBancarias = \App\Models\CuentaBancaria::activas()->get();
 
-        return view('registro', compact('proyectos'));
+        return view('registro', compact('lotificacionActiva', 'bloques', 'siguienteExpediente', 'cuentasBancarias'));
     }
 
     /**
@@ -115,118 +121,256 @@ class ClienteController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function store(Request $request)
-{
-    // 1. VALIDACIÓN
-    
-    $request->validate([
-        'pv_num' => 'required|string|unique:clientes,pv_num|max:20',
-        'expediente_num' => 'required|string|unique:clientes,expediente_num|max:20',    
-        'nombres_apellidos' => 'required|string|max:255', // ¿Estás enviando este campo?
-        'identificacion' => 'required|string|max:30', // Sin unique: una persona puede tener varios contratos
-        'lotes_ids' => 'required|array|min:1|max:20', // NUEVA VALIDACIÓN
-        'lotes_ids.*' => 'integer|exists:lotes,id_lote', // Asegura que los IDs sean válidos
-        'extension_value' => 'required|numeric|min:0', // Validar el campo oculto
-    ]);
-    
-
-    DB::beginTransaction();
-
-    try {
-          // CREAR EL CLIENTE (Igual)
-         $cliente = Cliente::create([
-        'expediente_num' => $request->expediente_num,
-        'pv_num' => $request->pv_num,
-        'nombres_apellidos' => $request->nombres_apellidos, 
-        'identificacion' => $request->identificacion,       
-        'telefono' => $request->telefono,                   
-        'direccion' => $request->direccion,                 
-         'estado_civil' => $request->estado_civil,          
-        'oficio' => $request->oficio,                       
-    ]);
-
-        // Proyecto: se hereda del Bloque de los lotes seleccionados
-        $primerLote = Lote::with('bloque')->whereIn('id_lote', $request->lotes_ids)->first();
-        $lotificacionId = $primerLote?->bloque?->lotificacion_id;
-
-        // CREA LA VENTA/PROMESA
-        $venta = Venta::create([
-            'id_cliente' => $cliente->id_cliente,
-            'lotificacion_id' => $lotificacionId,
-            'fecha_venta' => now(),
-            'precio_final' => $request->precio_final,
-            'plazo_meses' => $request->plazo_meses,
-            'estado_contrato' => 'Vigente',
-            'extension_lote' => $request->extension_value,
-            'cuota_mensual' => $request->cuota_mensual,
-        ]);
-
-        // ASOCIA LOS LOTES A LA VENTA (A través del historial)
-        Lote::whereIn('id_lote', $request->lotes_ids)->update([
-            'estado' => 'Vendido',
-        ]);
-        
-        foreach ($request->lotes_ids as $loteId) {
-            \App\Models\HistorialLote::create([
-                'id_lote' => $loteId,
-                'id_venta' => $venta->id_venta,
-                'estado' => 'Activo',
-                'fecha_asignacion' => now(),
-            ]);
+    {
+        // Normalizar cédula si viene sin guiones (14 caracteres alfanuméricos)
+        $identificacion = trim((string)$request->input('identificacion'));
+        $cleanId = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $identificacion));
+        if (strlen($cleanId) === 14) {
+            $identificacion = substr($cleanId, 0, 3) . '-' . substr($cleanId, 3, 6) . '-' . substr($cleanId, 9, 5);
+            $request->merge(['identificacion' => $identificacion]);
         }
 
-        // CREA EL PRIMER ABONO (Igual)
-        $abonoInicial = Abono::create([
-                'id_venta' => $venta->id_venta,
-                'fecha_pago' => $request->fecha_ultimo_abono ?? now(),
-                'monto_abonado' => $request->primer_abono,
-                'tipo_pago' => 'Prima/Primer Abono',
-                'metodo_pago' => $request->metodo_pago_prima ?? 'Efectivo',
-                'referencia' => $request->referencia_prima ?? 'Registro Inicial de Venta',
-                'cuenta_destino' => $request->cuenta_destino_prima ?? null,
-                'user_id' => auth()->id()
+        // 1. VALIDACIÓN
+        $request->validate([
+            'pv_num' => 'nullable|string|max:50',
+            'expediente_num' => 'nullable|string|max:50',    
+            'nombres_apellidos' => 'required|string|max:255',
+            'identificacion' => ['required', 'string', 'regex:/^[A-Za-z0-9]{3}-[A-Za-z0-9]{6}-[A-Za-z0-9]{5}$/'],
+            'lotes_ids' => 'nullable|array|min:1|max:20',
+            'lotes' => 'nullable|array|min:1|max:20',
+            'lotes_ids.*' => 'exists:lotes,id_lote',
+            'lotes.*' => 'exists:lotes,id_lote',
+            'tipo_contrato' => 'required|in:unificado,colectivo,individual',
+            'precio_final' => 'required|numeric|min:1',
+            'plazo_meses' => 'required|integer|min:1',
+            'cuota_mensual' => 'required|numeric|min:0.01',
+            'primer_abono' => 'required|numeric|min:0|lte:precio_final',
+            'fecha_ultimo_abono' => 'required|date',
+            'beneficiario_final' => 'nullable|string|max:150',
+            'parentesco_beneficiario' => 'nullable|string|max:50',
+            'telefono_beneficiario' => 'nullable|string|max:20',
+            'observaciones_beneficiario' => 'nullable|string|max:500',
+        ], [
+            'identificacion.regex' => 'La cédula debe tener el formato XXX-XXXXXX-XXXXX (ej: 001-120395-0004Y).',
+            'cuota_mensual.min' => 'La cuota mensual debe ser mayor a 0.',
+            'primer_abono.lte' => 'La prima o enganche no puede ser mayor al precio total de la venta.',
         ]);
 
-        // GENERAR PLAN DE PAGOS (CUOTAS)
-        $plazoRestante = $venta->plazo_meses;
-        $saldoRestante = $venta->precio_final;
-        $cuotaMensual = $venta->cuota_mensual;
+        $activeLotificacionId = session('lotificacion_id');
+        $lotificacionId = $activeLotificacionId ?: $request->lotificacion_id;
+
+        DB::beginTransaction();
+
+        try {
+            // Unificar lotes seleccionados
+            $lotesIds = $request->lotes_ids ?? $request->lotes ?? [];
+
+            // Verificar si el cliente ya existe por cédula
+            $cliente = Cliente::where('identificacion', $request->identificacion)->first();
+
+            $direccionCompleta = trim(($request->domicilio ? $request->domicilio . ', ' : '') . ($request->direccion ?? ''));
+
+            if (!$cliente) {
+                // Obtener siguiente expediente disponible si no viene en el request
+                $expedienteFinal = $request->expediente_num;
+                if (empty($expedienteFinal)) {
+                    $expedienteFinal = Cliente::generarSiguienteExpediente();
+                }
+
+                $cliente = Cliente::create([
+                    'nombres_apellidos' => mb_strtoupper($request->nombres_apellidos, 'UTF-8'),
+                    'identificacion'    => mb_strtoupper($request->identificacion, 'UTF-8'),
+                    'telefono'          => $request->telefono ?? 'N/D',
+                    'direccion'         => $direccionCompleta ?: ($request->direccion ?? 'N/D'),
+                    'pv_num'            => $request->pv_num,
+                    'expediente_num'    => $expedienteFinal,
+                    'tipo_cliente'      => $request->tipo_cliente ?? 'Nicaragüense',
+                    'nacionalidad'      => $request->nacionalidad ?? 'Nicaragüense',
+                    'departamento'      => $request->departamento,
+                    'municipio'         => $request->municipio,
+                    'pais_residencia'   => $request->pais_residencia ?? 'Nicaragua',
+                    'correo'            => $request->correo,
+                    'oficio'            => ($request->oficio ?? $request->profesion_oficio) ? mb_strtoupper($request->oficio ?? $request->profesion_oficio, 'UTF-8') : null,
+                    'estado_civil'      => $request->estado_civil ? mb_strtoupper($request->estado_civil, 'UTF-8') : null,
+                ]);
+            } else {
+                $cliente->update([
+                    'nombres_apellidos' => mb_strtoupper($request->nombres_apellidos, 'UTF-8'),
+                    'telefono'          => $request->telefono ?? $cliente->telefono,
+                    'direccion'         => $direccionCompleta ?: ($request->direccion ?? $cliente->direccion),
+                    'pv_num'            => $request->pv_num ?? $cliente->pv_num,
+                    'expediente_num'    => $request->expediente_num ?? $cliente->expediente_num,
+                    'tipo_cliente'      => $request->tipo_cliente ?? $cliente->tipo_cliente,
+                    'nacionalidad'      => $request->nacionalidad ?? $cliente->nacionalidad,
+                    'departamento'      => $request->departamento ?? $cliente->departamento,
+                    'municipio'         => $request->municipio ?? $cliente->municipio,
+                    'pais_residencia'   => $request->pais_residencia ?? $cliente->pais_residencia,
+                    'correo'            => $request->correo ?? $cliente->correo,
+                    'oficio'            => ($request->oficio ?? $request->profesion_oficio) ? mb_strtoupper($request->oficio ?? $request->profesion_oficio, 'UTF-8') : $cliente->oficio,
+                    'estado_civil'      => $request->estado_civil ? mb_strtoupper($request->estado_civil, 'UTF-8') : $cliente->estado_civil,
+                ]);
+            }
+
+            // ─── MODO UNIFICADO / COLECTIVO (un solo contrato/plan para todos los lotes) ──
+            if ($request->tipo_contrato === 'unificado' || $request->tipo_contrato === 'colectivo') {
+
+                $extensionTotal = Lote::whereIn('id_lote', $lotesIds)->sum('area_metros');
+
+                // Usar la fecha del primer pago como fecha_venta del contrato.
+                // Esto es crítico: permite registrar el abono del día primero y
+                // luego ingresar abonos históricos sin que el plan de cuotas quede desfasado.
+                $fechaInicioContrato = $request->fecha_ultimo_abono ?? now()->format('Y-m-d');
+
+                $venta = Venta::create([
+                    'id_cliente'        => $cliente->id_cliente,
+                    'lotificacion_id'   => $lotificacionId,
+                    'fecha_venta'       => $fechaInicioContrato,
+                    'precio_final'      => $request->precio_final,
+                    'plazo_meses'       => $request->plazo_meses,
+                    'estado_contrato'   => 'Vigente',
+                    'extension_lote'    => $extensionTotal,
+                    'cuota_mensual'     => $request->cuota_mensual,
+                    'beneficiario_final'=> $request->beneficiario_final ? mb_strtoupper($request->beneficiario_final, 'UTF-8') : null,
+                    'parentesco_beneficiario' => $request->parentesco_beneficiario,
+                    'telefono_beneficiario'   => $request->telefono_beneficiario,
+                    'observaciones_beneficiario' => $request->observaciones_beneficiario,
+                ]);
+
+                Lote::whereIn('id_lote', $lotesIds)->update(['estado' => 'Vendido']);
+
+                foreach ($lotesIds as $loteId) {
+                    \App\Models\HistorialLote::create([
+                        'id_lote'         => $loteId,
+                        'id_venta'        => $venta->id_venta,
+                        'estado'          => 'Activo',
+                        'fecha_asignacion'=> now(),
+                    ]);
+                }
+
+                $datosRecibo = Abono::generarSiguienteNumeroRecibo($lotificacionId);
+
+                $abonoInicial = Abono::create([
+                    'id_venta'      => $venta->id_venta,
+                    'numero_recibo' => $datosRecibo['numero_recibo'],
+                    'codigo_recibo' => $datosRecibo['codigo_recibo'],
+                    'fecha_pago'    => $fechaInicioContrato,
+                    'fecha_transferencia' => $request->fecha_transferencia_prima ?? null,
+                    'monto_abonado' => $request->primer_abono,
+                    'tipo_pago'     => 'Prima/Primer Abono',
+                    'metodo_pago'   => $request->metodo_pago_prima ?? 'Efectivo',
+                    'referencia'    => $request->referencia_prima ?? 'Registro Inicial de Venta',
+                    'cuenta_destino'=> $request->cuenta_destino_prima ?? null,
+                    'comentario'    => $request->comentario_prima ?? $request->comentario ?? null,
+                    'user_id'       => auth()->id()
+                ]);
+
+                $this->generarPlanCuotas($venta, $fechaInicioContrato);
+                \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
+
+            // ─── MODO INDIVIDUAL (un contrato/plan por lote) ────────────────────
+            } else {
+                $lotes = Lote::with('bloque')->whereIn('id_lote', $lotesIds)->get();
+                $totalLotes = $lotes->count();
+                $cuotaPorLote = $totalLotes > 0 ? round((float)$request->cuota_mensual / $totalLotes, 2) : (float)$request->cuota_mensual;
+                $precioPorLote = $totalLotes > 0 ? round((float)$request->precio_final / $totalLotes, 2) : (float)$request->precio_final;
+
+                // Leer beneficiarios individuales (enviados como arrays por JS)
+                $beneficiarios = $request->input('beneficiarios', []);
+                $notas         = $request->input('notas_beneficiario', []);
+                $primerAbonoTotal = (float)$request->primer_abono;
+                $abonosPorLote = $totalLotes > 0 ? round($primerAbonoTotal / $totalLotes, 2) : $primerAbonoTotal;
+
+                // Usar la fecha del primer pago como fecha_venta (igual que modo unificado)
+                $fechaInicioContrato = $request->fecha_ultimo_abono ?? now()->format('Y-m-d');
+
+                foreach ($lotes as $index => $lote) {
+                    $venta = Venta::create([
+                        'id_cliente'        => $cliente->id_cliente,
+                        'lotificacion_id'   => $lotificacionId,
+                        'fecha_venta'       => $fechaInicioContrato,
+                        'precio_final'      => $precioPorLote,
+                        'plazo_meses'       => $request->plazo_meses,
+                        'estado_contrato'   => 'Vigente',
+                        'extension_lote'    => (float)$lote->area_metros,
+                        'cuota_mensual'     => $cuotaPorLote,
+                        'beneficiario_final'=> $beneficiarios[$index] ?? null,
+                        'nota_beneficiario' => $notas[$index] ?? null,
+                    ]);
+
+                    $lote->estado = 'Vendido';
+                    $lote->save();
+
+                    \App\Models\HistorialLote::create([
+                        'id_lote'         => $lote->id_lote,
+                        'id_venta'        => $venta->id_venta,
+                        'estado'          => 'Activo',
+                        'fecha_asignacion'=> now(),
+                    ]);
+
+                    $datosReciboLote = Abono::generarSiguienteNumeroRecibo($lotificacionId);
+
+                    $abonoInicial = Abono::create([
+                        'id_venta'      => $venta->id_venta,
+                        'numero_recibo' => $datosReciboLote['numero_recibo'],
+                        'codigo_recibo' => $datosReciboLote['codigo_recibo'],
+                        'fecha_pago'    => $fechaInicioContrato,
+                        'fecha_transferencia' => $request->fecha_transferencia_prima ?? null,
+                        'monto_abonado' => $abonosPorLote,
+                        'tipo_pago'     => 'Prima/Primer Abono',
+                        'metodo_pago'   => $request->metodo_pago_prima ?? 'Efectivo',
+                        'referencia'    => $request->referencia_prima ?? 'Registro Inicial - Lote ' . $lote->numero_lote,
+                        'cuenta_destino'=> $request->cuenta_destino_prima ?? null,
+                        'comentario'    => $request->comentario_prima ?? $request->comentario ?? null,
+                        'user_id'       => auth()->id()
+                    ]);
+
+                    $this->generarPlanCuotas($venta, $fechaInicioContrato);
+                    \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
+                }
+            }
+
+            DB::commit();
+            return redirect()->route('registro.index')->with('success', 'Cliente y Venta(s) registrados exitosamente.');
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->withInput()->with('error', 'Ocurrió un error al registrar: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Genera el Plan de Cuotas para una venta a partir de la fecha del primer pago o fecha de venta.
+     */
+    public static function generarPlanCuotas(Venta $venta, $fechaInicio = null): void
+    {
+        $plazoRestante = (int) $venta->plazo_meses;
+        $saldoRestante = (float) $venta->precio_final;
+        $cuotaMensual  = (float) $venta->cuota_mensual;
 
         if ($plazoRestante > 0 && $saldoRestante > 0) {
-            $fechaVencimiento = \Carbon\Carbon::parse($abonoInicial->fecha_pago);
-            
+            $fechaBase = $fechaInicio ?: ($venta->fecha_venta ?: ($venta->created_at ?: now()));
+            $fechaInicial = \Carbon\Carbon::parse($fechaBase);
+
             for ($i = 1; $i <= $plazoRestante; $i++) {
-                $fechaVencimiento->addMonth();
-                
-                // La última cuota puede variar ligeramente por redondeos, la ajustamos
+                // Cuota 1 inicia en la fecha del contrato / prima (mes 0), Cuota 2 al 1er mes, Cuota 3 al 2do mes, etc.
+                $fechaVencimiento = (clone $fechaInicial)->addMonths($i - 1);
                 $montoCuota = ($i == $plazoRestante) ? $saldoRestante : $cuotaMensual;
-                
+
                 \App\Models\Cuota::create([
-                    'id_venta' => $venta->id_venta,
-                    'numero_cuota' => $i,
+                    'id_venta'          => $venta->id_venta,
+                    'numero_cuota'      => $i,
                     'fecha_vencimiento' => $fechaVencimiento->format('Y-m-d'),
-                    'monto_total' => $montoCuota,
-                    'capital' => $montoCuota, // Asumimos sin interés desglosado por ahora
-                    'interes' => 0,
-                    'saldo_restante' => $montoCuota,
-                    'estado' => 'Pendiente',
+                    'monto_total'       => $montoCuota,
+                    'capital'           => $montoCuota,
+                    'interes'           => 0,
+                    'saldo_restante'    => $montoCuota,
+                    'estado'            => 'Pendiente',
                 ]);
-                
+
                 $saldoRestante -= $montoCuota;
             }
         }
-
-        // Aplicamos el abono inicial automáticamente a las cuotas generadas
-        \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
-
-        DB::commit();
-
-        return redirect()->route('registro.index')->with('success', 'Cliente y Ventas de múltiples lotes registrados exitosamente.');
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return back()->withInput()->with('error', 'Ocurrió un error al registrar: ' . $e->getMessage());
     }
-}
 
     /**
      * Display the specified resource.
@@ -234,19 +378,64 @@ class ClienteController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show(Cliente $cliente)
+    public function show(Cliente $cliente, Request $request)
     {
-        
-         $cliente->load(['ventas.lotes', 'ventas.cuotas', 'ventas.abonos' => function ($query) {
-        
-         $query->orderBy('created_at','asc', 'desc');
-     }]);
+        $cliente->load([
+            'ventas' => function($vq) {
+                $vq->withoutGlobalScope('lotificacion')->with([
+                    'lotificacion',
+                    'lotes' => function($lq) {
+                        $lq->withoutGlobalScope('lotificacion')->with([
+                            'bloque' => function($bq) {
+                                $bq->withoutGlobalScope('lotificacion')->with('lotificacion');
+                            }
+                        ]);
+                    },
+                    'lotesRescindidos' => function($lrq) {
+                        $lrq->withoutGlobalScope('lotificacion')->with([
+                            'bloque' => function($bq) {
+                                $bq->withoutGlobalScope('lotificacion')->with('lotificacion');
+                            }
+                        ]);
+                    },
+                    'cuotas',
+                    'abonos' => function ($query) {
+                        $query->orderBy('created_at', 'desc');
+                    }
+                ]);
+            }
+        ]);
 
         $cliente->ventas->each(function ($venta) {
-          $venta->total_abonado = $venta->abonos->sum('monto_abonado');
+            $venta->total_abonado = $venta->abonos->sum('monto_abonado');
+            $primeraCuota = $venta->cuotas->first();
+            $fechaContrato = $venta->fecha_venta ? \Carbon\Carbon::parse($venta->fecha_venta)->format('Y-m-d') : null;
+            if ($fechaContrato && (!$primeraCuota || $primeraCuota->fecha_vencimiento !== $fechaContrato)) {
+                \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
+                $venta->load('cuotas');
+            }
         });
 
-        return view('show', compact('cliente'));
+        $ventaIdSeleccionada = $request->get('venta_id');
+        $ventaActual = null;
+        if ($ventaIdSeleccionada) {
+            $ventaActual = $cliente->ventas->firstWhere('id_venta', $ventaIdSeleccionada);
+        }
+        if (!$ventaActual) {
+            $ventaActual = $cliente->ventas->firstWhere('estado_contrato', 'Vigente') ?? $cliente->ventas->first();
+        }
+
+        $ventaIds = $cliente->ventas->pluck('id_venta')->toArray();
+
+        $historialModificaciones = \App\Models\Auditoria::where(function($q) use ($cliente, $ventaIds) {
+            $q->where(function($sub) use ($cliente) {
+                $sub->where('modelo', 'Cliente')->where('modelo_id', $cliente->id_cliente);
+            })->orWhere(function($sub) use ($ventaIds) {
+                $sub->where('modelo', 'Venta')->whereIn('modelo_id', $ventaIds);
+            });
+        })->with('user')->orderBy('created_at', 'desc')->get();
+
+        return view('show', compact('cliente', 'historialModificaciones', 'ventaActual'));
     }
 
     /**
@@ -269,37 +458,81 @@ class ClienteController extends Controller
      * @return \Illuminate\Http\Response
      */
     public function update(Request $request, Cliente $cliente)
-{
-    // Validacion de datos actualizados
-    DB::beginTransaction();
-    try {
-        $cliente->update($request->only([
-            'expediente_num', 'pv_num', 'nombres_apellidos', 'identificacion',
-            'telefono', 'direccion', 'estado_civil', 'oficio'
-        ]));
+    {
+        // Normalizar cédula si viene sin guiones (14 caracteres alfanuméricos)
+        $identificacion = trim((string)$request->input('identificacion'));
+        $cleanId = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $identificacion));
+        if (strlen($cleanId) === 14) {
+            $identificacion = substr($cleanId, 0, 3) . '-' . substr($cleanId, 3, 6) . '-' . substr($cleanId, 9, 5);
+            $request->merge(['identificacion' => $identificacion]);
+        }
 
-        $venta = $cliente->ventas()->first();
-        if ($venta) {
-    
-        if ($venta->getOriginal('estado_contrato') === 'Rescindido') {
-         $nuevoEstado = 'Rescindido';
-         } else {
-         $nuevoEstado = $request->input('estado_contrato');
+        $request->validate([
+            'nombres_apellidos' => 'required|string|max:255',
+            'identificacion' => ['required', 'string', 'regex:/^[A-Za-z0-9]{3}-[A-Za-z0-9]{6}-[A-Za-z0-9]{5}$/'],
+            'pv_num' => 'required|string|max:255',
+            'expediente_num' => 'required|string|max:255',
+            'telefono' => 'nullable|string|max:50',
+            'direccion' => 'nullable|string|max:500',
+            'estado_civil' => 'nullable|string|max:50',
+            'oficio' => 'nullable|string|max:100',
+            'motivo_modificacion' => 'required|string|max:500',
+        ], [
+            'identificacion.regex' => 'La cédula debe tener el formato XXX-XXXXXX-XXXXX (ej: 001-120395-0004Y).',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $campos = [
+                'nombres_apellidos' => 'Nombre / Titular',
+                'identificacion' => 'Cédula / Identificación',
+                'pv_num' => 'N° Promesa de Venta (PV)',
+                'expediente_num' => 'N° Expediente',
+                'telefono' => 'Teléfono',
+                'direccion' => 'Dirección',
+                'estado_civil' => 'Estado Civil',
+                'oficio' => 'Oficio',
+            ];
+
+            $cambios = [];
+            $esCesion = false;
+
+            $datosActualizados = [
+                'expediente_num'   => mb_strtoupper(trim((string)$request->input('expediente_num')), 'UTF-8'),
+                'pv_num'           => mb_strtoupper(trim((string)$request->input('pv_num')), 'UTF-8'),
+                'nombres_apellidos'=> mb_strtoupper(trim((string)$request->input('nombres_apellidos')), 'UTF-8'),
+                'identificacion'   => mb_strtoupper(trim((string)$request->input('identificacion')), 'UTF-8'),
+                'telefono'         => trim((string)$request->input('telefono')),
+                'direccion'        => $request->input('direccion') ? mb_strtoupper(trim((string)$request->input('direccion')), 'UTF-8') : null,
+                'estado_civil'     => $request->input('estado_civil') ? mb_strtoupper(trim((string)$request->input('estado_civil')), 'UTF-8') : null,
+                'oficio'           => $request->input('oficio') ? mb_strtoupper(trim((string)$request->input('oficio')), 'UTF-8') : null,
+            ];
+
+            foreach ($campos as $campo => $etiqueta) {
+                $valorAnterior = trim((string)$cliente->getOriginal($campo));
+                $valorNuevo = trim((string)($datosActualizados[$campo] ?? ''));
+
+                if ($valorAnterior !== $valorNuevo) {
+                    $cambios[] = "• <strong>{$etiqueta}:</strong> <span class='badge bg-danger-subtle text-danger border border-danger-subtle'>{$valorAnterior}</span> ➔ <span class='badge bg-success-subtle text-success border border-success-subtle fw-bold'>{$valorNuevo}</span>";
+                    if ($campo === 'nombres_apellidos' || $campo === 'identificacion') {
+                        $esCesion = true;
+                    }
+                }
             }
 
-        $venta->update(['estado_contrato' => $nuevoEstado]);
+            $cliente->update($datosActualizados);
 
-         if ($nuevoEstado === 'Rescindido') {
-         $loteIds = $venta->lotes()->pluck('lotes.id_lote')->toArray();
+            if (!empty($cambios)) {
+                $motivo = $request->input('motivo_modificacion');
+                $accion = $esCesion ? 'Cesión de Derechos / Cambio de Titular' : 'Modificación de Datos';
+                $detalles = implode('<br>', $cambios) . "<br><strong>Motivo / Justificación:</strong> " . e($motivo);
 
-            if (!empty($loteIds)) {
-            \App\Models\Lote::whereIn('id_lote', $loteIds)->update(['estado' => 'Disponible']);
-         }
+                \App\Models\Auditoria::log($accion, 'Cliente', $cliente->id_cliente, $detalles);
             }
-    }
+
             DB::commit();
             return redirect()->route('registro.show', $cliente->id_cliente)
-                         ->with('success', 'Información de Cliente y Estado de Venta actualizados.');
+                         ->with('success', 'Información del cliente actualizada y registrada en el historial de auditoría correctamente.');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Error al actualizar: ' . $e->getMessage());

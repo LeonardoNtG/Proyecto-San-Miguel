@@ -3,55 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recibo N° {{ $pago->id_abono }}</title>
+    <title>Recibo N° {{ $numeroReciboMostrar }}</title>
     <style>
         /* CSS Reset for Printing */
         @page {
-            size: letter portrait; /* Changed to portrait as requested */
-            margin: 0;
+            size: landscape;
+            margin: 6mm 8mm;
         }
-        body, html {
-            margin: 0;
-            padding: 0;
+        html, body {
             width: 100%;
             height: 100%;
+            margin: 0;
+            padding: 0;
             font-family: Arial, sans-serif;
-            box-sizing: border-box;
-            background-color: white;
+            background-color: #f8fafc;
         }
         * {
-            box-sizing: inherit;
+            box-sizing: border-box;
         }
         
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 0 8mm;
+            box-sizing: border-box;
+        }
+
         .page-container {
             width: 100%;
-            max-width: 8.5in; /* Simulate US Letter Portrait width */
-            margin: 0 auto; /* Center on screen */
-            min-height: 3.8in; /* Base height, allows growing if content overflows */
+            max-width: 1180px;
             display: flex;
-            justify-content: space-between;
-            align-items: stretch; /* Make both cards the same height */
-            padding: 15px 10px;
+            flex-direction: row;
+            justify-content: center;
+            align-items: stretch;
+            gap: 12px;
+            background-color: transparent;
+            margin: auto;
         }
 
         .receipt-card {
             border: 2px solid #1A237E; /* Deep Blue border */
             position: relative;
-            padding: 15px 10px;
+            padding: 12px 14px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            background-color: white;
+            min-height: 310px;
         }
 
-        /* Left receipt is larger */
-        .receipt-card-left {
-            width: 58%;
-        }
-
-        /* Right receipt is smaller */
-        .receipt-card-right {
-            width: 39%;
-        }
+        @if($imprimirDoble)
+            /* FORMATO DOBLE VÍA — cada recibo ocupa exactamente el 50% */
+            .receipt-card-left,
+            .receipt-card-right {
+                flex: 1 1 0;
+                min-width: 0;
+                width: 0;  /* fuerza flex a repartir igualmente */
+            }
+        @else
+            /* FORMATO RECIBO ÚNICO (100% DEL ESPACIO) */
+            .page-container {
+                display: block;
+                max-width: 750px;
+                padding: 4mm 0 0 0;
+            }
+            .receipt-card-left {
+                width: 100% !important;
+                min-height: 4.2in;
+                padding: 22px 24px;
+            }
+            .receipt-card-right {
+                display: none !important;
+            }
+            .title {
+                font-size: 28px !important;
+            }
+            .company-info {
+                font-size: 13px !important;
+            }
+            .row {
+                font-size: 13px !important;
+                margin-bottom: 10px !important;
+            }
+            .row .value {
+                font-size: 14px !important;
+            }
+            .details-row {
+                font-size: 11px !important;
+                margin-bottom: 7px !important;
+            }
+            .date-row {
+                font-size: 13px !important;
+                margin-top: 10px !important;
+                margin-bottom: 10px !important;
+            }
+            .date-input {
+                font-size: 14px !important;
+            }
+            .signature-box {
+                width: 170px !important;
+                font-size: 13px !important;
+            }
+            .signatures {
+                margin-top: 65px !important;
+            }
+        @endif
 
         /* Header Section */
         .header {
@@ -62,8 +121,8 @@
         }
 
         .logo-container {
-            width: 80px;
-            height: 70px;
+            width: 72px;
+            height: 52px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -76,8 +135,8 @@
         }
         
         .logo-placeholder {
-            width: 70px;
-            height: 60px;
+            width: 65px;
+            height: 48px;
             border: 1px dashed #ccc;
             display: flex;
             align-items: center;
@@ -91,22 +150,21 @@
             text-align: center;
             flex-grow: 1;
             color: #1A237E; /* Deep blue */
-            font-size: 11px;
+            font-size: 9.5px;
             font-weight: bold;
-            line-height: 1.2;
+            line-height: 1.15;
         }
 
-        /* Make company info smaller in the right receipt */
         .receipt-card-right .company-info {
-            font-size: 9px;
+            font-size: 9.5px;
         }
 
         .receipt-number-container {
-            width: 50px;
+            min-width: 50px;
             text-align: right;
             color: #D32F2F; /* Red */
             font-weight: bold;
-            font-size: 16px;
+            font-size: 15px;
         }
 
         /* Title block */
@@ -114,200 +172,238 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 10px;
+            margin-bottom: 4px;
             padding-right: 5px;
         }
 
         .title {
             color: #1A237E;
-            font-size: 24px;
+            font-size: 19px;
             font-weight: 900;
             letter-spacing: 1px;
         }
 
         .receipt-card-right .title {
-            font-size: 18px;
+            font-size: 19px;
+        }
+
+        /* Ocultar filas de cálculos en modo provisional */
+        .hide-provisional {
+            display: none !important;
         }
 
         .amount-boxes-container {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 4px;
         }
 
         .amount-box {
             display: flex;
             align-items: center;
-            font-size: 11px;
+            font-size: 10px;
             font-weight: bold;
             color: #1A237E;
         }
         
         .receipt-card-right .amount-box {
-            font-size: 9px;
+            font-size: 10px;
         }
 
         .amount-input {
             border: 2px solid #444;
             background-color: #e0e0e0;
-            width: 70px;
-            height: 20px;
+            width: 60px;
+            height: 19px;
             display: inline-block;
-            margin-left: 5px;
+            margin-left: 4px;
             text-align: center;
-            line-height: 18px;
+            line-height: 17px;
             color: black;
-            box-shadow: 2px 2px 0px #444;
-        }
-        
-        .receipt-card-right .amount-input {
-            width: 50px;
-            height: 16px;
-            line-height: 14px;
-            font-size: 10px;
+            box-shadow: 1.5px 1.5px 0px #444;
+            font-weight: bold;
+            font-size: 10.5px;
         }
 
-        /* Row Layout */
+        .receipt-card-right .amount-input {
+            width: 60px;
+            font-size: 10.5px;
+            box-shadow: 1.5px 1.5px 0px #444;
+        }
+
+        /* Body Rows */
         .row {
             display: flex;
-            align-items: baseline;
-            margin-bottom: 6px;
-            font-size: 11px;
+            align-items: flex-end;
+            margin-bottom: 4px;
+            font-size: 10.5px;
             color: #1A237E;
             font-weight: bold;
         }
 
         .receipt-card-right .row {
-            font-size: 9px;
+            font-size: 10.5px;
         }
 
         .row .label {
             white-space: nowrap;
-            margin-right: 8px;
+            margin-right: 6px;
         }
 
         .row .value {
             flex-grow: 1;
-            border-bottom: 1px solid #333;
+            border-bottom: 1.5px solid #1A237E;
+            padding-bottom: 1px;
             color: black;
-            padding-left: 5px;
-            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
         }
         
         .receipt-card-right .row .value {
-            font-size: 10px;
+            font-size: 11px;
         }
 
-        /* Small details row */
+        /* Details */
         .details-row {
-            font-size: 9px;
+            font-size: 9.5px;
             color: black;
             font-weight: bold;
-            margin-bottom: 6px;
-            margin-left: 2px;
+            margin-bottom: 3px;
+            line-height: 1.3;
         }
 
         .receipt-card-right .details-row {
-            font-size: 8px;
+            font-size: 9.5px;
         }
-        
-        /* Date Row */
+
+        /* Date line */
         .date-row {
             display: flex;
-            align-items: baseline;
-            margin-top: 5px;
-            margin-bottom: 5px;
-            font-size: 11px;
+            align-items: center;
+            font-size: 10.5px;
             color: #1A237E;
             font-weight: bold;
+            margin-top: 4px;
+            margin-bottom: 4px;
         }
 
         .receipt-card-right .date-row {
-            font-size: 9px;
+            font-size: 10.5px;
         }
 
         .date-input {
-            border-bottom: 1px solid #333;
-            color: black;
-            display: inline-block;
+            border-bottom: 1.5px solid #1A237E;
+            min-width: 25px;
             text-align: center;
-            min-width: 30px;
-            margin: 0 5px;
-            font-size: 12px;
+            display: inline-block;
+            margin: 0 4px;
+            color: black;
+            font-weight: 900;
         }
 
         .date-input.month {
-            min-width: 80px;
+            min-width: 65px;
         }
         
         .date-input.year {
-            min-width: 40px;
+            min-width: 35px;
         }
 
         .receipt-card-right .date-input {
-            font-size: 10px;
-            min-width: 20px;
+            font-size: 10.5px;
+            min-width: 25px;
         }
         .receipt-card-right .date-input.month {
-            min-width: 50px;
+            min-width: 65px;
         }
 
         /* Signatures */
         .signatures {
             display: flex;
             justify-content: space-around;
-            margin-top: 15px; 
-            align-items: flex-end;
+            margin-top: 32px; 
+            align-items: flex-start;
+        }
+
+        .receipt-card-right .signatures {
+            margin-top: 32px;
         }
 
         .signature-box {
             text-align: center;
-            font-size: 11px;
+            font-size: 10px;
             color: black;
             font-style: italic;
             font-weight: bold;
-            width: 110px;
+            width: 105px;
         }
         
         .receipt-card-right .signature-box {
-            font-size: 9px;
-            width: 70px;
+            font-size: 10px;
+            width: 105px;
         }
         
         .signature-line {
             border-top: 2px solid #000;
             margin-bottom: 5px;
+            width: 100%;
         }
 
-        /* QR Code Container */
-        .qr-container {
-            position: absolute;
-            bottom: 15px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+        .legal-notice {
+            font-size: 7.5px;
+            color: #555;
+            text-align: center;
+            margin-top: 4px;
+            font-style: italic;
         }
 
-        .qr-container img {
-            width: 50px;
-            height: 50px;
-        }
-
-        .qr-label {
-            font-size: 7px;
-            color: #1A237E;
-            font-weight: bold;
-            margin-top: 2px;
+        /* Print Media Styles */
+        @media print {
+            html, body {
+                background: none !important;
+                width: 100% !important;
+                height: 100% !important;
+                min-height: 100vh !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
+                box-sizing: border-box !important;
+            }
+            .page-container {
+                width: 100% !important;
+                max-width: none !important;
+                padding: 0 !important;
+                gap: 6mm !important;
+                justify-content: center !important;
+                margin: auto 0 !important;
+            }
+            .receipt-card-left,
+            .receipt-card-right {
+                flex: 1 1 0 !important;
+                min-width: 0 !important;
+                width: 0 !important;
+            }
+            .receipt-card {
+                border: 2px solid #1A237E !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .amount-input {
+                background-color: #e0e0e0 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
         }
     </style>
 </head>
-<body onload="window.print()">
+<body onload="window.print();">
 
 <div class="page-container">
-
-    <!-- LEFT RECEIPT (LARGER) -->
+    
+    <!-- RECIBO DEL CLIENTE (PRINCIPAL) -->
     <div class="receipt-card receipt-card-left">
         
         <div class="header">
@@ -325,53 +421,59 @@
                 <div>{{ strtoupper($lotificacion->ciudad ?? 'CIUDAD') }}</div>
             </div>
             <div class="receipt-number-container">
-                {{ $pago->id_abono }}
+                {{ $numeroReciboMostrar }}
             </div>
         </div>
 
         <div class="title-block">
-            <div class="title">RECIBO</div>
+            <div class="title">
+                RECIBO
+            </div>
             <div class="amount-boxes-container">
                 <div class="amount-box">
                     POR C$: <div class="amount-input"></div>
                 </div>
                 <div class="amount-box">
-                    POR U$: <div class="amount-input">{{ number_format($pago->monto_abonado, 2) }}</div>
+                    POR U$: <div class="amount-input">{{ isset($modoProvisional) && $modoProvisional ? (isset($montoManual) && $montoManual ? number_format($montoManual, 2) : '') : number_format($pago->monto_abonado, 2) }}</div>
                 </div>
             </div>
         </div>
 
         <div class="row">
             <div class="label">Recibimos de:</div>
-            <div class="value">{{ $cliente->nombres_apellidos ?? 'Cliente Desconocido' }}</div>
+            <div class="value">{{ isset($modoProvisional) && $modoProvisional ? ($nombreManual ?? '') : ($cliente->nombres_apellidos ?? 'Cliente Desconocido') }}</div>
         </div>
 
         <div class="row">
             <div class="label">La suma de:</div>
-            <div class="value">{{ $monto_en_letras }} NETOS</div>
+            <div class="value">{{ isset($modoProvisional) && $modoProvisional ? ($monto_en_letras ? preg_replace('/\b(DÓLARES|DOLARES)\s+(DÓLARES|DOLARES)\b/ui', 'DÓLARES', trim($monto_en_letras . ' ' . $sufijoMoneda)) : '') : preg_replace('/\b(DÓLARES|DOLARES)\s+(DÓLARES|DOLARES)\b/ui', 'DÓLARES', trim($monto_en_letras . ' ' . $sufijoMoneda)) }}</div>
         </div>
 
         <div class="row">
             <div class="label">En concepto de:</div>
             <div class="value" style="display:flex; justify-content: space-between;">
-                <span>Abono a {{ $venta->lotes->count() > 1 ? 'Lotes' : 'Lote' }} {{ $lotes_texto }}</span>
+                <span>{{ isset($modoProvisional) && $modoProvisional ? ($conceptoManual ?? '') : ('Abono a ' . ((isset($lotes_count) ? $lotes_count : ($venta->lotes->count() ?? 1)) > 1 ? 'Lotes' : 'Lote') . ' ' . $lotes_texto) }}</span>
             </div>
         </div>
 
         @if(in_array($pago->metodo_pago, ['Transferencia Bancaria', 'Depósito Bancario', 'Cheque']))
-        <div class="details-row" style="margin-top: 4px; margin-bottom: 8px;">
-            <span style="color:#1A237E;">Vía:</span> {{ $pago->metodo_pago }} 
-            @if($pago->cuenta_destino) &nbsp;|&nbsp; <span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }} @endif
-            @if($pago->referencia) &nbsp;|&nbsp; <span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }} @endif
+        <div class="details-row" style="margin-top: 2px; margin-bottom: 4px; font-size: 8.5px; line-height: 1.25;">
+            <span style="white-space: nowrap;"><span style="color:#1A237E;">Vía:</span> {{ $pago->metodo_pago }}</span>
+            @if($pago->cuenta_destino)
+                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span><span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }}</span>
+            @endif
+            @if($pago->referencia)
+                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span style="white-space: nowrap;"><span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }}</span>
+            @endif
         </div>
         @endif
 
-        <div class="details-row">
-            Total: ${{ number_format($valor_total, 2) }} | Abonado: ${{ number_format($total_abonado, 2) }} | Pendiente: ${{ number_format($saldo_pendiente, 2) }}
+        <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
+            Monto: U$ {{ number_format($valor_total, 2) }}. Abonado: U$ {{ number_format($total_abonado, 2) }}. Saldo: U$ {{ number_format($saldo_pendiente, 2) }}.
         </div>
 
-        <div class="details-row">
-            Cuota: ${{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes | Plazo: {{ $venta->plazo_meses ?? 0 }} meses | Faltan: {{ $abonos_faltantes }}
+        <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
+            Cuota: U$ {{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes. Plazo: {{ $venta->plazo_meses ?? 0 }} Meses. Cuotas Pendientes: {{ $abonos_faltantes }}.
         </div>
 
         <div class="date-row">
@@ -389,15 +491,17 @@
                 Recibí Conforme
             </div>
 
+            @if($mostrarQr)
             <!-- QR CODE -->
             <div style="display:flex; flex-direction:column; align-items:center;">
-                @if(isset($cliente) && $cliente->token_seguimiento)
+                @if(!empty($cliente->token_seguimiento))
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=50x50&data={{ urlencode(route('portal.estado_cuenta', $cliente->token_seguimiento)) }}" alt="QR Code">
                 @else
-                    <div style="width: 70px; height: 70px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #999; text-align: center;">Sin Token</div>
+                    <div style="width: 50px; height: 50px; border: 1px dashed #ccc; display: flex; align-items: center; justify-content: center; font-size: 8px; color: #999; text-align: center;">Sin Token</div>
                 @endif
                 <span style="font-size: 8px; color: #1A237E; font-weight: bold; margin-top: 3px;">Estado de Cuenta</span>
             </div>
+            @endif
 
             <div class="signature-box">
                 <div class="signature-line"></div>
@@ -405,9 +509,14 @@
                 <span style="font-size: 7px; font-weight: normal; color: #555;">Cajero: {{ $pago->user->name ?? 'Sistema' }}</span>
             </div>
         </div>
+
+        @if(!empty($leyendaPie))
+            <div class="legal-notice">{{ $leyendaPie }}</div>
+        @endif
     </div>
 
-    <!-- RIGHT RECEIPT (SMALLER) -->
+    @if($imprimirDoble)
+    <!-- RECIBO DE LA EMPRESA (TALÓN DE CONTROL) -->
     <div class="receipt-card receipt-card-right">
         
         <div class="header">
@@ -425,59 +534,65 @@
                 <div>{{ strtoupper($lotificacion->ciudad ?? 'CIUDAD') }}</div>
             </div>
             <div class="receipt-number-container">
-                {{ $pago->id_abono }}
+                {{ $numeroReciboMostrar }}
             </div>
         </div>
 
         <div class="title-block">
-            <div class="title">RECIBO</div>
+            <div class="title">
+                RECIBO
+            </div>
             <div class="amount-boxes-container">
                 <div class="amount-box">
-                    C$: <div class="amount-input"></div>
+                    POR C$: <div class="amount-input"></div>
                 </div>
                 <div class="amount-box">
-                    U$: <div class="amount-input">{{ number_format($pago->monto_abonado, 2) }}</div>
+                    POR U$: <div class="amount-input">{{ isset($modoProvisional) && $modoProvisional ? (isset($montoManual) && $montoManual ? number_format($montoManual, 2) : '') : number_format($pago->monto_abonado, 2) }}</div>
                 </div>
             </div>
         </div>
 
         <div class="row">
             <div class="label">Recibimos de:</div>
-            <div class="value">{{ $cliente->nombres_apellidos ?? 'Cliente Desconocido' }}</div>
+            <div class="value">{{ isset($modoProvisional) && $modoProvisional ? ($nombreManual ?? '') : ($cliente->nombres_apellidos ?? 'Cliente Desconocido') }}</div>
         </div>
 
         <div class="row">
             <div class="label">La suma de:</div>
-            <div class="value">{{ $monto_en_letras }} NETOS</div>
+            <div class="value">{{ isset($modoProvisional) && $modoProvisional ? ($monto_en_letras ? preg_replace('/\b(DÓLARES|DOLARES)\s+(DÓLARES|DOLARES)\b/ui', 'DÓLARES', trim($monto_en_letras . ' ' . $sufijoMoneda)) : '') : preg_replace('/\b(DÓLARES|DOLARES)\s+(DÓLARES|DOLARES)\b/ui', 'DÓLARES', trim($monto_en_letras . ' ' . $sufijoMoneda)) }}</div>
         </div>
 
         <div class="row">
             <div class="label">En concepto de:</div>
             <div class="value" style="display:flex; justify-content: space-between;">
-                <span>Abono a {{ $venta->lotes->count() > 1 ? 'Lotes' : 'Lote' }} {{ $lotes_texto }}</span>
+                <span>{{ isset($modoProvisional) && $modoProvisional ? ($conceptoManual ?? '') : ('Abono a ' . ((isset($lotes_count) ? $lotes_count : ($venta->lotes->count() ?? 1)) > 1 ? 'Lotes' : 'Lote') . ' ' . $lotes_texto) }}</span>
             </div>
         </div>
 
         @if(in_array($pago->metodo_pago, ['Transferencia Bancaria', 'Depósito Bancario', 'Cheque']))
-        <div class="details-row" style="margin-top: 4px; margin-bottom: 8px;">
-            <span style="color:#1A237E;">Vía:</span> {{ $pago->metodo_pago }} 
-            @if($pago->cuenta_destino) &nbsp;|&nbsp; <span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }} @endif
-            @if($pago->referencia) &nbsp;|&nbsp; <span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }} @endif
+        <div class="details-row" style="margin-top: 2px; margin-bottom: 4px; font-size: 8.5px; line-height: 1.25;">
+            <span style="white-space: nowrap;"><span style="color:#1A237E;">Vía:</span> {{ $pago->metodo_pago }}</span>
+            @if($pago->cuenta_destino)
+                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span><span style="color:#1A237E;">Cta:</span> {{ $pago->cuenta_destino }}</span>
+            @endif
+            @if($pago->referencia)
+                <span style="color:#888; font-weight: normal; margin: 0 4px;">•</span><span style="white-space: nowrap;"><span style="color:#1A237E;">Ref:</span> {{ $pago->referencia }}</span>
+            @endif
         </div>
         @endif
 
-        <div class="details-row">
-            Total: ${{ number_format($valor_total, 2) }} | Pendiente: ${{ number_format($saldo_pendiente, 2) }}
+        <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
+            Monto: U$ {{ number_format($valor_total, 2) }}. Abonado: U$ {{ number_format($total_abonado, 2) }}. Saldo: U$ {{ number_format($saldo_pendiente, 2) }}.
         </div>
 
-        <div class="details-row">
-            Cuota: ${{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes<br>Plazo: {{ $venta->plazo_meses ?? 0 }} meses | Faltan: {{ $abonos_faltantes }}
+        <div class="details-row {{ isset($modoProvisional) && $modoProvisional ? 'hide-provisional' : '' }}">
+            Cuota: U$ {{ number_format($venta->cuota_mensual ?? 0, 2) }}/mes. Plazo: {{ $venta->plazo_meses ?? 0 }} Meses. Cuotas Pendientes: {{ $abonos_faltantes }}.
         </div>
 
         <div class="date-row">
             A los 
             <div class="date-input">{{ date('d', strtotime($pago->fecha_pago)) }}</div> 
-            de 
+            dias del mes de 
             <div class="date-input month">{{ ucfirst(\Carbon\Carbon::parse($pago->fecha_pago)->locale('es')->monthName) }}</div> 
             del 
             <div class="date-input year">{{ date('Y', strtotime($pago->fecha_pago)) }}</div>
@@ -494,7 +609,12 @@
                 <span style="font-size: 7px; font-weight: normal; color: #555;">Cajero: {{ $pago->user->name ?? 'Sistema' }}</span>
             </div>
         </div>
+
+        @if(!empty($leyendaPie))
+            <div class="legal-notice">{{ $leyendaPie }}</div>
+        @endif
     </div>
+    @endif
 
 </div>
 

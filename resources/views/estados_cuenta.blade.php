@@ -42,24 +42,47 @@
                     <tbody>
                         @forelse ($clientes as $cliente)
                             @php
-                                $venta = $cliente->ventas->first();
-                                $cuotasPagadas = $venta ? $venta->cuotas->where('estado', 'Pagada')->count() : 0;
-                                $cuotasPendientes = $venta ? $venta->cuotas->whereIn('estado', ['Pendiente', 'Mora'])->count() : 0;
+                                $ventasActivas = $cliente->ventas->where('estado_contrato', '!=', 'Rescindido');
+                                $primerVenta = $ventasActivas->first() ?? $cliente->ventas->first();
+                                
+                                $todosLotes = $ventasActivas->flatMap->lotes;
+                                $cuotasPagadas = $ventasActivas->sum(function($v) {
+                                    return $v->cuotas->where('estado', 'Pagada')->count();
+                                });
+                                $cuotasPendientes = $ventasActivas->sum(function($v) {
+                                    return $v->cuotas->whereIn('estado', ['Pendiente', 'Mora'])->count();
+                                });
+                                $totalAbonado = $ventasActivas->sum(function($v) {
+                                    return $v->abonos->sum('monto_abonado');
+                                });
+                                $saldoTotal = $ventasActivas->sum(function($v) {
+                                    $saldo = $v->cuotas->where('estado', '!=', 'Pagada')->sum('saldo_restante');
+                                    $mora = $v->cuotas->where('estado', '!=', 'Pagada')->sum('mora_pendiente');
+                                    return $saldo + $mora;
+                                });
                             @endphp
                             <tr>
-                                <td>{{ $cliente->expediente_num }}</td>
-                                <td>{{ $cliente->nombres_apellidos }}</td>
                                 <td>
-                                    @if($venta && $venta->lotes->count() > 0)
-                                        @foreach($venta->lotes as $lote)
-                                            <span class="badge badge-info">Bloque {{ $lote->bloque->nombre ?? 'N/A' }} - Lote {{ $lote->numero_lote ?? 'N/A' }}</span><br>
+                                    <a href="{{ route('registro.show', $cliente->id_cliente) }}" class="fw-bold text-primary" title="Ver expediente">
+                                        {{ $cliente->expediente_num }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <a href="{{ route('registro.show', $cliente->id_cliente) }}" class="fw-bold text-dark text-decoration-none" title="Ver expediente y recibos">
+                                        {{ $cliente->nombres_apellidos }}
+                                    </a>
+                                </td>
+                                <td>
+                                    @if($todosLotes->count() > 0)
+                                        @foreach($todosLotes as $lote)
+                                            <span class="badge badge-info">{{ $lote->nombre_completo }}</span><br>
                                         @endforeach
                                     @else
                                         <span class="text-muted">N/A</span>
                                     @endif
                                 </td>
                                 <td>
-                                    {{ $venta ? \Carbon\Carbon::parse($venta->fecha_venta)->format('d/m/Y') : 'N/A' }}
+                                    {{ $primerVenta ? \Carbon\Carbon::parse($primerVenta->fecha_venta)->format('d/m/Y') : 'N/A' }}
                                 </td>
                                 <td>
                                     <span class="badge badge-success">{{ $cuotasPagadas }}</span>
@@ -68,26 +91,27 @@
                                     <span class="badge badge-warning text-dark">{{ $cuotasPendientes }}</span>
                                 </td>
                                 <td>
-                                    ${{ number_format($venta ? $venta->abonos->sum('monto_abonado') : 0, 2) }}
+                                    ${{ number_format($totalAbonado, 2) }}
                                 </td>
                                 <td>
-                                    @php
-                                        $saldo = $venta ? $venta->cuotas->where('estado', '!=', 'Pagada')->sum('saldo_restante') : 0;
-                                        $mora = $venta ? $venta->cuotas->where('estado', '!=', 'Pagada')->sum('mora_pendiente') : 0;
-                                    @endphp
-                                    <span class="text-danger fw-bold">${{ number_format($saldo + $mora, 2) }}</span>
+                                    <span class="text-danger fw-bold">${{ number_format($saldoTotal, 2) }}</span>
                                 </td>
                                 <td class="text-center">
-                                    @if($cliente->token_seguimiento)
-                                        <button type="button" class="btn btn-sm btn-info text-white" onclick="navigator.clipboard.writeText('{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}'); alert('¡Enlace del portal copiado al portapapeles!');" title="Copiar Link">
-                                            <i class="fas fa-copy"></i> Copiar Link
-                                        </button>
-                                        <a href="{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}" target="_blank" class="btn btn-sm btn-secondary" title="Abrir Portal">
-                                            <i class="fas fa-external-link-alt"></i> Ver Portal
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a href="{{ route('registro.show', $cliente->id_cliente) }}" class="btn btn-outline-success" title="Ver expediente y Recibos Firmados">
+                                            <i class="fas fa-file-signature"></i> Recibos
                                         </a>
-                                    @else
-                                        <span class="badge badge-warning">Sin Token</span>
-                                    @endif
+                                        @if($cliente->token_seguimiento)
+                                            <button type="button" class="btn btn-info text-white" onclick="navigator.clipboard.writeText('{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}'); alert('¡Enlace del portal copiado al portapapeles!');" title="Copiar Link Portal">
+                                                <i class="fas fa-copy"></i>
+                                            </button>
+                                            <a href="{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}" target="_blank" class="btn btn-secondary" title="Abrir Portal">
+                                                <i class="fas fa-external-link-alt"></i>
+                                            </a>
+                                        @else
+                                            <span class="badge badge-warning">Sin Token</span>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty

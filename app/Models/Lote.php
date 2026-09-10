@@ -44,14 +44,59 @@ class Lote extends Model
     {
         return $this->ventas()->wherePivot('estado', 'Activo')->first();
     }
+
+    /**
+     * Retorna el identificador legible y unificado del lote (ej: "Lote XYZ-03", "Lote A-01").
+     */
+    public function getNombreCompletoAttribute(): string
+    {
+        $bloqueNombre = trim((string) ($this->bloque?->nombre ?? ''));
+        $numLote = trim((string) ($this->numero_lote ?? ''));
+
+        // Limpiar prefijo "Bloque" si viene en el nombre del bloque
+        $bloqueLimpio = trim(preg_replace('/^bloque\s*/i', '', $bloqueNombre));
+
+        if (empty($bloqueLimpio)) {
+            return $numLote ? "Lote {$numLote}" : 'Lote N/A';
+        }
+
+        // Si el número de lote ya contiene o empieza con el bloque (ej: "XYZ-03", "A-01")
+        if (stripos($numLote, $bloqueLimpio) === 0 || stripos($numLote, '-') !== false) {
+            return "Lote {$numLote}";
+        }
+
+        // Si es número simple (ej: "03" o "1") y el bloque es "XYZ" o "A" -> "Lote XYZ-03" o "Lote A-01"
+        return "Lote {$bloqueLimpio}-{$numLote}";
+    }
+
+    /**
+     * Retorna solo el código limpio del lote (ej: "XYZ-03", "A-01").
+     */
+    public function getCodigoLoteAttribute(): string
+    {
+        $bloqueNombre = trim((string) ($this->bloque?->nombre ?? ''));
+        $numLote = trim((string) ($this->numero_lote ?? ''));
+
+        $bloqueLimpio = trim(preg_replace('/^bloque\s*/i', '', $bloqueNombre));
+
+        if (empty($bloqueLimpio)) {
+            return $numLote ?: 'N/A';
+        }
+
+        if (stripos($numLote, $bloqueLimpio) === 0 || stripos($numLote, '-') !== false) {
+            return $numLote;
+        }
+
+        return "{$bloqueLimpio}-{$numLote}";
+    }
     
     public function getLotesByBloque($bloque_id)
     {
-    $lotes = Lote::where('id_bloque', $bloque_id)
-                  // FILTRO CLAVE: Solo devuelve lotes disponibles
-                  ->where('estado', 'Disponible') 
-                  ->get(['id_lote', 'numero_lote', 'area_metros']); 
-                  
-    return response()->json($lotes);
-}
+        $lotes = Lote::where('id_bloque', $bloque_id)
+                      // FILTRO CLAVE: Solo devuelve lotes disponibles
+                      ->where('estado', 'Disponible') 
+                      ->get(['id_lote', 'numero_lote', 'area_metros']); 
+                      
+        return response()->json($lotes);
+    }
 }

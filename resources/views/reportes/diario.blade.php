@@ -62,6 +62,11 @@
         <button type="button" class="btn btn-secondary text-white" disabled title="Último turno cerrado">
             <i class="fas fa-lock"></i> Turno Cerrado
         </button>
+        @if(isset($cierresHoy) && $cierresHoy->isNotEmpty())
+        <a href="{{ route('reportes.cierre_turno.pdf', $cierresHoy->first()->id) }}" target="_blank" class="btn btn-outline-dark fw-bold">
+            <i class="fas fa-print"></i> Imprimir Reporte
+        </a>
+        @endif
         <button type="button" class="btn btn-warning fw-bold px-4 text-dark" data-bs-toggle="modal" data-bs-target="#modalAbrirCaja">
             <i class="fas fa-box-open"></i> Abrir Nuevo Turno
         </button>
@@ -119,6 +124,48 @@
     </div>
 </div>
 
+@if(isset($cierresHoy) && $cierresHoy->isNotEmpty())
+<div class="card mt-4 shadow-sm border-0 border-top border-dark border-3">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-dark"><i class="fas fa-archive text-secondary"></i> Turnos Cerrados el Día de Hoy</h6>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Hora de Cierre</th>
+                    <th>Efectivo Reportado</th>
+                    <th>Diferencia</th>
+                    <th class="text-center">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($cierresHoy as $cierre)
+                <tr>
+                    <td class="align-middle">{{ $cierre->created_at->format('h:i A') }}</td>
+                    <td class="align-middle">${{ number_format($cierre->efectivo_real, 2) }}</td>
+                    <td class="align-middle">
+                        @if($cierre->diferencia == 0)
+                            <span class="badge bg-success">Cuadrado</span>
+                        @elseif($cierre->diferencia > 0)
+                            <span class="badge bg-warning text-dark">+${{ number_format($cierre->diferencia, 2) }}</span>
+                        @else
+                            <span class="badge bg-danger">-${{ number_format(abs($cierre->diferencia), 2) }}</span>
+                        @endif
+                    </td>
+                    <td class="text-center align-middle">
+                        <a href="{{ route('reportes.cierre_turno.pdf', $cierre->id) }}" target="_blank" class="btn btn-sm btn-outline-dark" title="Imprimir PDF del Cierre">
+                            <i class="fas fa-file-pdf"></i> Imprimir Reporte
+                        </a>
+                    </td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+    </div>
+</div>
+@endif
+
 {{-- Modal para Abrir Caja --}}
 <div class="modal fade" id="modalAbrirCaja" tabindex="-1" aria-labelledby="modalAbrirCajaLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -132,12 +179,12 @@
                 <div class="modal-body">
                     <p>¿Con cuánto efectivo inicia la caja el día de hoy?</p>
                     <div class="mb-3">
-                        <label class="form-label">Monto de Apertura</label>
+                        <label class="form-label font-weight-bold">Monto de Apertura <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input type="number" step="0.01" name="monto_inicial" class="form-control" value="{{ old('monto_inicial', $saldoInicial) }}" required>
+                            <input type="number" step="0.01" min="0" name="monto_inicial" id="monto_inicial" class="form-control" value="{{ old('monto_inicial', $saldoInicial) }}" required>
                         </div>
-                        <small class="text-muted">Por defecto mostramos lo que se arrastra (si lo hay), pero puedes colocar 0 u otra cantidad.</small>
+                        <small class="text-muted"><i class="fas fa-info-circle me-1"></i> No se permiten valores negativos. Ingrese $0.00 o el monto con el que abre caja.</small>
                     </div>
                     <input type="hidden" name="fecha" value="{{ $fecha }}">
                 </div>
@@ -164,11 +211,12 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Monto a retirar</label>
+                        <label class="form-label font-weight-bold">Monto a retirar <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input type="number" step="0.01" name="monto" class="form-control" placeholder="0.00" required>
+                            <input type="number" step="0.01" min="0.01" name="monto" id="input_monto_salida" class="form-control" placeholder="0.00" required>
                         </div>
+                        <small class="text-muted"><i class="fas fa-info-circle me-1"></i> No se permiten valores negativos ni cero. Ingrese un monto positivo.</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Motivo de la salida</label>
@@ -179,8 +227,7 @@
                         <select name="metodo_pago" class="form-select" required>
                             <option value="Efectivo" selected>Efectivo (Caja)</option>
                             <option value="Transferencia Bancaria">Transferencia Bancaria</option>
-                            <option value="Cheque">Cheque</option>
-                            <option value="Tarjeta">Tarjeta</option>
+                            <option value="Depósito Bancario">Depósito Bancario</option>
                         </select>
                     </div>
                     <input type="hidden" name="fecha" value="{{ $fecha }}">
@@ -225,7 +272,7 @@
                                         <div class="d-flex justify-content-between border-bottom pb-1 mb-1">
                                             <span>
                                                 <i class="fas fa-caret-right me-1 text-success"></i>
-                                                {{ $ingreso->metodo_pago }} - {{ Str::limit(optional($ingreso->venta->cliente)->nombre1 . ' ' . optional($ingreso->venta->cliente)->apellido1, 15, '...') }}
+                                                {{ $ingreso->metodo_pago }} - {{ Str::limit(optional($ingreso->venta?->cliente)->nombres_apellidos ?? 'Cliente', 20, '...') }}
                                             </span>
                                             <span class="text-success">${{ number_format($ingreso->monto_abonado, 2) }}</span>
                                         </div>
@@ -263,12 +310,12 @@
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold">Efectivo Real en Caja</label>
+                        <label class="form-label fw-bold">Efectivo Real en Caja <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">$</span>
-                            <input type="number" step="0.01" name="efectivo_real" id="efectivo_real" class="form-control" placeholder="0.00" required>
+                            <input type="number" step="0.01" min="0" name="efectivo_real" id="efectivo_real" class="form-control" placeholder="0.00" required>
                         </div>
-                        <small class="text-muted">Ingresa la cantidad física de dinero que tienes en tu gaveta.</small>
+                        <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Ingrese el dinero físico en gaveta (no se permiten números negativos).</small>
                     </div>
 
                     <div class="mb-3">
@@ -343,6 +390,20 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Bloqueo global de signos negativos y letras en inputs tipo número
+            document.querySelectorAll('input[type=number]').forEach(function(input) {
+                input.addEventListener('keydown', function(e) {
+                    if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') {
+                        e.preventDefault();
+                    }
+                });
+                input.addEventListener('input', function() {
+                    if (this.value && parseFloat(this.value) < 0) {
+                        this.value = '';
+                    }
+                });
+            });
+
             const efectivoRealInput = document.getElementById('efectivo_real');
             const saldoEsperado = parseFloat(document.getElementById('saldoFinalCaja').value);
             const diferenciaSpan = document.getElementById('diferenciaSpan');
@@ -351,52 +412,56 @@
             const tipoDiferencia = document.getElementById('tipoDiferencia');
             const formCerrarCaja = document.getElementById('formCerrarCaja');
 
-            efectivoRealInput.addEventListener('input', function() {
-                const efectivoReal = parseFloat(this.value);
-                
-                if (isNaN(efectivoReal)) {
-                    diferenciaSpan.textContent = '$0.00';
-                    diferenciaSpan.className = 'text-secondary';
-                    comentarioGroup.style.display = 'none';
-                    comentarioInput.required = false;
-                    return;
-                }
+            if (efectivoRealInput) {
+                efectivoRealInput.addEventListener('input', function() {
+                    const efectivoReal = parseFloat(this.value);
+                    
+                    if (isNaN(efectivoReal)) {
+                        diferenciaSpan.textContent = '$0.00';
+                        diferenciaSpan.className = 'text-secondary';
+                        comentarioGroup.style.display = 'none';
+                        comentarioInput.required = false;
+                        return;
+                    }
 
-                const diferencia = efectivoReal - saldoEsperado;
-                
-                // Formatear moneda
-                const diffFormatted = Math.abs(diferencia).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                
-                if (Math.abs(diferencia) < 0.01) {
-                    diferenciaSpan.textContent = 'Cuadrado ($0.00)';
-                    diferenciaSpan.className = 'text-success fw-bold';
-                    comentarioGroup.style.display = 'none';
-                    comentarioInput.required = false;
-                } else if (diferencia > 0) {
-                    diferenciaSpan.textContent = 'Sobrante (+$' + diffFormatted + ')';
-                    diferenciaSpan.className = 'text-warning fw-bold';
-                    comentarioGroup.style.display = 'block';
-                    tipoDiferencia.textContent = '(por sobrante)';
-                    comentarioInput.required = true;
-                } else {
-                    diferenciaSpan.textContent = 'Faltante (-$' + diffFormatted + ')';
-                    diferenciaSpan.className = 'text-danger fw-bold';
-                    comentarioGroup.style.display = 'block';
-                    tipoDiferencia.textContent = '(por faltante)';
-                    comentarioInput.required = true;
-                }
-            });
+                    const diferencia = efectivoReal - saldoEsperado;
+                    
+                    // Formatear moneda
+                    const diffFormatted = Math.abs(diferencia).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    
+                    if (Math.abs(diferencia) < 0.01) {
+                        diferenciaSpan.textContent = 'Cuadrado ($0.00)';
+                        diferenciaSpan.className = 'text-success fw-bold';
+                        comentarioGroup.style.display = 'none';
+                        comentarioInput.required = false;
+                    } else if (diferencia > 0) {
+                        diferenciaSpan.textContent = 'Sobrante (+$' + diffFormatted + ')';
+                        diferenciaSpan.className = 'text-warning fw-bold';
+                        comentarioGroup.style.display = 'block';
+                        tipoDiferencia.textContent = '(por sobrante)';
+                        comentarioInput.required = true;
+                    } else {
+                        diferenciaSpan.textContent = 'Faltante (-$' + diffFormatted + ')';
+                        diferenciaSpan.className = 'text-danger fw-bold';
+                        comentarioGroup.style.display = 'block';
+                        tipoDiferencia.textContent = '(por faltante)';
+                        comentarioInput.required = true;
+                    }
+                });
+            }
 
-            formCerrarCaja.addEventListener('submit', function(e) {
-                const efectivoReal = parseFloat(efectivoRealInput.value);
-                const diferencia = efectivoReal - saldoEsperado;
-                
-                if (Math.abs(diferencia) >= 0.01 && comentarioInput.value.trim() === '') {
-                    e.preventDefault();
-                    alert('Debe proporcionar una justificación obligatoria debido a la diferencia en caja.');
-                    comentarioInput.focus();
-                }
-            });
+            if (formCerrarCaja) {
+                formCerrarCaja.addEventListener('submit', function(e) {
+                    const efectivoReal = parseFloat(efectivoRealInput.value);
+                    const diferencia = efectivoReal - saldoEsperado;
+                    
+                    if (Math.abs(diferencia) >= 0.01 && comentarioInput.value.trim() === '') {
+                        e.preventDefault();
+                        alert('Debe proporcionar una justificación obligatoria debido a la diferencia en caja.');
+                        comentarioInput.focus();
+                    }
+                });
+            }
         });
     </script>
 @endsection

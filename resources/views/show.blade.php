@@ -3,20 +3,74 @@
 @section('titulo', 'Perfil de Cliente: ' . $cliente->nombres_apellidos)
 
 @section('contenido')
- @if (session('success'))
-    <div class="alert alert-success">
-        {{ session('success') }}
-    </div>
-@endif
+
+    @if (session('imprimir_abonos'))
+        @php
+            $imprimirIds = (array) session('imprimir_abonos');
+            $esMultiplesAbonos = count($imprimirIds) > 1;
+        @endphp
+        <div class="alert alert-success shadow-sm d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4 p-3 border-success">
+            <div>
+                <h5 class="alert-heading mb-1 fw-bold text-success"><i class="fas fa-check-circle me-1"></i> ¡Abono registrado con éxito!</h5>
+                <p class="mb-0 text-dark">{{ session('success') }}</p>
+            </div>
+            <div class="d-flex gap-2 flex-wrap align-items-center">
+                @if($esMultiplesAbonos)
+                    <a href="{{ route('abonos.imprimirConsolidado', ['ids' => implode(',', $imprimirIds)]) }}" target="_blank" class="btn btn-success btn-lg fw-bold shadow px-4 btn-imprimir-auto" data-url="{{ route('abonos.imprimirConsolidado', ['ids' => implode(',', $imprimirIds)]) }}">
+                        <i class="fas fa-print me-2"></i> Imprimir Recibo Unificado (Todos los Lotes)
+                    </a>
+                @else
+                    @foreach($imprimirIds as $abonoId)
+                        <a href="{{ route('imprimirRecibo', ['abono_id' => $abonoId]) }}" target="_blank" class="btn btn-success btn-lg fw-bold shadow-sm px-3 btn-imprimir-auto" data-url="{{ route('imprimirRecibo', ['abono_id' => $abonoId]) }}">
+                            <i class="fas fa-print me-1"></i> Imprimir Recibo
+                        </a>
+                    @endforeach
+                @endif
+            </div>
+        </div>
+    @elseif (session('success'))
+        <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+            <i class="fas fa-check-circle me-1"></i> {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @php
+        $venta = $ventaActual ?? ($cliente->ventas->firstWhere('estado_contrato', 'Vigente') ?? $cliente->ventas->first());
+        $tieneMultiplesContratos = $cliente->ventas->count() > 1;
+        $tieneOtrosContratos = false;
+        $otrosContratosActivos = collect();
+        if ($venta) {
+            $otrosContratosActivos = $cliente->ventas->where('id_venta', '!=', $venta->id_venta)->where('estado_contrato', 'Vigente');
+            $tieneOtrosContratos = $otrosContratosActivos->count() > 0;
+        }
+
+        // Totales consolidados de toda la cartera del cliente
+        $ventasCliente = $cliente->ventas;
+        $totalLotesCount = 0;
+        foreach($ventasCliente as $vc) {
+            $totalLotesCount += $vc->lotes->count();
+        }
+        $totalPrecioGlobal = (float)$ventasCliente->sum('precio_final');
+        $totalAbonadoGlobal = (float)$ventasCliente->sum('total_abonado');
+        $totalDeudaGlobal = max(0, $totalPrecioGlobal - $totalAbonadoGlobal);
+        $totalCuotaMensualGlobal = (float)$ventasCliente->where('estado_contrato', '!=', 'Rescindido')->sum('cuota_mensual');
+    @endphp
 
     <div class="row mb-4">
-        <div class="col-12 d-flex justify-content-between align-items-center">
-            <h2 class="text-primary">Exp. N°: {{ $cliente->expediente_num }}</h2>
+        <div class="col-12 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h2 class="text-primary mb-0">Exp. N°: {{ $cliente->expediente_num ?: 'N/D' }}</h2>
             
             <div class="btn-group" role="group">
-                <a href="{{ route('registro.edit', $cliente->id_cliente) }}" class="btn btn-warning">
-                <i class="fas fa-edit"></i> Editar Cliente
+                @if($venta)
+                <a href="{{ route('ventas.edit_completo', $venta->id_venta) }}" class="btn btn-warning text-dark fw-bold shadow-sm" title="Editar contrato, lote asignado, cliente y abonos">
+                    <i class="fas fa-edit me-1"></i> Editar Todo (Contrato y Pagos)
                 </a>
+                @else
+                <a href="{{ route('registro.edit', $cliente->id_cliente) }}" class="btn btn-warning">
+                    <i class="fas fa-edit"></i> Editar Cliente
+                </a>
+                @endif
                 
                 @if($cliente->token_seguimiento)
                 <a href="{{ route('portal.estado_cuenta', $cliente->token_seguimiento) }}" target="_blank" class="btn btn-primary" title="Abrir portal del cliente">
@@ -27,28 +81,88 @@
                 </button>
                 @endif
                 
-                @can('gestionar-lotificaciones')
-                @if(isset($cliente->ventas) && $cliente->ventas->first() && $cliente->ventas->first()->estado_contrato !== 'Rescindido')
+                @if($venta && $venta->estado_contrato !== 'Rescindido')
                 <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#rescindirModal">
                     <i class="fas fa-ban"></i> Rescindir Venta
                 </button>
                 @endif
-                @endcan
-    
-                @can('borrar-clientes')
-                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
-                    <i class="fas fa-trash"></i> Eliminar Cliente
-                </button>
-                @endcan
             </div>
         </div>
     </div>
     <hr>
 
-    @php
-        // Asumimos que solo gestionamos la primera (activa) de las ventas relacionadas
-        $venta = $cliente->ventas->first(); 
-    @endphp
+    @if($tieneMultiplesContratos || $totalLotesCount > 1)
+    {{-- RESUMEN GLOBAL DE CARTERA Y DEUDA TOTAL (PARA CAJERA / ASESOR) --}}
+    <div class="card shadow mb-4 border-0" style="border-radius: 12px; overflow: hidden;">
+        <div class="card-header text-white py-2 px-3 d-flex justify-content-between align-items-center flex-wrap gap-2" style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-layer-group me-2 text-warning"></i>
+                <div>
+                    <h6 class="m-0 fw-bold text-white">Resumen de Contratos y Deuda — {{ $cliente->nombres_apellidos }}</h6>
+                    <small class="opacity-85 text-white" style="font-size: 0.8rem;">
+                        Cliente con <strong>{{ $cliente->ventas->count() }} Contratos</strong> ({{ $totalLotesCount }} Lotes) — Seleccione para ver su estado y plan de pagos:
+                    </small>
+                </div>
+            </div>
+            <div>
+                <span class="badge bg-warning text-dark fw-bold px-3 py-2 fs-6 shadow-sm border border-light">
+                    <i class="fas fa-exclamation-circle me-1"></i> DEUDA TOTAL: ${{ number_format($totalDeudaGlobal, 2) }}
+                </span>
+            </div>
+        </div>
+        <div class="card-body p-3 bg-light">
+            {{-- LISTADO Y SELECTOR DE CONTRATOS --}}
+            <div class="row g-2">
+                @foreach($cliente->ventas as $v)
+                    @php
+                        $lotesV = $v->lotes;
+                        $nombreLotes = $lotesV->map(fn($l) => 'Bloque '.($l->bloque->nombre ?? '').' - Lote '.$l->numero_lote)->implode(', ');
+                        $esActual = ($venta && $venta->id_venta == $v->id_venta);
+                        $enMora = $v->cuotas->where('estado', 'Mora')->count() > 0;
+                        $deudaLote = max(0, (float)$v->precio_final - (float)$v->total_abonado);
+                    @endphp
+                    <div class="col-md-3 col-sm-6">
+                        <a href="{{ route('registro.show', [$cliente->id_cliente, 'venta_id' => $v->id_venta]) }}" class="text-decoration-none">
+                            <div class="p-3 rounded border {{ $esActual ? 'border-primary bg-primary text-white shadow' : 'border-secondary-subtle bg-white text-dark shadow-sm' }} transition-all h-100">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <strong class="fs-6">
+                                        <i class="fas fa-map-marker-alt {{ $esActual ? 'text-warning' : 'text-primary' }} me-1"></i>{{ $nombreLotes ?: 'Contrato #'.$v->id_venta }}
+                                    </strong>
+                                    @if($v->estado_contrato === 'Rescindido')
+                                        <span class="badge {{ $esActual ? 'bg-light text-dark' : 'bg-secondary text-white' }}">Rescindido</span>
+                                    @elseif($enMora)
+                                        <span class="badge bg-danger">Mora</span>
+                                    @else
+                                        <span class="badge {{ $esActual ? 'bg-light text-primary' : 'bg-success text-white' }}">Vigente</span>
+                                    @endif
+                                </div>
+                                @if($v->beneficiario_final)
+                                    <div class="small {{ $esActual ? 'text-white-50' : 'text-muted' }} mb-1">
+                                        <i class="fas fa-user-tie me-1"></i> {{ $v->beneficiario_final }}
+                                    </div>
+                                @endif
+                                <div class="small mt-1 pt-1 border-top {{ $esActual ? 'border-white-50' : 'border-light' }}">
+                                    <div class="d-flex justify-content-between">
+                                        <span class="{{ $esActual ? 'text-white-50' : 'text-muted' }}">Deuda Lote:</span>
+                                        <strong class="{{ $esActual ? 'text-warning' : 'text-danger' }}">${{ number_format($deudaLote, 2) }}</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span class="{{ $esActual ? 'text-white-50' : 'text-muted' }}">Abonado:</span>
+                                        <span class="{{ $esActual ? 'text-white' : 'text-success fw-bold' }}">${{ number_format($v->total_abonado, 2) }}</span>
+                                    </div>
+                                    <div class="d-flex justify-content-between">
+                                        <span class="{{ $esActual ? 'text-white-50' : 'text-muted' }}">Cuota/mes:</span>
+                                        <span class="{{ $esActual ? 'text-white' : 'text-dark' }}">${{ number_format($v->cuota_mensual, 2) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </div>
+    @endif
 
     <div class="row">
         
@@ -60,7 +174,7 @@
                 </div>
                 <div class="card-body">
                     <p><strong>Nombres:</strong> {{ $cliente->nombres_apellidos }}</p>
-                    <p><strong>N° PV:</strong> {{ $cliente->pv_num }}</p>
+                    <p><strong>N° PV:</strong> {{ $cliente->pv_num ?: 'N/D' }}</p>
                     <p><strong>Identificación:</strong> {{ $cliente->identificacion }}</p>
                     <p><strong>Teléfono:</strong> {{ $cliente->telefono ?? 'N/A' }}</p>
                     <p><strong>Estado Civil:</strong> {{ $cliente->estado_civil ?? 'N/A' }}</p>
@@ -73,8 +187,28 @@
         {{-- SECCIÓN 2: DETALLES DE LA VENTA ACTIVA --}}
         <div class="col-md-8">
             <div class="card shadow mb-4">
-                <div class="card-header bg-success text-white">
-                    <h5 class="m-0">Detalles de la Venta </h5>
+                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <h5 class="m-0">
+                        Detalles del Contrato
+                        @if($venta && $venta->lotes->isNotEmpty())
+                            <span class="badge bg-light text-dark ms-2">
+                                {{ $venta->lotes->map(fn($l) => 'Lote '.$l->numero_lote)->implode(', ') }}
+                            </span>
+                        @endif
+                    </h5>
+                    <div class="d-flex align-items-center gap-2">
+                        @if($venta)
+                            <a href="{{ route('ventas.edit_completo', $venta->id_venta) }}" class="btn btn-sm btn-warning text-dark fw-bold shadow-sm" title="Editar contrato, lote y abonos">
+                                <i class="fas fa-edit me-1"></i> Editar Contrato / Lote / Pagos
+                            </a>
+                            <a href="{{ route('reportes.promesa_venta.imprimir', $venta->id_venta) }}" target="_blank" class="btn btn-sm btn-light text-success fw-bold shadow-sm" title="Imprimir Ficha Técnica para Notario / Abogado">
+                                <i class="fas fa-file-contract me-1"></i> Ficha Promesa de Venta
+                            </a>
+                        @endif
+                        @if($tieneMultiplesContratos)
+                            <span class="badge bg-warning text-dark">{{ $cliente->ventas->count() }} Contratos en total</span>
+                        @endif
+                    </div>
                 </div>
                 <div class="card-body">
                     @if($venta)
@@ -85,19 +219,46 @@
                                         {{ $venta->estado_contrato }}
                                     </span>
                                 </p>
-                                <p><strong>Proyecto:</strong> {{ $venta->proyecto ?? 'N/A' }}</p>
-                                <p><strong>Precio Final:</strong> ${{ number_format($venta->precio_final, 2) }}</p>
-                                <p><strong>Plazo (Meses):</strong> {{ $venta->plazo_meses }}</p>
+                                <p><strong>Proyecto:</strong> <span class="badge bg-primary text-white fs-6">{{ $venta->proyecto }}</span></p>
+                                <p><strong>Precio Final:</strong> <span class="text-primary fw-bold">${{ number_format($venta->precio_final, 2) }}</span></p>
+                                <p><strong>Plazo:</strong> {{ $venta->plazo_meses }} meses</p>
                                 <p><strong>Cuota Mensual:</strong> ${{ number_format($venta->cuota_mensual, 2) }}</p>
-                                <p><strong>Extensión Total:</strong> {{ $venta->extension_lote }} m²</p>
+                                <p><strong>Fecha de Venta:</strong> {{ \Carbon\Carbon::parse($venta->fecha_venta)->format('d/m/Y') }}</p>
+                                @if($venta->beneficiario_final)
+                                    <div class="alert alert-info py-1 px-2 small mb-2">
+                                        <strong><i class="fas fa-user-tie me-1"></i> Beneficiario Final:</strong> {{ $venta->beneficiario_final }}
+                                        @if($venta->nota_beneficiario)
+                                            <div class="text-muted" style="font-size: 0.8rem;">Nota: {{ $venta->nota_beneficiario }}</div>
+                                        @endif
+                                    </div>
+                                @endif
                             </div>
                             <div class="col-md-6">
-                                <h5>Lotes Vendidos ({{ $venta->total_lotes_vendidos }}):</h5>
-                                <ul>
-                                    @foreach ($venta->lotes as $lote)
-                                        <li>Bloque: *{{ $lote->bloque->nombre }}*, Lote: *{{ $lote->numero_lote }}* ({{ number_format($lote->area_metros, 2) }} m²)</li>
-                                    @endforeach
+                                <h5>Lotes Activos en Contrato ({{ $venta->lotes->count() }}):</h5>
+                                <ul class="list-unstyled mt-2 mb-2">
+                                    @forelse ($venta->lotes as $lote)
+                                        <li class="mb-2">
+                                            <i class="fas fa-map-marker-alt text-primary me-1"></i>
+                                            <strong>{{ $lote->nombre_completo }}</strong> 
+                                            <span class="text-muted">({{ number_format($lote->area_metros, 2) }} m²)</span>
+                                        </li>
+                                    @empty
+                                        <li class="text-muted small">No hay lotes activos en este contrato.</li>
+                                    @endforelse
                                 </ul>
+
+                                @if($venta->lotesRescindidos && $venta->lotesRescindidos->count() > 0)
+                                    <div class="mt-2 pt-2 border-top">
+                                        <small class="text-danger fw-bold d-block mb-1">
+                                            <i class="fas fa-undo me-1"></i> Lotes Rescindidos / Devueltos ({{ $venta->lotesRescindidos->count() }}):
+                                        </small>
+                                        @foreach($venta->lotesRescindidos as $loteRes)
+                                            <span class="badge bg-light text-muted border text-decoration-line-through me-1 mb-1" title="Lote devuelto a disponible">
+                                                {{ $loteRes->nombre_completo }}
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     @else
@@ -108,136 +269,123 @@
         </div>
     </div>
     
-    {{-- PLAN DE PAGOS (CUOTAS) --}}
-    @if($venta && $venta->cuotas->count())
-        <div class="card shadow mb-4">
-            <div class="card-header bg-secondary text-white">
-                <h5 class="m-0">Plan de Pagos (Cuotas)</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-sm">
-                        <thead class="bg-light">
-                            <tr>
-                                <th># Cuota</th>
-                                <th>Fecha Vencimiento</th>
-                                <th>Monto Total</th>
-                                <th>Mora</th>
-                                <th>Saldo Restante</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($venta->cuotas as $cuota)
-                                <tr class="{{ $cuota->estado === 'Pagada' ? 'table-success' : ($cuota->estado === 'Mora' ? 'table-danger' : '') }}">
-                                    <td>{{ $cuota->numero_cuota }}</td>
-                                    <td>{{ \Carbon\Carbon::parse($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
-                                    <td>${{ number_format($cuota->monto_total, 2) }}</td>
-                                    <td>
-                                        @if($cuota->mora_calculada > 0)
-                                            <span class="text-danger font-weight-bold" title="Mora Calculada: ${{ number_format($cuota->mora_calculada, 2) }} | Pagada: ${{ number_format($cuota->mora_pagada, 2) }} | Exonerada: ${{ number_format($cuota->mora_exonerada, 2) }}">
-                                                ${{ number_format($cuota->mora_pendiente, 2) }}
-                                            </span>
-                                        @else
-                                            $0.00
-                                        @endif
-                                    </td>
-                                    <td>${{ number_format($cuota->saldo_restante, 2) }}</td>
-                                    <td>
-                                        <span class="badge 
-                                            {{ $cuota->estado === 'Pagada' ? 'bg-success' : ($cuota->estado === 'Pendiente' ? 'bg-warning text-dark' : 'bg-danger') }}">
-                                            {{ $cuota->estado }}
-                                        </span>
-                                    </td>
-                                    <td>
-                                        @if($cuota->mora_pendiente > 0)
-                                            <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#exonerarMoraModal{{ $cuota->id_cuota }}">
-                                                <i class="fas fa-handshake"></i>
-                                            </button>
-                                            
-                                            {{-- Modal para Exonerar Mora --}}
-                                            <div class="modal fade" id="exonerarMoraModal{{ $cuota->id_cuota }}" tabindex="-1" aria-labelledby="exonerarMoraModalLabel{{ $cuota->id_cuota }}" aria-hidden="true">
-                                                <div class="modal-dialog">
-                                                    <div class="modal-content">
-                                                        <div class="modal-header bg-danger text-white">
-                                                            <h5 class="modal-title" id="exonerarMoraModalLabel{{ $cuota->id_cuota }}">Negociar Mora - Cuota #{{ $cuota->numero_cuota }}</h5>
-                                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                                        </div>
-                                                        <form action="{{ route('cuotas.exonerarMora', $cuota->id_cuota) }}" method="POST">
-                                                            @csrf
-                                                            <div class="modal-body text-start">
-                                                                <p>Mora Pendiente Actual: <strong>${{ number_format($cuota->mora_pendiente, 2) }}</strong></p>
-                                                                <div class="mb-3">
-                                                                    <label for="monto_exonerar" class="form-label">Monto a Exonerar / Perdonar ($)</label>
-                                                                    <input type="number" step="0.01" max="{{ $cuota->mora_pendiente }}" class="form-control" name="monto_exonerar" value="{{ $cuota->mora_pendiente }}" required>
-                                                                    <small class="text-muted">Si quieres perdonar toda la mora, deja el valor por defecto. Si el cliente pagará una parte, reduce el monto a perdonar.</small>
-                                                                </div>
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                                                                <button type="submit" class="btn btn-danger">Confirmar Exoneración</button>
-                                                            </div>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+    {{-- HISTORIAL DE ABONOS - TIPO ACORDEÓN --}}
+    @if($venta)
+        <div class="card shadow mb-4 border-primary">
+            <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-3"
+                 id="headerHistorialAbonos"
+                 style="cursor: pointer; user-select: none;" title="Clic para expandir u ocultar el Historial de Pagos">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-receipt fa-lg me-2"></i>
+                    <h5 class="m-0 fw-bold">Historial de Pagos (Abonos)</h5>
+                </div>
+                <div class="d-flex align-items-center flex-wrap gap-1">
+                    <span class="badge bg-light text-primary fw-bold me-2 shadow-sm">{{ $venta->abonos->count() }} Recibos</span>
+                    <span class="badge bg-success text-white fw-bold me-2 shadow-sm">
+                        Abonado: ${{ number_format($venta->total_abonado, 2) }}
+                    </span>
+                    <span class="badge bg-warning text-dark fw-bold me-2 shadow-sm">
+                        Deuda: ${{ number_format(max(0, $venta->precio_final - $venta->total_abonado), 2) }}
+                    </span>
+                    <span class="btn btn-sm btn-outline-light ms-2 px-2 py-1">
+                        <i class="fas fa-chevron-up" id="chevronAbonos"></i>
+                    </span>
                 </div>
             </div>
-        </div>
-    @endif
-
-    {{--HISTORIAL DE ABONOS --}}
-    @if($venta && $venta->abonos->count())
-    <div class="card shadow mb-4">
-            <div class="card-header bg-primary text-white">
-                <h5 class="m-0">Historial de Pagos (Abonos)</h5>
-            </div>
-            <div class="card-body">
-                <div class="alert alert-info">
-                    <strong>Deuda Pendiente:</strong> ${{ number_format($venta->precio_final - $venta->total_abonado, 2) }} 
-                    (Abonado: ${{ number_format($venta->total_abonado, 2) }})
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-striped table-sm">
-                        <thead>
+            <div id="bodyHistorialAbonos" style="display: block;">
+                <div class="card-body">
+                    <div class="alert alert-info d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <strong><i class="fas fa-info-circle me-1"></i> Resumen de Cuenta:</strong> 
+                            Total Venta: <strong>${{ number_format($venta->precio_final, 2) }}</strong> &nbsp;|&nbsp; 
+                            Total Abonado: <strong class="text-success">${{ number_format($venta->total_abonado, 2) }}</strong> &nbsp;|&nbsp; 
+                            Saldo Restante: <strong class="text-danger">${{ number_format(max(0, $venta->precio_final - $venta->total_abonado), 2) }}</strong>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover table-sm align-middle">
+                            <thead class="bg-light">
                                 <tr>
                                     <th>Fecha</th>
-                                    <th>Monto</th>
+                                    <th>Monto Abonado</th>
                                     <th>Concepto</th>
-                                    <th>Método</th>
-                                    <th>Referencia</th>
-                                    <th>Recibo</th>
+                                    <th>Método de Pago</th>
+                                    <th>Referencia / Banco</th>
+                                    <th class="text-center">Recibo Firmado</th>
+                                    <th class="text-center">Soporte Bancario</th>
+                                    <th class="text-center">Recibo Original</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($venta->abonos as $abono)
-                                <tr>
-                                    <td>{{ \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') }}</td>
-                                    <td class="text-success fw-bold">+${{ number_format($abono->monto_abonado, 2) }}</td>
-                                    <td>{{ $abono->tipo_pago }}</td>
+                                @php $esProvisional = ($abono->tipo_pago === 'Recibo Provisional'); @endphp
+                                <tr class="{{ $esProvisional ? 'table-warning' : '' }}">
+                                    <td>
+                                        <span class="fw-bold">{{ \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') }}</span>
+                                        @if($abono->fecha_transferencia)
+                                            <br><small class="badge bg-primary-subtle text-primary border border-primary-subtle" title="Fecha en que se realizó la transferencia"><i class="fas fa-calendar-check me-1"></i>Transf: {{ \Carbon\Carbon::parse($abono->fecha_transferencia)->format('d/m/Y') }}</small>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($esProvisional)
+                                            <span class="badge bg-warning text-dark border border-warning shadow-sm"><i class="fas fa-file-invoice me-1"></i> $0.00 (Provisional)</span>
+                                        @else
+                                            <span class="text-success fw-bold">+${{ number_format($abono->monto_abonado, 2) }}</span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($esProvisional)
+                                            <span class="badge bg-warning text-dark fw-bold"><i class="fas fa-exclamation-circle me-1"></i> Recibo Provisional</span>
+                                        @else
+                                            <span class="badge bg-info text-dark">{{ $abono->tipo_pago }}</span>
+                                        @endif
+                                    </td>
                                     <td>{{ $abono->metodo_pago ?? 'Efectivo' }}</td>
                                     <td>
                                         {{ $abono->referencia ?? '-' }}
                                         @if($abono->cuenta_destino)
-                                            <br><small class="text-muted"><i class="fas fa-university"></i> {{ $abono->cuenta_destino }}</small>
+                                            <br><small class="text-muted"><i class="fas fa-university me-1"></i>{{ $abono->cuenta_destino }}</small>
+                                        @endif
+                                        @if($abono->comentario)
+                                            <div class="mt-1">
+                                                <small class="badge {{ $esProvisional ? 'bg-warning-subtle text-dark border border-warning' : 'bg-light text-dark border' }}">
+                                                    <i class="fas fa-comment-dots {{ $esProvisional ? 'text-warning' : 'text-primary' }} me-1"></i>{{ $abono->comentario }}
+                                                </small>
+                                            </div>
                                         @endif
                                     </td>
-                                    <td>
-                                        <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm btn-outline-secondary">
-                                            <i class="fas fa-print"></i>
+                                    <td class="text-center">
+                                        @if($abono->recibo_firmado)
+                                            <a href="{{ asset('storage/' . $abono->recibo_firmado) }}" target="_blank" class="btn btn-sm btn-success fw-bold py-1 px-2 shadow-sm" title="Ver Recibo Firmado por el Cliente">
+                                                <i class="fas fa-file-signature me-1"></i> Firmado
+                                            </a>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary py-1 px-1 ms-1" onclick="abrirModalSubirFirmaShow({{ $abono->id_abono }}, '{{ $abono->numero_recibo_formateado }}', true)" title="Reemplazar archivo de firma">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </button>
+                                        @else
+                                            <button type="button" class="btn btn-sm btn-outline-warning text-dark fw-bold py-1 px-2 shadow-sm" onclick="abrirModalSubirFirmaShow({{ $abono->id_abono }}, '{{ $abono->numero_recibo_formateado }}', false)" title="Subir Recibo Firmado físicamente por el cliente">
+                                                <i class="fas fa-upload me-1 text-primary"></i> Subir Firma
+                                            </button>
+                                        @endif
+                                    </td>
+                                    <td class="text-center">
+                                        @if($abono->ruta_recibo)
+                                            <a href="{{ asset('storage/' . $abono->ruta_recibo) }}" target="_blank" class="btn btn-sm btn-outline-primary" title="Ver / Descargar Comprobante Bancario">
+                                                <i class="fas fa-paperclip me-1"></i> Minuta
+                                            </a>
+                                        @else
+                                            <span class="text-muted small">Sin adjunto</span>
+                                        @endif
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm {{ $esProvisional ? 'btn-warning text-dark fw-bold' : ($abono->grupo_recibo ? 'btn-primary fw-bold shadow-sm' : 'btn-outline-secondary') }}" title="{{ $abono->grupo_recibo ? 'Imprimir Recibo Unificado' : 'Imprimir Recibo' }}">
+                                            <i class="fas fa-print me-1"></i> {{ $abono->grupo_recibo ? 'Recibo Unificado' : 'Imprimir' }}
                                         </a>
                                     </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6" class="text-center">No hay abonos registrados.</td>
+                                    <td colspan="8" class="text-center py-3 text-muted">No hay abonos registrados.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -246,7 +394,154 @@
             </div>
         </div>
     @endif
+
+    {{-- HISTORIAL DE MODIFICACIONES Y CESIONES - TIPO ACORDEÓN --}}
+    <div class="card shadow mb-4 border-info">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3"
+             id="headerHistorialModificaciones"
+             style="cursor: pointer; user-select: none;" title="Clic para expandir u ocultar el Historial de Modificaciones">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-history fa-lg text-warning me-2"></i>
+                <h5 class="m-0 fw-bold">Historial de Modificaciones y Cesiones</h5>
+            </div>
+            <div class="d-flex align-items-center flex-wrap">
+                <span class="badge bg-warning text-dark fw-bold me-2 shadow-sm">
+                    {{ isset($historialModificaciones) ? $historialModificaciones->count() : 0 }} Registros
+                </span>
+                <span class="btn btn-sm btn-outline-light ms-2 px-2 py-1">
+                    <i class="fas {{ (isset($historialModificaciones) && $historialModificaciones->count() > 0) ? 'fa-chevron-up' : 'fa-chevron-down' }}" id="chevronModificaciones"></i>
+                </span>
+            </div>
+        </div>
+        <div id="bodyHistorialModificaciones" style="display: {{ (isset($historialModificaciones) && $historialModificaciones->count() > 0) ? 'block' : 'none' }};">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered table-sm align-middle">
+                        <thead class="bg-light">
+                            <tr>
+                                <th style="width: 15%;">Fecha y Hora</th>
+                                <th style="width: 15%;">Responsable</th>
+                                <th style="width: 20%;">Tipo de Acción</th>
+                                <th>Detalle del Cambio (Antes ➔ Después)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($historialModificaciones ?? [] as $historial)
+                            <tr>
+                                <td>
+                                    <i class="far fa-clock text-secondary me-1"></i>
+                                    {{ $historial->created_at->format('d/m/Y h:i A') }}
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary text-white">
+                                        <i class="fas fa-user me-1"></i>{{ $historial->user ? $historial->user->name : 'Sistema' }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge {{ str_contains($historial->accion, 'Cesión') ? 'bg-primary text-white' : 'bg-info text-dark' }}">
+                                        {{ $historial->accion }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {!! $historial->detalles !!}
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="4" class="text-center py-3 text-muted">
+                                    <i class="fas fa-info-circle me-1"></i> No se registran modificaciones ni cesiones en este expediente.
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
     
+    {{-- SECCIÓN 5: HISTORIAL DE RESCISIONES Y DESISTIMIENTOS --}}
+    @if(isset($cliente->rescisiones) && $cliente->rescisiones->count() > 0)
+    <div class="card shadow mb-4 border-danger">
+        <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center cursor-pointer" id="headerHistorialRescisiones" style="cursor: pointer;">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-undo-alt fa-lg text-warning me-2"></i>
+                <h5 class="m-0 fw-bold">Historial de Rescisiones y Desistimientos de Lotes</h5>
+            </div>
+            <div class="d-flex align-items-center flex-wrap">
+                <span class="badge bg-white text-danger fw-bold me-2 shadow-sm">
+                    {{ $cliente->rescisiones->count() }} Lotes Liberados
+                </span>
+                <span class="btn btn-sm btn-outline-light ms-2 px-2 py-1">
+                    <i class="fas fa-chevron-up" id="chevronRescisiones"></i>
+                </span>
+            </div>
+        </div>
+        <div id="bodyHistorialRescisiones" style="display: block;">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover table-bordered table-sm align-middle">
+                        <thead class="bg-light">
+                            <tr>
+                                <th style="width: 13%;">Fecha y Hora</th>
+                                <th style="width: 10%;">Tipo</th>
+                                <th style="width: 20%;">Lotes Desistidos (Disponible)</th>
+                                <th style="width: 15%;">Lotes Conservados</th>
+                                <th style="width: 18%;">Destino de lo Abonado</th>
+                                <th>Comentario / Motivo</th>
+                                <th style="width: 10%;">Responsable</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($cliente->rescisiones as $r)
+                            <tr>
+                                <td class="small">
+                                    <i class="far fa-clock text-secondary me-1"></i>
+                                    {{ \Carbon\Carbon::parse($r->created_at)->format('d/m/Y h:i A') }}
+                                </td>
+                                <td>
+                                    <span class="badge {{ $r->tipo == 'Parcial' ? 'bg-warning text-dark' : 'bg-danger' }}">
+                                        {{ $r->tipo }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger fw-bold py-1 px-2">
+                                        <i class="fas fa-undo me-1"></i> {{ $r->lotes_afectados }}
+                                    </span>
+                                    <br><small class="text-success"><i class="fas fa-check-circle me-1"></i> Pasa a Disponible</small>
+                                </td>
+                                <td class="small">
+                                    {{ $r->lotes_conservados ?: '—' }}
+                                </td>
+                                <td>
+                                    @if($r->destino_abonos == 'acreditar_otro_lote')
+                                        <span class="badge bg-success">Acreditado a lote conservado</span>
+                                        <div class="small fw-bold text-success mt-1">${{ number_format($r->monto_transferido, 2) }}</div>
+                                    @elseif($r->destino_abonos == 'devolucion_efectivo')
+                                        <span class="badge bg-danger">Devolución en efectivo</span>
+                                        <div class="small fw-bold text-danger mt-1">${{ number_format($r->monto_devuelto, 2) }}</div>
+                                    @else
+                                        <span class="badge bg-secondary">Sin devolución</span>
+                                    @endif
+                                </td>
+                                <td class="small">
+                                    <div class="p-2 bg-light rounded border">
+                                        {{ $r->comentario }}
+                                    </div>
+                                </td>
+                                <td class="small text-muted">
+                                    {{ $r->user ? $r->user->name : 'Sistema' }}
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     {{-- Modal de Confirmación de Borrado --}}
     <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
         <div class="modal-dialog">
@@ -271,66 +566,130 @@
         </div>
     </div>
 
-    {{-- Modal de Rescisión de Contrato --}}
+    {{-- Modal de Rescisión / Desistimiento de Lotes --}}
     @if($venta && $venta->estado_contrato !== 'Rescindido')
     <div class="modal fade" id="rescindirModal" tabindex="-1" aria-labelledby="rescindirModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-warning text-dark">
-                    <h5 class="modal-title" id="rescindirModalLabel">Rescindir Contrato</h5>
+                    <h5 class="modal-title fw-bold" id="rescindirModalLabel">
+                        <i class="fas fa-undo-alt me-2"></i> Rescindir / Desistir de Lotes
+                    </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <form action="{{ route('ventas.rescindir', $venta->id_venta) }}" method="POST">
+                <form action="{{ route('ventas.rescindir', $venta->id_venta) }}" method="POST" id="form-rescindir-venta">
                     @csrf
                     <div class="modal-body">
                         <div class="alert alert-warning">
-                            <strong>Atención:</strong> Seleccione los lotes que el cliente desea devolver. Si selecciona todos, el contrato completo se cancelará.
+                            <strong><i class="fas fa-exclamation-triangle me-1"></i> Selección de Lotes a Desistir / Devolver:</strong>
+                            <p class="small mb-2 text-dark">
+                                Marque los lotes de los cuales el cliente desea desistir. 
+                                <strong>El lote pasará automáticamente a estado "Disponible" (libre)</strong> en el inventario para poder venderse a una nueva persona.
+                            </p>
                             <div class="mt-2" id="lotes_checkbox_container">
                                 @foreach($venta->lotes as $lote)
-                                    <div class="form-check">
-                                        <input class="form-check-input lote-rescindir-checkbox" type="checkbox" name="lotes_a_rescindir[]" value="{{ $lote->id_lote }}" id="lote_res_{{ $lote->id_lote }}" checked>
-                                        <label class="form-check-label" for="lote_res_{{ $lote->id_lote }}">
-                                            Lote {{ $lote->numero_lote }} (Pasará a Disponible)
+                                    <div class="form-check mb-2 p-2 bg-white rounded border">
+                                        <input class="form-check-input lote-rescindir-checkbox ms-1 me-2" 
+                                               type="checkbox" 
+                                               name="lotes_a_rescindir[]" 
+                                               value="{{ $lote->id_lote }}" 
+                                               id="lote_res_{{ $lote->id_lote }}" 
+                                               data-area="{{ $lote->area_metros }}"
+                                               checked>
+                                        <label class="form-check-label fw-bold text-dark" for="lote_res_{{ $lote->id_lote }}">
+                                            {{ $lote->nombre_completo }}
+                                            <span class="text-muted fw-normal">({{ number_format($lote->area_metros, 2) }} m²)</span>
                                         </label>
                                     </div>
                                 @endforeach
                             </div>
                         </div>
 
+                        {{-- Destino del dinero abonado --}}
+                        @php
+                            $totalLotesEnVenta = $venta->lotes->count();
+                            // ¿Puede acreditar a otro lote? Solo si este contrato tiene más de 1 lote (rescisión parcial de varios lotes)
+                            $puedeAcreditarInicial = ($totalLotesEnVenta > 1);
+                        @endphp
+                        <div class="card bg-light border p-3 mb-3">
+                            <h6 class="fw-bold text-dark mb-2">
+                                <i class="fas fa-coins text-warning me-1"></i> Destino del Dinero Abonado por el Lote:
+                            </h6>
+                            <p class="small text-muted mb-2">El total abonado a este contrato asciende a: <strong>${{ number_format($venta->abonos()->where('monto_abonado', '>', 0)->sum('monto_abonado'), 2) }}</strong></p>
+                            
+                            {{-- Opción: Acreditar a lote conservado (SOLO si este contrato tiene más de 1 lote y conserva alguno) --}}
+                            <div class="form-check mb-2 p-2 bg-white rounded border" id="contenedor_opcion_acreditar" style="{{ $puedeAcreditarInicial ? '' : 'display: none !important;' }}">
+                                <input class="form-check-input destino-abonos-radio ms-1 me-2" type="radio" name="destino_abonos" id="dest_acreditar" value="acreditar_otro_lote" {{ $puedeAcreditarInicial ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold text-success" for="dest_acreditar">
+                                    <i class="fas fa-arrow-circle-right me-1"></i> Acreditar al lote que conserva
+                                </label>
+                                <div class="small text-muted ps-4">El dinero pagado por el lote desistido reduce la deuda pendiente del lote que el cliente mantiene.</div>
+                            </div>
+
+                            <div class="form-check mb-2 p-2 bg-white rounded border" id="contenedor_opcion_efectivo">
+                                <input class="form-check-input destino-abonos-radio ms-1 me-2" type="radio" name="destino_abonos" id="dest_efectivo" value="devolucion_efectivo">
+                                <label class="form-check-label fw-bold text-danger" for="dest_efectivo">
+                                    <i class="fas fa-hand-holding-usd me-1"></i> Liquidar y devolver en efectivo al cliente
+                                </label>
+                                <div class="small text-muted ps-4">El dinero no se transfiere a ningún lote. Se registra una liquidación y salida de caja en el sistema.</div>
+                            </div>
+
+                            <div class="form-check p-2 bg-white rounded border">
+                                <input class="form-check-input destino-abonos-radio ms-1 me-2" type="radio" name="destino_abonos" id="dest_sin_devolucion" value="sin_devolucion" {{ !$puedeAcreditarInicial ? 'checked' : '' }}>
+                                <label class="form-check-label fw-bold text-secondary" for="dest_sin_devolucion">
+                                    <i class="fas fa-ban me-1"></i> Sin devolución (Penalización / Cláusula de contrato)
+                                </label>
+                                <div class="small text-muted ps-4">El lote se libera a disponible sin crédito ni devolución económica.</div>
+                            </div>
+                        </div>
+
                         <!-- Opciones de Rescisión Parcial -->
-                        <div id="opciones_rescision_parcial" style="display: none;" class="border p-3 rounded mb-3 bg-light">
-                            <h6 class="text-primary mb-3"><i class="fas fa-info-circle"></i> Opciones de Rescisión Parcial</h6>
+                        <div id="opciones_rescision_parcial" style="display: none;" class="border p-3 rounded mb-3 bg-light shadow-sm">
+                            <h6 class="text-primary mb-2 fw-bold"><i class="fas fa-calculator me-1"></i> Rescisión Parcial: Recálculo Proporcional</h6>
+                            
+                            <div class="alert alert-info py-2 px-3 mb-3 small" id="resumen_proporcional_info">
+                                <!-- Actualizado automáticamente por JS -->
+                            </div>
                             
                             <div class="mb-3">
-                                <label for="nuevo_pv_num" class="form-label">Nuevo N° Promesa de Venta (Opcional):</label>
+                                <label for="nuevo_pv_num" class="form-label font-weight-bold">Nuevo N° Promesa de Venta (Opcional):</label>
                                 <input type="text" class="form-control" name="nuevo_pv_num" id="nuevo_pv_num" value="{{ $cliente->pv_num }}">
                             </div>
 
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label for="nuevo_precio_final" class="form-label">Nuevo Precio Total ($):</label>
-                                    <input type="number" step="0.01" class="form-control calc-plazo" name="nuevo_precio_final" id="nuevo_precio_final">
+                                    <label for="nuevo_precio_final" class="form-label font-weight-bold">Nuevo Precio Total ($):</label>
+                                    <input type="number" step="0.01" min="0" class="form-control calc-plazo font-weight-bold" name="nuevo_precio_final" id="nuevo_precio_final">
+                                    <small class="text-muted">Proporcional al número de lotes activos.</small>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label for="nueva_cuota_mensual" class="form-label">Nueva Cuota Mensual ($):</label>
-                                    <input type="number" step="0.01" class="form-control calc-plazo" name="nueva_cuota_mensual" id="nueva_cuota_mensual">
+                                    <label for="nueva_cuota_mensual" class="form-label font-weight-bold">Nueva Cuota Mensual ($):</label>
+                                    <input type="number" step="0.01" min="0" class="form-control calc-plazo font-weight-bold text-success" name="nueva_cuota_mensual" id="nueva_cuota_mensual">
+                                    <small class="text-muted">Cuota dividida equitativamente entre los lotes.</small>
                                 </div>
                             </div>
                             
                             <div class="mb-3">
-                                <label for="nuevo_plazo_meses" class="form-label">Nuevo Plazo (Meses):</label>
-                                <input type="number" class="form-control" name="nuevo_plazo_meses" id="nuevo_plazo_meses">
-                                <small class="text-muted">Se calcula automáticamente. Puedes modificarlo si es necesario.</small>
+                                <label for="nuevo_plazo_meses" class="form-label font-weight-bold">Nuevo Plazo (Meses):</label>
+                                <input type="number" min="1" class="form-control" name="nuevo_plazo_meses" id="nuevo_plazo_meses">
+                                <small class="text-muted">Se calcula automáticamente: Precio / Cuota.</small>
                             </div>
                         </div>
+
+                        {{-- Comentario Obligatorio --}}
                         <div class="mb-3">
-                            <label for="motivo_rescision" class="form-label">Motivo de la rescisión:</label>
-                            <textarea class="form-control" name="motivo_rescision" id="motivo_rescision" rows="3" required placeholder="Falta de pago, mutuo acuerdo, etc."></textarea>
+                            <label for="motivo_rescision" class="form-label fw-bold text-dark">
+                                <i class="fas fa-comment-dots text-primary me-1"></i> Comentario / Justificación de la Rescisión: <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" name="motivo_rescision" id="motivo_rescision" rows="3" required minlength="5" placeholder="Explique claramente el motivo del desistimiento, los acuerdos alcanzados con el cliente y destino de los fondos..."></textarea>
+                            <small class="text-muted"><i class="fas fa-info-circle me-1"></i> Este comentario quedará registrado permanentemente en el historial de rescisiones y auditoría.</small>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                        <button type="submit" class="btn btn-warning">Confirmar Rescisión</button>
+                        <button type="submit" class="btn btn-warning fw-bold px-4">
+                            <i class="fas fa-check me-1"></i> Confirmar Rescisión y Liberar Lote
+                        </button>
                     </div>
                 </form>
             </div>
@@ -343,8 +702,9 @@
 
 @section('scripts')
    <script>
-        // Logica para Rescision Parcial
         document.addEventListener('DOMContentLoaded', function() {
+            @if($venta && $venta->estado_contrato !== 'Rescindido')
+            // Logica para Rescisión de Lotes
             const checkboxes = document.querySelectorAll('.lote-rescindir-checkbox');
             const containerParcial = document.getElementById('opciones_rescision_parcial');
             
@@ -352,22 +712,70 @@
             const inputCuota = document.getElementById('nueva_cuota_mensual');
             const inputPlazo = document.getElementById('nuevo_plazo_meses');
 
-            function checkRescissionType() {
-                let total = checkboxes.length;
-                let checked = document.querySelectorAll('.lote-rescindir-checkbox:checked').length;
+            const totalLotes = {{ $venta ? $venta->lotes->count() : 0 }};
+            const precioTotalOriginal = {{ $venta ? (float)$venta->precio_final : 0 }};
+            const cuotaOriginal = {{ $venta ? (float)$venta->cuota_mensual : 0 }};
+            const plazoOriginal = {{ $venta ? (int)$venta->plazo_meses : 0 }};
+            const cuotaPorLoteOriginal = totalLotes > 0 ? (cuotaOriginal / totalLotes) : 0;
+            const precioPorLoteOriginal = totalLotes > 0 ? (precioTotalOriginal / totalLotes) : 0;
 
-                // Si está seleccionando ALGUNOS pero NO TODOS, es parcial
-                if (checked > 0 && checked < total) {
-                    containerParcial.style.display = 'block';
-                    inputPrecio.required = true;
-                    inputCuota.required = true;
-                    inputPlazo.required = true;
+            function checkRescissionType() {
+                let checkedCount = document.querySelectorAll('.lote-rescindir-checkbox:checked').length;
+                let conservados = totalLotes - checkedCount;
+
+                // Si se devuelven algunos pero NO todos (conserva al menos 1 lote)
+                if (checkedCount > 0 && conservados > 0) {
+                    if (containerParcial) containerParcial.style.display = 'block';
+                    if (inputPrecio) inputPrecio.required = true;
+                    if (inputCuota) inputCuota.required = true;
+                    if (inputPlazo) inputPlazo.required = true;
+
+                    // Cálculo equitativo proporcional por lote (Siempre >= 0)
+                    let nuevoPrecio = Math.max(0, Math.round((precioPorLoteOriginal * conservados) * 100) / 100);
+                    let nuevaCuota = Math.max(0, Math.round((cuotaPorLoteOriginal * conservados) * 100) / 100);
+                    let nuevoPlazo = plazoOriginal;
+
+                    if (inputPrecio) inputPrecio.value = nuevoPrecio.toFixed(2);
+                    if (inputCuota) inputCuota.value = nuevaCuota.toFixed(2);
+                    if (inputPlazo) inputPlazo.value = nuevoPlazo;
+
+                    const cuotaIndividual = conservados > 0 ? Math.max(0, nuevaCuota / conservados) : 0;
+                    const resumenEl = document.getElementById('resumen_proporcional_info');
+                    if (resumenEl) {
+                        resumenEl.innerHTML = 
+                            `<strong><i class="fas fa-check-circle text-success me-1"></i> Conservando ${conservados} de ${totalLotes} lote(s):</strong><br>` +
+                            `• Cuota individual por lote: <strong>$${cuotaIndividual.toFixed(2)}/mes</strong><br>` +
+                            `• Nueva cuota mensual total: <strong class="text-success">$${nuevaCuota.toFixed(2)}/mes</strong><br>` +
+                            `• Nuevo valor total del contrato: <strong>$${nuevoPrecio.toFixed(2)}</strong>`;
+                    }
                 } else {
-                    // Rescision total (todos) o ninguno (error form)
-                    containerParcial.style.display = 'none';
-                    inputPrecio.required = false;
-                    inputCuota.required = false;
-                    inputPlazo.required = false;
+                    if (containerParcial) containerParcial.style.display = 'none';
+                    if (inputPrecio) inputPrecio.required = false;
+                    if (inputCuota) inputCuota.required = false;
+                    if (inputPlazo) inputPlazo.required = false;
+                }
+
+                // Actualizar visibilidad de opción 'Acreditar al lote que conserva'
+                // Solo disponible si este contrato tiene más de 1 lote y el cliente CONSERVA al menos 1 lote (conservados > 0)
+                const puedeAcreditar = (totalLotes > 1 && conservados > 0);
+                const contenedorAcreditar = document.getElementById('contenedor_opcion_acreditar');
+                const radioAcreditar = document.getElementById('dest_acreditar');
+                const radioSinDevolucion = document.getElementById('dest_sin_devolucion');
+                const radioEfectivo = document.getElementById('dest_efectivo');
+
+                if (contenedorAcreditar) {
+                    if (puedeAcreditar) {
+                        contenedorAcreditar.style.display = 'block';
+                    } else {
+                        contenedorAcreditar.style.setProperty('display', 'none', 'important');
+                        if (radioAcreditar && radioAcreditar.checked) {
+                            if (radioSinDevolucion) {
+                                radioSinDevolucion.checked = true;
+                            } else if (radioEfectivo) {
+                                radioEfectivo.checked = true;
+                            }
+                        }
+                    }
                 }
             }
 
@@ -375,32 +783,251 @@
                 chk.addEventListener('change', checkRescissionType);
             });
 
-            // Autocalcular plazo
+            // Ejecutar al iniciar y cada vez que se abra el modal
+            checkRescissionType();
+            const modalRescindirEl = document.getElementById('rescindirModal');
+            if (modalRescindirEl) {
+                modalRescindirEl.addEventListener('show.bs.modal', checkRescissionType);
+                modalRescindirEl.addEventListener('shown.bs.modal', checkRescissionType);
+            }
+
+            // Autocalcular plazo garantizando valores >= 0
             function calcularPlazo() {
-                let precio = parseFloat(inputPrecio.value);
-                let cuota = parseFloat(inputCuota.value);
+                if (!inputPrecio || !inputCuota || !inputPlazo) return;
+                let precio = Math.max(0, parseFloat(inputPrecio.value) || 0);
+                let cuota = Math.max(0, parseFloat(inputCuota.value) || 0);
                 if (precio > 0 && cuota > 0) {
-                    inputPlazo.value = Math.ceil(precio / cuota);
+                    inputPlazo.value = Math.max(1, Math.ceil(precio / cuota));
                 }
             }
 
-            inputPrecio.addEventListener('input', calcularPlazo);
-            inputCuota.addEventListener('input', calcularPlazo);
+            if (inputPrecio) inputPrecio.addEventListener('input', calcularPlazo);
+            if (inputCuota) inputCuota.addEventListener('input', calcularPlazo);
+
+            // Bloquear estrictamente negativos en inputs de rescisión
+            [inputPrecio, inputCuota, inputPlazo].forEach(inp => {
+                if (inp) {
+                    inp.addEventListener('keydown', function(e) {
+                        if (e.key === '-' || e.key === '+' || e.key === 'e' || e.key === 'E') {
+                            e.preventDefault();
+                        }
+                    });
+                    inp.addEventListener('input', function() {
+                        if (parseFloat(this.value) < 0) {
+                            this.value = 0;
+                        }
+                    });
+                }
+            });
+
+            // Mostrar/Ocultar selector de contrato destino según destino de abonos seleccionado
+            const radiosDestino = document.querySelectorAll('.destino-abonos-radio');
+            const selectorContrato = document.getElementById('selector_contrato_destino');
+            if (selectorContrato) {
+                radiosDestino.forEach(radio => {
+                    radio.addEventListener('change', function() {
+                        let checkedCount = document.querySelectorAll('.lote-rescindir-checkbox:checked').length;
+                        let esTotal = (checkedCount === totalLotes);
+                        if (this.value === 'acreditar_otro_lote' && esTotal) {
+                            selectorContrato.style.display = 'block';
+                        } else {
+                            selectorContrato.style.display = 'none';
+                        }
+                    });
+                });
+            }
+            @endif
+
+            // Toggle Acordeón Historial de Abonos (Abre y Cierra)
+            $('#headerHistorialAbonos').on('click', function(e) {
+                if ($(e.target).closest('button, a, input').length) return;
+                
+                $('#bodyHistorialAbonos').slideToggle(200, function() {
+                    if ($(this).is(':visible')) {
+                        $('#chevronAbonos').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+                    } else {
+                        $('#chevronAbonos').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+                    }
+                });
+            });
+
+            // Toggle Acordeón Historial de Modificaciones y Cesiones (Abre y Cierra)
+            $('#headerHistorialModificaciones').on('click', function(e) {
+                if ($(e.target).closest('button, a, input').length) return;
+                
+                $('#bodyHistorialModificaciones').slideToggle(200, function() {
+                    if ($(this).is(':visible')) {
+                        $('#chevronModificaciones').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+                    } else {
+                        $('#chevronModificaciones').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+                    }
+                });
+            });
+
+            // Toggle Acordeón Historial de Rescisiones y Desistimientos (Abre y Cierra)
+            $('#headerHistorialRescisiones').on('click', function(e) {
+                if ($(e.target).closest('button, a, input').length) return;
+                
+                $('#bodyHistorialRescisiones').slideToggle(200, function() {
+                    if ($(this).is(':visible')) {
+                        $('#chevronRescisiones').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+                    } else {
+                        $('#chevronRescisiones').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+                    }
+                });
+            });
+
+            // Auto-abrir recibos para imprimir si vienen de un registro reciente y está activo en parámetros
+            @if(session('imprimir_abonos') && setting('auto_abrir_recibo', true))
+                setTimeout(function() {
+                    $('.btn-imprimir-auto').each(function() {
+                        var url = $(this).attr('href');
+                        if (url) {
+                            window.open(url, '_blank');
+                        }
+                    });
+                }, 400);
+            @endif
         });
+
+        function abrirModalSubirFirmaShow(idAbono, numRecibo, esReemplazo) {
+            var formAction = "{{ route('abonos.subir_recibo_firmado', ':id') }}".replace(':id', idAbono);
+            $('#formSubirFirmaShow').attr('action', formAction);
+            $('#modalFirmaNumReciboShow').text(numRecibo);
+            $('#archivo_recibo_firmado_show').val('');
+            if (esReemplazo) {
+                $('#modalFirmaTituloShow').html('<i class="fas fa-sync-alt me-2 text-warning"></i> Reemplazar Recibo Firmado');
+            } else {
+                $('#modalFirmaTituloShow').html('<i class="fas fa-file-signature me-2 text-success"></i> Subir Recibo Firmado por Cliente');
+            }
+            var modal = new bootstrap.Modal(document.getElementById('modalSubirFirmaShow'));
+            modal.show();
+        }
+
+        function toggleCamposEnBlanco(enBlanco) {
+            if (enBlanco) {
+                $('#inputNombreManual').val('').prop('disabled', true);
+                $('#inputMontoManual').val('').prop('disabled', true);
+                $('#inputConceptoManual').val('').prop('disabled', true);
+            } else {
+                $('#inputNombreManual').val("{{ addslashes($cliente->nombres_apellidos) }}").prop('disabled', false);
+                $('#inputMontoManual').val('').prop('disabled', false);
+                $('#inputConceptoManual').val("Abono a {{ $venta ? ($venta->lotes->count() > 1 ? 'Lotes' : 'Lote') . ' ' . $venta->lotes->map(fn($l) => $l->numero_lote)->implode(', ') : '' }}").prop('disabled', false);
+            }
+        }
     </script>
-        <script src="{{ asset('js/jqueryEM.js') }}"></script>
 
-         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    {{-- Modal para Generar Recibo Provisional Manual --}}
+    @if($venta)
+    <div class="modal fade" id="modalReciboProvisional" tabindex="-1" aria-labelledby="modalReciboProvisionalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content border-warning shadow">
+                <form action="{{ route('abonos.recibo_provisional', $venta->id_venta) }}" method="POST" target="_blank" id="formReciboProvisional">
+                    @csrf
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title fw-bold" id="modalReciboProvisionalLabel">
+                            <i class="fas fa-file-invoice me-2"></i> Emitir Recibo Provisional
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning d-flex align-items-start py-2 small mb-3">
+                            <i class="fas fa-exclamation-triangle fa-lg me-2 mt-1 text-dark"></i>
+                            <div>
+                                <strong>Recibo Provisional:</strong> Oculta los cálculos de deuda/saldo y el código QR. Se le asigna un número oficial correlativo y queda guardado en el historial de esta sección ($0.00) con los datos y notas ingresados para fines de control y auditoría.
+                            </div>
+                        </div>
 
-    <!-- Custom scripts for all pages-->
+                        <div class="form-check form-switch mb-3 p-2 bg-light rounded border">
+                            <input class="form-check-input ms-0 me-2" type="checkbox" id="checkDejarEnBlanco" name="dejar_en_blanco" value="1" onchange="toggleCamposEnBlanco(this.checked)">
+                            <label class="form-check-label fw-bold text-dark" for="checkDejarEnBlanco">
+                                <i class="fas fa-eraser me-1 text-danger"></i> Imprimir completamente en blanco (para escribir 100% a mano)
+                            </label>
+                        </div>
+
+                        <div id="contenedorCamposManuales">
+                            <div class="row g-3">
+                                <div class="col-md-7">
+                                    <label class="form-label fw-bold text-dark small">Recibimos de (Cliente):</label>
+                                    <input type="text" name="nombre_cliente" id="inputNombreManual" class="form-control" value="{{ $cliente->nombres_apellidos }}" placeholder="Nombre del cliente o dejar en blanco">
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label fw-bold text-dark small">Monto en U$ (Dólares):</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text fw-bold">$</span>
+                                        <input type="number" step="0.01" min="0" name="monto" id="inputMontoManual" class="form-control" placeholder="0.00 (Opcional)">
+                                    </div>
+                                    <div class="form-text small">Si se deja vacío, la casilla saldrá vacía en el papel.</div>
+                                </div>
+                                <div class="col-md-7">
+                                    <label class="form-label fw-bold text-dark small">En concepto de:</label>
+                                    <input type="text" name="concepto" id="inputConceptoManual" class="form-control" value="Abono a {{ $venta->lotes->count() > 1 ? 'Lotes' : 'Lote' }} {{ $venta->lotes->map(fn($l) => $l->numero_lote)->implode(', ') }}" placeholder="Concepto del recibo">
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label fw-bold text-dark small">Fecha del Recibo:</label>
+                                    <input type="date" name="fecha_pago" class="form-control" value="{{ date('Y-m-d') }}" required>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label fw-bold text-dark small">Motivo / Observación interna (queda guardado en el sistema):</label>
+                                    <input type="text" name="motivo" class="form-control" placeholder="Ej: Recibo provisional por contingencia / cobro en campo manual">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+                        <button type="submit" class="btn btn-warning text-dark fw-bold px-4" onclick="setTimeout(function(){ location.reload(); }, 1200);">
+                            <i class="fas fa-print me-1"></i> Generar e Imprimir Recibo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- Modal para Subir Recibo Firmado --}}
+    <div class="modal fade" id="modalSubirFirmaShow" tabindex="-1" aria-labelledby="modalFirmaTituloShow" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content border-success">
+                <form action="" method="POST" enctype="multipart/form-data" id="formSubirFirmaShow">
+                    @csrf
+                    <div class="modal-header bg-success text-white">
+                        <h5 class="modal-title fw-bold" id="modalFirmaTituloShow">
+                            <i class="fas fa-file-signature me-2"></i> Subir Recibo Firmado
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-info py-2 small mb-3">
+                            <i class="fas fa-info-circle me-1"></i> <strong>Recibo N°: <span id="modalFirmaNumReciboShow" class="fw-bold"></span></strong><br>
+                            Suba el escaneo o fotografía del recibo debidamente firmado y sellado por el cliente para archivo de auditoría.
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="archivo_recibo_firmado_show" class="form-label fw-bold text-dark">
+                                Seleccionar Documento / Imagen: <span class="text-danger">*</span>
+                            </label>
+                            <input type="file" 
+                                   name="archivo_recibo_firmado" 
+                                   id="archivo_recibo_firmado_show" 
+                                   class="form-control" 
+                                   accept=".pdf,.png,.jpg,.jpeg,.webp" 
+                                   required>
+                            <div class="form-text small text-muted">Formatos admitidos: PDF, JPG, PNG, WEBP (Máx. 15MB).</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success fw-bold">
+                            <i class="fas fa-cloud-upload-alt me-1"></i> Guardar para Auditoría
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ asset('js/jqueryEM.js') }}"></script>
     <script src="{{ asset('js/sbAdmin2M.js') }}"></script>
-
-    <!-- Page level plugins -->
-    <script src="{{ asset('js/chartM.js') }}"></script>
-
-    <!-- Page level custom scripts -->
-    <script src="{{ asset('js/chartAD.js') }}"></script>
-    <script src="{{ asset('js/chartPD.js') }}"></script>
-    </script>
-    
 @endsection

@@ -20,21 +20,41 @@ class ReservaController extends Controller
 
     public function create()
     {
-        $proyectos = \App\Models\Lotificacion::orderBy('nombre')->get();
-        return view('reservas.create', compact('proyectos'));
+        $activeLotificacionId = session('lotificacion_id');
+        $lotificacionActiva = \App\Models\Lotificacion::find($activeLotificacionId);
+        $bloques = Bloque::where('lotificacion_id', $activeLotificacionId)->orderBy('nombre')->get();
+        $cuentasBancarias = \App\Models\CuentaBancaria::activas()->get();
+
+        return view('reservas.create', compact('lotificacionActiva', 'bloques', 'cuentasBancarias'));
     }
 
     public function store(Request $request)
     {
+        // Normalizar cédula si viene sin guiones (14 caracteres alfanuméricos)
+        $identificacion = trim((string)$request->input('identificacion'));
+        $cleanId = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', $identificacion));
+        if (strlen($cleanId) === 14) {
+            $identificacion = substr($cleanId, 0, 3) . '-' . substr($cleanId, 3, 6) . '-' . substr($cleanId, 9, 5);
+            $request->merge(['identificacion' => $identificacion]);
+        }
+
         $request->validate([
             'nombres_apellidos' => 'required|string|max:100',
-            'identificacion' => 'required|string|max:20',
-            'lotificacion_id' => 'required|exists:lotificaciones,id',
+            'identificacion' => ['required', 'string', 'regex:/^[A-Za-z0-9]{3}-[A-Za-z0-9]{6}-[A-Za-z0-9]{5}$/'],
             'lotes_ids' => 'required|array',
             'lotes_ids.*' => 'exists:lotes,id_lote',
-            'monto_reserva' => 'required|numeric|min:0',
-            'dias_validez' => 'required|integer|min:1',
+            'monto_reserva' => 'nullable|numeric|min:0',
+            'dias_validez' => 'nullable|integer|min:1',
+            'metodo_pago' => 'nullable|string',
+        ], [
+            'identificacion.regex' => 'La cédula debe tener el formato XXX-XXXXXX-XXXXX (ej: 001-120395-0004Y).',
         ]);
+
+        $montoReserva = floatval($request->input('monto_reserva', 0) ?: 0);
+        $diasValidez = intval($request->input('dias_validez', 5) ?: 5);
+
+        $activeLotificacionId = session('lotificacion_id');
+        $lotificacionId = $activeLotificacionId ?: $request->lotificacion_id;
 
         DB::beginTransaction();
 
@@ -42,22 +62,23 @@ class ReservaController extends Controller
             // Check if cliente exists or create it
             $cliente = Cliente::where('identificacion', $request->identificacion)->first();
             if (!$cliente) {
+                $direccionCompleta = trim(($request->domicilio ? $request->domicilio . ', ' : '') . ($request->direccion ?? ''));
                 $cliente = Cliente::create([
-                    'nombres_apellidos' => $request->nombres_apellidos,
-                    'identificacion' => $request->identificacion,
+                    'nombres_apellidos' => mb_strtoupper($request->nombres_apellidos, 'UTF-8'),
+                    'identificacion' => mb_strtoupper($request->identificacion, 'UTF-8'),
                     'telefono' => $request->telefono ?? 'N/D',
-                    'direccion' => $request->direccion ?? 'N/D',
-                    'oficio' => $request->oficio,
-                    'estado_civil' => $request->estado_civil,
+                    'direccion' => $direccionCompleta ?: ($request->direccion ?? 'N/D'),
+                    'oficio' => ($request->oficio ?? $request->profesion_oficio) ? mb_strtoupper($request->oficio ?? $request->profesion_oficio, 'UTF-8') : null,
+                    'estado_civil' => $request->estado_civil ? mb_strtoupper($request->estado_civil, 'UTF-8') : null,
                 ]);
             }
 
             $reserva = Reserva::create([
                 'id_cliente' => $cliente->id_cliente,
-                'lotificacion_id' => $request->lotificacion_id,
-                'monto_reserva' => $request->monto_reserva,
+                'lotificacion_id' => $lotificacionId,
+                'monto_reserva' => $montoReserva,
                 'fecha_reserva' => now()->format('Y-m-d'),
-                'fecha_vencimiento' => now()->addDays($request->dias_validez)->format('Y-m-d'),
+                'fecha_vencimiento' => now()->addDays($diasValidez)->format('Y-m-d'),
                 'estado' => 'Activa',
             ]);
 
@@ -116,7 +137,9 @@ class ReservaController extends Controller
             return redirect()->route('reservas.index')->with('error', 'La reserva ya fue procesada o anulada.');
         }
 
-        return view('reservas.formalizar', compact('reserva'));
+        $cuentasBancarias = \App\Models\CuentaBancaria::activas()->get();
+
+        return view('reservas.formalizar', compact('reserva', 'cuentasBancarias'));
     }
 
     public function procesarFormalizacion(Request $request, Reserva $reserva)
@@ -126,15 +149,24 @@ class ReservaController extends Controller
         }
 
         $request->validate([
+            'lotes_a_formalizar' => 'required|array|min:1',
+            'lotes_a_formalizar.*' => 'exists:lotes,id_lote',
             'precio_final' => 'required|numeric|min:0',
             'plazo_meses' => 'required|integer|min:1',
             'cuota_mensual' => 'required|numeric|min:0',
-            'primer_abono' => 'required|numeric|min:' . $reserva->monto_reserva,
+            'primer_abono' => 'required|numeric|min:0|lte:precio_final',
             'fecha_ultimo_abono' => 'nullable|date',
+            'metodo_pago' => 'nullable|string',
+            'referencia' => 'nullable|string',
+        ], [
+            'primer_abono.lte' => 'La prima total no puede exceder el precio final de la venta.',
         ]);
 
         DB::beginTransaction();
         try {
+            $lotesFormalizarIds = $request->lotes_a_formalizar;
+            $extensionTotal = \App\Models\Lote::whereIn('id_lote', $lotesFormalizarIds)->sum('area_metros');
+
             // 1. Crear la Venta
             $venta = \App\Models\Venta::create([
                 'id_cliente' => $reserva->id_cliente,
@@ -143,58 +175,52 @@ class ReservaController extends Controller
                 'precio_final' => $request->precio_final,
                 'plazo_meses' => $request->plazo_meses,
                 'estado_contrato' => 'Vigente',
-                'extension_lote' => $reserva->lotes->sum('area_metros'),
+                'extension_lote' => $extensionTotal,
                 'cuota_mensual' => $request->cuota_mensual,
             ]);
 
-            // 2. Transición de Lotes (De Reserva a Venta)
-            foreach ($reserva->lotes as $lote) {
-                // El lote pasa a 'Vendido' en la tabla lotes
-                $lote->update(['estado' => 'Vendido']);
-                
-                // Actualizar el historial_lotes para este lote
-                HistorialLote::where('id_lote', $lote->id_lote)
-                             ->where('id_reserva', $reserva->id_reserva)
-                             ->update([
-                                 'id_venta' => $venta->id_venta, // Transferimos al id_venta
-                                 'estado' => 'Activo', // Ya no es 'Reservado'
-                             ]);
+            // 2. Transición de Lotes:
+            // A. Lotes formalizados -> Pasan a 'Vendido' y se transfieren a la Venta
+            \App\Models\Lote::whereIn('id_lote', $lotesFormalizarIds)->update(['estado' => 'Vendido']);
+            HistorialLote::whereIn('id_lote', $lotesFormalizarIds)
+                ->where('id_reserva', $reserva->id_reserva)
+                ->update([
+                    'id_venta' => $venta->id_venta,
+                    'estado' => 'Activo',
+                ]);
+
+            // B. Lotes de la reserva no seleccionados -> Se liberan automáticamente a 'Disponible'
+            $todosLotesReserva = $reserva->lotes->pluck('id_lote')->toArray();
+            $lotesALiberar = array_values(array_diff($todosLotesReserva, $lotesFormalizarIds));
+
+            if (!empty($lotesALiberar)) {
+                \App\Models\Lote::whereIn('id_lote', $lotesALiberar)->update(['estado' => 'Disponible']);
+                HistorialLote::whereIn('id_lote', $lotesALiberar)
+                    ->where('id_reserva', $reserva->id_reserva)
+                    ->update([
+                        'estado' => 'Rescindido',
+                        'fecha_liberacion' => now(),
+                    ]);
             }
 
             // 3. Crear el primer abono (Prima)
             $abonoInicial = \App\Models\Abono::create([
                 'id_venta' => $venta->id_venta,
                 'fecha_pago' => $request->fecha_ultimo_abono ?? now(),
+                'fecha_transferencia' => $request->fecha_transferencia ?? null,
                 'monto_abonado' => $request->primer_abono,
                 'tipo_pago' => 'Prima/Primer Abono',
-                'referencia' => 'Formalización de Reserva #' . $reserva->id_reserva,
+                'metodo_pago' => $request->metodo_pago ?? 'Efectivo',
+                'referencia' => $request->referencia ?? ('Formalización de Reserva #' . $reserva->id_reserva),
+                'cuenta_destino' => $request->cuenta_destino ?? null,
+                'comentario' => $request->comentario ?? null,
+                'user_id' => auth()->id(),
             ]);
 
             // 4. Generar el Plan de Pagos (Cuotas)
-            $plazoRestante = $venta->plazo_meses - 1;
-            $saldoRestante = $venta->precio_final - $request->primer_abono;
-            $cuotaMensual = $venta->cuota_mensual;
-
-            if ($plazoRestante > 0 && $saldoRestante > 0) {
-                $fechaVencimiento = \Carbon\Carbon::parse($abonoInicial->fecha_pago);
-                for ($i = 1; $i <= $plazoRestante; $i++) {
-                    $fechaVencimiento->addMonth();
-                    $montoCuota = ($i == $plazoRestante) ? $saldoRestante : $cuotaMensual;
-                    
-                    \App\Models\Cuota::create([
-                        'id_venta' => $venta->id_venta,
-                        'numero_cuota' => $i,
-                        'fecha_vencimiento' => $fechaVencimiento->format('Y-m-d'),
-                        'monto_total' => $montoCuota,
-                        'capital' => $montoCuota,
-                        'interes' => 0,
-                        'saldo_restante' => $montoCuota,
-                        'estado' => 'Pendiente',
-                    ]);
-                    
-                    $saldoRestante -= $montoCuota;
-                }
-            }
+            Cuota::where('id_venta', $venta->id_venta)->delete();
+            \App\Http\Controllers\ClienteController::generarPlanCuotas($venta, $abonoInicial->fecha_pago);
+            \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
 
             // 5. Marcar reserva como Formalizada
             $reserva->update(['estado' => 'Formalizada']);

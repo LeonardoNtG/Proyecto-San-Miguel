@@ -39,7 +39,7 @@
             </div>
 
             <div class="mb-4">
-                <label class="form-label">Descripción (opcional)</label>
+                <label class="form-label">Descripci&oacute;n (opcional)</label>
                 <textarea name="descripcion" class="form-control" rows="3" maxlength="255">{{ old('descripcion', $bloque->descripcion) }}</textarea>
             </div>
 
@@ -54,13 +54,6 @@
 @endsection
 
 @section('scripts')
-    <script>
     <script src="{{ asset('js/jqueryEM.js') }}"></script>
-
-    <!-- Custom scripts for all pages-->
     <script src="{{ asset('js/sbAdmin2M.js') }}"></script>
-    <script src="{{ asset('js/chartM.js') }}"></script>
-    <script src="{{ asset('js/chartAD.js') }}"></script>
-    <script src="{{ asset('js/chartPD.js') }}"></script>
-    </script>
 @endsection

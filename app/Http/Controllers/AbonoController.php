@@ -28,51 +28,131 @@ class AbonoController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function create(Cliente $cliente)
+    public function create(Cliente $cliente, Request $request)
     {
-        
-        //Cargar Venta Activa y Abonos Relacionados
-        $venta = $cliente->ventas->first();
+        // Si el cliente tiene múltiples ventas, permitir seleccionar cuál pagar o modo consolidado
+        $ventas = $cliente->ventas()->with(['lotes.bloque', 'abonos'])->where('estado_contrato', '!=', 'Rescindido')->get();
 
-        if (!$venta) {
+        if ($ventas->isEmpty()) {
             return redirect()->route('registro.index')->with('error', 'El cliente no tiene una venta activa para registrar abonos.');
+        }
+
+        $ventaId = $request->get('venta_id');
+        $esModoTodos = ($ventaId === 'todos');
+
+        // Si tiene múltiples ventas y no se especifica venta_id, por defecto seleccionamos 'todos'
+        if (!$ventaId && $ventas->count() > 1) {
+            $esModoTodos = true;
+        }
+
+        if ($esModoTodos) {
+            $venta = $ventas->first(); // Referencia principal
+            
+            // Cargar abonos de todas las ventas
+            $ventaIds = $ventas->pluck('id_venta');
+            $todosAbonos = \App\Models\Abono::whereIn('id_venta', $ventaIds)
+                ->with('venta.lotes.bloque')
+                ->orderBy('fecha_pago', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            $totalAbonado = (float) $todosAbonos->sum('monto_abonado');
+            $precioTotal = (float) $ventas->sum('precio_final');
+            $saldoPendiente = max(0, $precioTotal - $totalAbonado);
+
+            $cuotasPendientesList = \App\Models\Cuota::whereIn('id_venta', $ventaIds)
+                ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+                ->get();
+            $cuotasPendientes = $cuotasPendientesList->count();
+            $deudaMaximaExacta = (float) $cuotasPendientesList->sum(fn($c) => $c->saldo_restante + $c->mora_pendiente);
+            if ($deudaMaximaExacta <= 0) {
+                $deudaMaximaExacta = $saldoPendiente;
+            }
+
+            $fechaPagoTeorica = $venta->created_at ? $venta->created_at->format('d') : ($venta->fecha_venta ? \Carbon\Carbon::parse($venta->fecha_venta)->format('d') : '01');
+
+            $detallesLotes = $ventas->flatMap(function($v) {
+                return $v->lotes->map(function ($lote) {
+                    return [
+                        'bloque' => $lote->bloque->nombre ?? 'N/A',
+                        'lote'   => $lote->numero_lote,
+                        'area'   => $lote->area_metros,
+                    ];
+                });
+            });
+
+            $cuentasBancarias = \App\Models\CuentaBancaria::where('estado', 'Activa')->orderBy('banco')->orderBy('moneda')->get();
+
+            $data = [
+                'cliente'          => $cliente,
+                'venta'            => $venta,
+                'ventas'           => $ventas,
+                'esModoTodos'      => true,
+                'todosAbonos'      => $todosAbonos,
+                'totalAbonado'     => $totalAbonado,
+                'saldoPendiente'   => $saldoPendiente,
+                'deudaMaximaExacta'=> $deudaMaximaExacta,
+                'cuotasPendientes' => max(0, $cuotasPendientes),
+                'fechaPagoTeorica' => $fechaPagoTeorica,
+                'detallesLotes'    => $detallesLotes,
+                'cuotaSugeridaTotal' => $ventas->sum('cuota_mensual'),
+                'cuentasBancarias' => $cuentasBancarias,
+            ];
+
+            return view('abonos.create', $data);
+        }
+
+        // Modo venta individual
+        if ($ventaId) {
+            $venta = $ventas->firstWhere('id_venta', $ventaId) ?? $ventas->first();
+        } else {
+            $venta = $ventas->first();
         }
 
         // Cargar los abonos ordenados por fecha de pago
         $venta->load(['abonos' => function ($query) {
-            $query->orderBy('created_at', 'asc', 'desc');
+            $query->orderBy('fecha_pago', 'desc')->orderBy('created_at', 'desc');
         }]);
 
         // Cálculos Financieros
-        $totalAbonado = $venta->abonos->sum('monto_abonado');
-        $saldoPendiente = $venta->precio_final - $totalAbonado;
+        $totalAbonado = (float) $venta->abonos->sum('monto_abonado');
+        $saldoPendiente = max(0, (float) $venta->precio_final - $totalAbonado);
         
-        // El número real de cuotas pendientes basado en la tabla cuotas
-        $cuotasPendientes = \App\Models\Cuota::where('id_venta', $venta->id_venta)
+        $cuotasPendientesList = \App\Models\Cuota::where('id_venta', $venta->id_venta)
             ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
-            ->count();
+            ->get();
+        $cuotasPendientes = $cuotasPendientesList->count();
+        $deudaMaximaExacta = (float) $cuotasPendientesList->sum(fn($c) => $c->saldo_restante + $c->mora_pendiente);
+        if ($deudaMaximaExacta <= 0) {
+            $deudaMaximaExacta = $saldoPendiente;
+        }
         
-        // Fecha de Pago 
-        $fechaPagoTeorica = $venta->created_at->format('d'); 
+        $fechaPagoTeorica = $venta->created_at ? $venta->created_at->format('d') : ($venta->fecha_venta ? \Carbon\Carbon::parse($venta->fecha_venta)->format('d') : '01'); 
 
-        // Obtener Detalles de Lotes para mostrar en el encabezado
         $detallesLotes = $venta->lotes->map(function ($lote) {
             return [
-                'bloque' => $lote->bloque->nombre,
-                'lote' => $lote->numero_lote,
-                'area' => $lote->area_metros,
+                'bloque' => $lote->bloque->nombre ?? 'N/A',
+                'lote'   => $lote->numero_lote,
+                'area'   => $lote->area_metros,
             ];
         });
 
-        // Preparar datos para la vista
+        $cuentasBancarias = \App\Models\CuentaBancaria::where('estado', 'Activa')->orderBy('banco')->orderBy('moneda')->get();
+
         $data = [
-            'cliente' => $cliente,
-            'venta' => $venta,
-            'totalAbonado' => $totalAbonado,
-            'saldoPendiente' => $saldoPendiente,
-            'cuotasPendientes' => max(0, $cuotasPendientes), // Asegura que no sea negativo
+            'cliente'          => $cliente,
+            'venta'            => $venta,
+            'ventas'           => $ventas,
+            'esModoTodos'      => false,
+            'todosAbonos'      => $venta->abonos,
+            'totalAbonado'     => $totalAbonado,
+            'saldoPendiente'   => $saldoPendiente,
+            'deudaMaximaExacta'=> $deudaMaximaExacta,
+            'cuotasPendientes' => max(0, $cuotasPendientes),
             'fechaPagoTeorica' => $fechaPagoTeorica,
-            'detallesLotes' => $detallesLotes,
+            'detallesLotes'    => $detallesLotes,
+            'cuotaSugeridaTotal' => $venta->cuota_mensual,
+            'cuentasBancarias' => $cuentasBancarias,
         ];
 
         return view('abonos.create', $data);
@@ -84,19 +164,8 @@ class AbonoController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\Response
      */
-   public function store(Request $request, Cliente $cliente)
-{
-    // Buscamos la primera venta del cliente (asumimos 1 venta por cliente para el abono)
-    $venta = $cliente->ventas->first();
-    if (!$venta) {
-        return back()->with('error', 'No se encontró una venta activa para este cliente.');
-    }
-    if ($venta && $venta->estado_contrato === 'Rescindido') {
-        return back()->with('error', 'Operación denegada: No se pueden registrar abonos en un contrato rescindido.');
-    }
-    
-    DB::beginTransaction();
-    try {
+    public function store(Request $request, Cliente $cliente)
+    {
         $request->validate([
             'monto_abonado' => 'required|numeric|min:0.01',
             'fecha_pago'    => 'required|date',
@@ -104,7 +173,9 @@ class AbonoController extends Controller
             'metodo_pago'   => 'required|string',
             'referencia'    => 'nullable|string',
             'cuenta_destino'=> 'nullable|string',
-            'recibo_imagen' => 'nullable|image|max:5120',
+            'fecha_transferencia' => 'nullable|date',
+            'comentario'    => 'nullable|string|max:1000',
+            'ruta_recibo'   => 'nullable|file|mimes:jpeg,png,jpg,pdf,webp|max:10240',
         ]);
 
         $ruta_imagen = null;
@@ -112,91 +183,195 @@ class AbonoController extends Controller
             $ruta_imagen = $request->file('ruta_recibo')->store('abonos_recibos', 'public');
         }
 
-        // Calcular máximo a pagar (Capital restante + Mora pendiente)
-        $cuotasPendientes = \App\Models\Cuota::where('id_venta', $venta->id_venta)
-            ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
-            ->orderBy('numero_cuota', 'asc')
-            ->get();
+        $ventasIds = $request->input('ventas_ids');
+        $ventaId = $request->input('id_venta');
 
-        $maximoAPagar = $cuotasPendientes->sum(function($cuota) {
-            return $cuota->saldo_restante + $cuota->mora_pendiente;
-        });
-
-        if (round($request->monto_abonado, 2) > round($maximoAPagar, 2)) {
-            return back()->withInput()->with('error', 'El monto del abono ($' . number_format($request->monto_abonado, 2) . ') supera la deuda total pendiente ($' . number_format($maximoAPagar, 2) . ' incluyendo mora).');
+        // Determinar qué ventas se van a abonar
+        if (!empty($ventasIds) && is_array($ventasIds)) {
+            $ventasTarget = $cliente->ventas()->with('lotes')->whereIn('id_venta', $ventasIds)->where('estado_contrato', '!=', 'Rescindido')->get();
+        } elseif ($ventaId && $ventaId !== 'todos') {
+            $ventasTarget = $cliente->ventas()->with('lotes')->where('id_venta', $ventaId)->where('estado_contrato', '!=', 'Rescindido')->get();
+        } else {
+            $ventasTarget = $cliente->ventas()->with('lotes')->where('estado_contrato', '!=', 'Rescindido')->get();
         }
 
-        // Crear el abono base
-        $abono = Abono::create([
-            'id_venta'      => $venta->id_venta,
-            'monto_abonado' => $request->monto_abonado,
-            'fecha_pago'    => $request->fecha_pago,
-            'tipo_pago'     => $request->tipo_pago,
-            'metodo_pago'   => $request->metodo_pago,
-            'referencia'    => $request->referencia,
-            'cuenta_destino'=> $request->cuenta_destino,
-            'ruta_recibo'   => $ruta_imagen,
-            'user_id'       => auth()->id()
-        ]);
+        if ($ventasTarget->isEmpty()) {
+            return back()->with('error', 'No se encontraron contratos activos seleccionados para abonar.');
+        }
 
-        // APLICAR ABONO A LAS CUOTAS
-        $montoRestante = $request->monto_abonado;
-        $cuotasPendientes = \App\Models\Cuota::where('id_venta', $venta->id_venta)
-            ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
-            ->orderBy('numero_cuota', 'asc')
-            ->get();
+        $fechaTransferencia = ($request->metodo_pago === 'Transferencia Bancaria' || $request->metodo_pago === 'Depósito Bancario') 
+            ? ($request->fecha_transferencia ?: $request->fecha_pago) 
+            : null;
 
-        foreach ($cuotasPendientes as $cuota) {
-            if ($montoRestante <= 0) break;
+        // Asegurar que la columna grupo_recibo exista antes de abrir la transacción
+        if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'grupo_recibo')) {
+            try {
+                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->string('grupo_recibo', 64)->nullable()->index()->after('codigo_recibo');
+                });
+            } catch (\Exception $e) {}
+        }
+        $tieneGrupoRecibo = \Illuminate\Support\Facades\Schema::hasColumn('abonos', 'grupo_recibo');
 
-            // 1. Pagar Mora Pendiente primero
-            $moraPendiente = $cuota->mora_pendiente;
-            if ($moraPendiente > 0) {
-                if ($montoRestante >= $moraPendiente) {
-                    $montoRestante -= $moraPendiente;
-                    $cuota->mora_pagada += $moraPendiente;
-                } else {
-                    $cuota->mora_pagada += $montoRestante;
-                    $montoRestante = 0;
-                    $cuota->save();
-                    continue; // Se acabó el dinero, no abonamos a saldo_restante
+        DB::beginTransaction();
+        try {
+            $montoTotalAbonado = (float)$request->monto_abonado;
+            $totalVentas = $ventasTarget->count();
+
+            // Si es una sola venta
+            if ($totalVentas === 1) {
+                $venta = $ventasTarget->first();
+
+                // Validar deuda máxima
+                $cuotasPendientes = \App\Models\Cuota::where('id_venta', $venta->id_venta)
+                    ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+                    ->get();
+                $maximoAPagar = (float) $cuotasPendientes->sum(fn($c) => $c->saldo_restante + $c->mora_pendiente);
+                if ($maximoAPagar <= 0) {
+                    $totalAbonadoPrev = (float) $venta->abonos()->sum('monto_abonado');
+                    $maximoAPagar = max(0, (float)$venta->precio_final - $totalAbonadoPrev);
                 }
+
+                if ($maximoAPagar > 0 && round($montoTotalAbonado, 2) > round($maximoAPagar, 2)) {
+                    if (DB::transactionLevel() > 0) DB::rollBack();
+                    return back()->withInput()->with('error', 'El monto del abono ($' . number_format($montoTotalAbonado, 2) . ') supera la deuda pendiente ($' . number_format($maximoAPagar, 2) . ').');
+                }
+
+                $referenciaFinal = ($request->metodo_pago === 'Efectivo') 
+                    ? ($request->referencia_efectivo_coment ?: 'Pago en Efectivo') 
+                    : $request->referencia;
+
+                $datosRecibo = Abono::generarSiguienteNumeroRecibo($venta->lotificacion_id ?? 1);
+
+                $abonoData = [
+                    'id_venta'      => $venta->id_venta,
+                    'numero_recibo' => $datosRecibo['numero_recibo'],
+                    'codigo_recibo' => $datosRecibo['codigo_recibo'],
+                    'monto_abonado' => $montoTotalAbonado,
+                    'fecha_pago'    => $request->fecha_pago,
+                    'tipo_pago'     => $request->tipo_pago,
+                    'metodo_pago'   => $request->metodo_pago,
+                    'referencia'    => $referenciaFinal,
+                    'cuenta_destino'=> $request->cuenta_destino,
+                    'fecha_transferencia' => $fechaTransferencia,
+                    'comentario'    => $request->comentario,
+                    'es_migracion'  => $request->boolean('es_migracion', false),
+                    'ruta_recibo'   => $ruta_imagen,
+                    'user_id'       => auth()->id()
+                ];
+
+                $abono = Abono::create($abonoData);
+
+                self::recalcularCuotas($venta->id_venta);
+
+                if (DB::transactionLevel() > 0) DB::commit();
+                
+                $lotesTexto = $venta->lotes->map(fn($l) => ($l->bloque ? $l->bloque->nombre . ' - ' : '') . 'Lote ' . $l->numero_lote)->implode(', ');
+                $detallesAbono = "<strong>Abono Registrado:</strong> Recibo <span class='badge bg-primary'>#{$datosRecibo['codigo_recibo']}</span> por <span class='text-success fw-bold'>$" . number_format($montoTotalAbonado, 2) . "</span><br>" .
+                    "• <strong>Cliente:</strong> {$cliente->nombres_apellidos}<br>" .
+                    "• <strong>Lote:</strong> " . ($lotesTexto ?: 'Contrato #' . $venta->id_venta) . "<br>" .
+                    "• <strong>Método:</strong> {$request->metodo_pago}" . ($request->cuenta_destino ? " ({$request->cuenta_destino} | Ref: " . ($request->referencia ?: 'N/D') . ")" : '');
+
+                \App\Models\Auditoria::log('Registró Abono', 'Abono', $abono->id_abono, $detallesAbono);
+                return redirect()->route('registro.show', $cliente->id_cliente)
+                    ->with('success', "¡Abono registrado exitosamente! Recibo N° {$datosRecibo['codigo_recibo']}")
+                    ->with('imprimir_abonos', [$abono->id_abono]);
             }
 
-            // 2. Pagar Saldo Restante (Capital)
-            if ($montoRestante >= $cuota->saldo_restante) {
-                // Paga la cuota completa
-                $montoRestante -= $cuota->saldo_restante;
-                $cuota->saldo_restante = 0;
-                $cuota->estado = 'Pagada';
-            } else {
-                // Pago parcial de la cuota
-                $cuota->saldo_restante -= $montoRestante;
-                // Si la cuota ya estaba en mora y pagamos toda la mora pero solo una parte del capital, sigue en Mora o Parcial?
-                // Según lógica bancaria, si aún debe capital y está atrasada, sigue en mora. Lo mantenemos como estaba.
-                $cuota->estado = ($cuota->estado === 'Mora') ? 'Mora' : 'Parcial';
-                $montoRestante = 0;
+            // Si son múltiples ventas (pago consolidado de varios lotes)
+            // Validar deuda máxima consolidada
+            $cuotasPendientesTotal = \App\Models\Cuota::whereIn('id_venta', $ventasTarget->pluck('id_venta'))
+                ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+                ->get();
+            $maximoConsolidado = (float) $cuotasPendientesTotal->sum(fn($c) => $c->saldo_restante + $c->mora_pendiente);
+            if ($maximoConsolidado <= 0) {
+                $totalAbonadoMultiPrev = (float) \App\Models\Abono::whereIn('id_venta', $ventasTarget->pluck('id_venta'))->sum('monto_abonado');
+                $maximoConsolidado = max(0, (float) $ventasTarget->sum('precio_final') - $totalAbonadoMultiPrev);
             }
-            $cuota->save();
+
+            if ($maximoConsolidado > 0 && round($montoTotalAbonado, 2) > round($maximoConsolidado, 2)) {
+                if (DB::transactionLevel() > 0) DB::rollBack();
+                return back()->withInput()->with('error', 'El monto total a ingresar ($' . number_format($montoTotalAbonado, 2) . ') supera la deuda total pendiente de los lotes seleccionados ($' . number_format($maximoConsolidado, 2) . ').');
+            }
+
+            // Distribuir el abono proporcional a la cuota mensual o equitativamente
+            $sumaCuotas = $ventasTarget->sum('cuota_mensual');
+            $acumulado = 0;
+            $abonosCreadosIds = [];
+            $referenciaBase = ($request->metodo_pago === 'Efectivo') 
+                ? $request->referencia_efectivo_coment 
+                : $request->referencia;
+
+            $grupoRecibo = (string) \Illuminate\Support\Str::uuid();
+            $datosRecibo = Abono::generarSiguienteNumeroRecibo($ventasTarget->first()->lotificacion_id ?? 1);
+
+            foreach ($ventasTarget as $index => $v) {
+                if ($index === $totalVentas - 1) {
+                    $montoParaEsta = round($montoTotalAbonado - $acumulado, 2);
+                } else {
+                    if ($sumaCuotas > 0) {
+                        $montoParaEsta = round($montoTotalAbonado * ($v->cuota_mensual / $sumaCuotas), 2);
+                    } else {
+                        $montoParaEsta = round($montoTotalAbonado / $totalVentas, 2);
+                    }
+                    $acumulado += $montoParaEsta;
+                }
+
+                if ($montoParaEsta <= 0) continue;
+
+                $nombreLotes = $v->lotes->map(fn($l) => 'Lote '.$l->numero_lote)->implode(', ');
+                $ref = $referenciaBase ? ($referenciaBase . ' [' . $nombreLotes . ']') : ('Pago Consolidado - ' . $nombreLotes);
+
+                $abonoData = [
+                    'id_venta'      => $v->id_venta,
+                    'numero_recibo' => $datosRecibo['numero_recibo'],
+                    'codigo_recibo' => $datosRecibo['codigo_recibo'],
+                    'monto_abonado' => $montoParaEsta,
+                    'fecha_pago'    => $request->fecha_pago,
+                    'tipo_pago'     => $request->tipo_pago,
+                    'metodo_pago'   => $request->metodo_pago,
+                    'referencia'    => $ref,
+                    'cuenta_destino'=> $request->cuenta_destino,
+                    'fecha_transferencia' => $fechaTransferencia,
+                    'comentario'    => $request->comentario,
+                    'es_migracion'  => $request->boolean('es_migracion', false),
+                    'ruta_recibo'   => $ruta_imagen,
+                    'user_id'       => auth()->id()
+                ];
+
+                if ($tieneGrupoRecibo) {
+                    $abonoData['grupo_recibo'] = $grupoRecibo;
+                }
+
+                $abono = Abono::create($abonoData);
+
+                $abonosCreadosIds[] = $abono->id_abono;
+                self::recalcularCuotas($v->id_venta);
+            }
+
+            if (DB::transactionLevel() > 0) DB::commit();
+            
+            $distribucionTexto = $ventasTarget->map(function($vt) {
+                return $vt->lotes->map(fn($l) => 'Lote ' . $l->numero_lote)->implode(', ');
+            })->implode(' + ');
+            
+            $detallesAbonoMulti = "<strong>Abono Consolidado Registrado:</strong> Recibo <span class='badge bg-primary'>#{$datosRecibo['codigo_recibo']}</span> por <span class='text-success fw-bold'>$" . number_format($montoTotalAbonado, 2) . "</span><br>" .
+                "• <strong>Cliente:</strong> {$cliente->nombres_apellidos}<br>" .
+                "• <strong>Lotes cubiertos ({$totalVentas}):</strong> {$distribucionTexto}<br>" .
+                "• <strong>Método:</strong> {$request->metodo_pago}" . ($request->cuenta_destino ? " ({$request->cuenta_destino} | Ref: " . ($request->referencia ?: 'N/D') . ")" : '');
+
+            \App\Models\Auditoria::log('Registró Abono Múltiple', 'Cliente', $cliente->id_cliente, $detallesAbonoMulti);
+            return redirect()->route('registro.show', $cliente->id_cliente)
+                ->with('success', "¡Abono consolidado de $" . number_format($montoTotalAbonado, 2) . " registrado exitosamente para {$totalVentas} lotes!")
+                ->with('imprimir_abonos', $abonosCreadosIds)
+                ->with('imprimir_consolidado_id', $abonosCreadosIds[0] ?? null);
+
+        } catch (\Exception $e) {
+            if (DB::transactionLevel() > 0) DB::rollBack();
+            return back()->withInput()->with('error', 'Error al registrar el abono: ' . $e->getMessage());
         }
-
-        // Si después de aplicar a todas las cuotas, ya no hay cuotas pendientes y el saldo es 0, finalizar venta
-        $saldoTotalRestante = \App\Models\Cuota::where('id_venta', $venta->id_venta)->sum('saldo_restante');
-        if ($saldoTotalRestante <= 0 && $venta->estado_contrato === 'Vigente') {
-            $venta->estado_contrato = 'Finalizado';
-            $venta->save();
-        }
-
-        DB::commit();
-        \App\Models\Auditoria::log('Registró Abono', 'Abono', $abono->id_abono, "Monto: $" . number_format($request->monto_abonado, 2) . " - " . $request->metodo_pago);
-        return redirect()->back()->with('success', 'Abono registrado exitosamente.');
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        // Si el archivo se subió antes de la falla, debe ser borrado (Lógica más avanzada)
-        return back()->withInput()->with('error', 'Error al registrar el abono: ' . $e->getMessage());
     }
-}
+
 
     /**
      * Display the specified resource.
@@ -263,12 +438,32 @@ class AbonoController extends Controller
     }
 
     public static function recalcularCuotas($id_venta) {
-        $venta = \App\Models\Venta::findOrFail($id_venta);
+        $venta = \App\Models\Venta::withoutGlobalScope('lotificacion')->findOrFail($id_venta);
         
-        // 1. Restaurar todas las cuotas a su estado original
+        // 1. Sincronizar fechas de vencimiento de las cuotas con la fecha base del contrato (Mes 0 para Cuota 1)
+        $fechaBase = $venta->fecha_venta ?: ($venta->created_at ? $venta->created_at->format('Y-m-d') : now()->format('Y-m-d'));
+        $fechaInicial = \Carbon\Carbon::parse($fechaBase);
+
+        $cuotasExistentes = \App\Models\Cuota::where('id_venta', $id_venta)->orderBy('numero_cuota', 'asc')->get();
+        if ($cuotasExistentes->isEmpty()) {
+            \App\Http\Controllers\ClienteController::generarPlanCuotas($venta, $fechaBase);
+            $cuotasExistentes = \App\Models\Cuota::where('id_venta', $id_venta)->orderBy('numero_cuota', 'asc')->get();
+        } else {
+            // Asegurar que las fechas de vencimiento inicien exactamente en fecha_venta (Mes 0)
+            foreach ($cuotasExistentes as $c) {
+                $nuevaFechaVenc = (clone $fechaInicial)->addMonths($c->numero_cuota - 1)->format('Y-m-d');
+                if ($c->fecha_vencimiento !== $nuevaFechaVenc) {
+                    $c->fecha_vencimiento = $nuevaFechaVenc;
+                    $c->save();
+                }
+            }
+        }
+
+        // 2. Restaurar todas las cuotas a su estado original
         \App\Models\Cuota::where('id_venta', $id_venta)->update([
             'saldo_restante' => DB::raw('monto_total'),
             'mora_pagada' => 0,
+            'mora_calculada' => 0,
             'estado' => 'Pendiente'
         ]);
 
@@ -277,22 +472,29 @@ class AbonoController extends Controller
             $venta->save();
         }
 
-        // 2. Obtener abonos ordenados cronológicamente
+        // 3. Obtener abonos ordenados cronológicamente
         $abonos = \App\Models\Abono::where('id_venta', $id_venta)
             ->orderBy('fecha_pago', 'asc')->orderBy('id_abono', 'asc')->get();
 
-        // 3. Reaplicar los abonos a las cuotas
-        foreach($abonos as $abono) {
-            $montoRestante = $abono->monto_abonado;
+        // 4. Reaplicar los abonos a las cuotas con la regla:
+        // - Primero liquidar cuotas vencidas (y moras) a la fecha de pago en orden ascendente (1, 2, 3...)
+        // - Si no es prima de capital, cubrir 1 cuota regular del mes actual (la próxima pendiente)
+        // - Todo excedente o abono a capital se amortiza a las ÚLTIMAS CUOTAS en orden descendente (60, 59, 58...)
+        foreach ($abonos as $abono) {
+            $montoRestante = (float) $abono->monto_abonado;
+            $fechaAbono = $abono->fecha_pago ? \Carbon\Carbon::parse($abono->fecha_pago)->format('Y-m-d') : now()->format('Y-m-d');
             
-            $cuotasPendientes = \App\Models\Cuota::where('id_venta', $id_venta)
-                ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+            // 4.1. Cubrir cuotas vencidas a la fecha del pago (o con mora) en orden ascendente
+            $cuotasVencidas = \App\Models\Cuota::where('id_venta', $id_venta)
+                ->where('saldo_restante', '>', 0)
+                ->where('fecha_vencimiento', '<=', $fechaAbono)
                 ->orderBy('numero_cuota', 'asc')
                 ->get();
 
-            foreach ($cuotasPendientes as $cuota) {
+            foreach ($cuotasVencidas as $cuota) {
                 if ($montoRestante <= 0) break;
 
+                // Cobro de mora pendiente
                 $moraPendiente = $cuota->mora_pendiente;
                 if ($moraPendiente > 0) {
                     if ($montoRestante >= $moraPendiente) {
@@ -302,24 +504,92 @@ class AbonoController extends Controller
                         $cuota->mora_pagada += $montoRestante;
                         $montoRestante = 0;
                         $cuota->save();
-                        continue; 
+                        continue;
                     }
                 }
 
-                if ($montoRestante >= $cuota->saldo_restante) {
-                    $montoRestante -= $cuota->saldo_restante;
+                // Cobro del saldo de la cuota vencida
+                if ($montoRestante >= (float) $cuota->saldo_restante) {
+                    $montoRestante -= (float) $cuota->saldo_restante;
                     $cuota->saldo_restante = 0;
                     $cuota->estado = 'Pagada';
                 } else {
-                    $cuota->saldo_restante -= $montoRestante;
-                    $cuota->estado = ($cuota->estado === 'Mora') ? 'Mora' : 'Parcial';
+                    $cuota->saldo_restante = round((float)$cuota->saldo_restante - $montoRestante, 2);
+                    $cuota->estado = 'Parcial';
                     $montoRestante = 0;
                 }
                 $cuota->save();
             }
+
+            // 4.2. Si aún queda dinero y NO es una Prima pura de capital, cubrir 1 cuota regular más próxima
+            $esTipoPrima = (stripos($abono->tipo_pago, 'prima') !== false && !stripos($abono->tipo_pago, 'cuota'));
+
+            if ($montoRestante > 0 && !$esTipoPrima) {
+                $proximaCuota = \App\Models\Cuota::where('id_venta', $id_venta)
+                    ->where('saldo_restante', '>', 0)
+                    ->orderBy('numero_cuota', 'asc')
+                    ->first();
+
+                if ($proximaCuota) {
+                    if ($montoRestante >= (float) $proximaCuota->saldo_restante) {
+                        $montoRestante -= (float) $proximaCuota->saldo_restante;
+                        $proximaCuota->saldo_restante = 0;
+                        $proximaCuota->estado = 'Pagada';
+                    } else {
+                        $proximaCuota->saldo_restante = round((float)$proximaCuota->saldo_restante - $montoRestante, 2);
+                        $proximaCuota->estado = 'Parcial';
+                        $montoRestante = 0;
+                    }
+                    $proximaCuota->save();
+                }
+            }
+
+            // 4.3. Todo el EXCEDENTE restante ($montoRestante > 0) se amortiza a las ÚLTIMAS CUOTAS en orden descendente (60, 59, 58...)
+            if ($montoRestante > 0) {
+                $cuotasFinales = \App\Models\Cuota::where('id_venta', $id_venta)
+                    ->where('saldo_restante', '>', 0)
+                    ->orderBy('numero_cuota', 'desc')
+                    ->get();
+
+                foreach ($cuotasFinales as $cuotaFin) {
+                    if ($montoRestante <= 0) break;
+
+                    if ($montoRestante >= (float) $cuotaFin->saldo_restante) {
+                        $montoRestante -= (float) $cuotaFin->saldo_restante;
+                        $cuotaFin->saldo_restante = 0;
+                        $cuotaFin->estado = 'Pagada';
+                    } else {
+                        $cuotaFin->saldo_restante = round((float)$cuotaFin->saldo_restante - $montoRestante, 2);
+                        $cuotaFin->estado = 'Parcial';
+                        $montoRestante = 0;
+                    }
+                    $cuotaFin->save();
+                }
+            }
         }
 
-        // 4. Revisar si con los abonos restantes se finaliza el contrato
+        // 5. Ajustar estados y moras actuales para cuotas no pagadas
+        $cuotasFinal = \App\Models\Cuota::where('id_venta', $id_venta)->orderBy('numero_cuota', 'asc')->get();
+        $hoyStr = now()->format('Y-m-d');
+
+        foreach ($cuotasFinal as $cuota) {
+            if ($cuota->saldo_restante <= 0) {
+                $cuota->saldo_restante = 0;
+                $cuota->mora_calculada = 0;
+                $cuota->estado = 'Pagada';
+                $cuota->save();
+            } else {
+                if ($cuota->fecha_vencimiento < $hoyStr) {
+                    $cuota->recalcularMoraSegunConfiguracion();
+                } else {
+                    $cuota->mora_calculada = 0;
+                    $cuota->estado = ((float)$cuota->saldo_restante < (float)$cuota->monto_total) ? 'Parcial' : 'Pendiente';
+                    $cuota->save();
+                }
+            }
+        }
+
+        // 6. Revisar si con los abonos restantes se finaliza el contrato
         $saldoTotalRestante = \App\Models\Cuota::where('id_venta', $id_venta)->sum('saldo_restante');
         if ($saldoTotalRestante <= 0 && $venta->estado_contrato === 'Vigente') {
             $venta->estado_contrato = 'Finalizado';
@@ -327,107 +597,416 @@ class AbonoController extends Controller
         }
     }
 
-         public function imprimirRecibo($abono_id)
-        {
-        // Carga el Abono e inmediatamente carga la Venta y el Cliente relacionado
-         $abono = Abono::with('venta.cliente','venta.lotes.bloque','venta.abonos', 'venta.lotificacion')->findOrFail($abono_id);
+    /**
+     * Imprime el recibo consolidado para múltiples abonos/lotes.
+     */
+    public function imprimirReciboConsolidado(Request $request)
+    {
+        $ids = $request->input('ids');
+        $grupo = $request->input('grupo');
+        $abonoId = $request->input('abono_id');
 
-         $venta = $abono->venta;
-         $lotificacion = $venta->lotificacion;
+        $abonos = collect();
 
-         $cliente = $abono->venta->cliente ?? null;
+        if ($grupo) {
+            $abonos = Abono::withoutGlobalScope('lotificacion')
+                ->where('grupo_recibo', $grupo)
+                ->with(['venta' => fn($q) => $q->withoutGlobalScope('lotificacion')->with(['cliente', 'lotes.bloque', 'abonos', 'lotificacion'])])
+                ->get();
+        } elseif ($ids) {
+            $idList = is_array($ids) ? $ids : explode(',', $ids);
+            $abonos = Abono::withoutGlobalScope('lotificacion')
+                ->whereIn('id_abono', $idList)
+                ->with(['venta' => fn($q) => $q->withoutGlobalScope('lotificacion')->with(['cliente', 'lotes.bloque', 'abonos', 'lotificacion'])])
+                ->get();
+        } elseif ($abonoId) {
+            $abono = Abono::withoutGlobalScope('lotificacion')
+                ->with(['venta' => fn($q) => $q->withoutGlobalScope('lotificacion')->with(['cliente', 'lotes.bloque', 'abonos', 'lotificacion'])])
+                ->findOrFail($abonoId);
 
-         // Crea un objeto genérico si el cliente no se encontró (Seguridad)
-         if (!$cliente) {
-             $cliente = (object) ['nombres_apellidos' => 'Cliente Desconocido'];
-         }
+            if (!empty($abono->grupo_recibo)) {
+                $abonos = Abono::withoutGlobalScope('lotificacion')
+                    ->where('grupo_recibo', $abono->grupo_recibo)
+                    ->with(['venta' => fn($q) => $q->withoutGlobalScope('lotificacion')->with(['cliente', 'lotes.bloque', 'abonos', 'lotificacion'])])
+                    ->get();
+            } elseif ($abono->venta && $abono->venta->id_cliente && $abono->created_at) {
+                $abonos = Abono::withoutGlobalScope('lotificacion')
+                    ->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('id_cliente', $abono->venta->id_cliente))
+                    ->where('fecha_pago', $abono->fecha_pago)
+                    ->where('metodo_pago', $abono->metodo_pago)
+                    ->whereBetween('created_at', [
+                        $abono->created_at->copy()->subMinutes(5),
+                        $abono->created_at->copy()->addMinutes(5)
+                    ])
+                    ->with(['venta' => fn($q) => $q->withoutGlobalScope('lotificacion')->with(['cliente', 'lotes.bloque', 'abonos', 'lotificacion'])])
+                    ->get();
+            }
 
-            // Una venta puede tener varios lotes: se listan todos en el recibo (solo el número/nombre guardado para ahorrar espacio)
-            $lotesTexto = $venta->lotes->isNotEmpty()
-                ? $venta->lotes->map(function ($lote) {
-                    return $lote->numero_lote;
-                })->implode(', ')
-                : 'N/A';
+            if ($abonos->isEmpty()) {
+                $abonos = collect([$abono]);
+            }
+        }
 
-            $valor_total = (float) $venta->precio_final;
-        
-             $total_abonado = (float) $venta->abonos->sum('monto_abonado');
+        if ($abonos->isEmpty()) {
+            abort(404, 'No se encontraron registros de abono para imprimir.');
+        }
 
-             $saldo_pendiente = max(
-                 0,
-                $valor_total - $total_abonado
-                );
+        if ($abonos->count() === 1) {
+            return $this->imprimirRecibo($abonos->first()->id_abono, $request);
+        }
 
-                 $abonos_realizados = $venta->abonos->count();
-
-                 // El número real de cuotas pendientes basado en la tabla cuotas
-                 $abonos_faltantes = \App\Models\Cuota::where('id_venta', $venta->id_venta)
-                     ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
-                     ->count();
-         // Procesa el monto a letras (mantener la seguridad)
-         $monto_en_letras = method_exists($this, 'convertirMontoALetras') 
-                              ? $this->convertirMontoALetras($abono->monto_abonado) 
-                              : 'CANTIDAD EN PALABRAS N/A';
-    
-              return view('abonos.recibo_imprimir', [
-
-        // Abono actual
-        'pago' => $abono,
-
-        // Cliente
-        'cliente' => $cliente,
-
-        // Venta
-        'venta' => $venta,
-
-        // Lotes asociados a la venta (texto "Bloque-Lote, Bloque-Lote, ...")
-        'lotes_texto' => $lotesTexto,
-        
-        // Lotificación asociada
-        'lotificacion' => $lotificacion,
-
-        // Datos económicos
-        'valor_total' => $valor_total,
-        'total_abonado' => $total_abonado,
-        'saldo_pendiente' => $saldo_pendiente,
-        'abonos_faltantes' => $abonos_faltantes,
-
-        // Monto actual en letras
-        'monto_en_letras' => $monto_en_letras,
-    ]);
-}
-
-
-        private function convertirMontoALetras($monto)
-{
-    $monto = number_format((float) $monto, 2, '.', '');
-
-    [$entero, $decimal] = explode('.', $monto);
-
-    $entero = (int) $entero;
-    $decimal = (int) $decimal;
-
-    $texto = strtoupper(
-        $this->numeroALetras($entero)
-    );
-
-    if ($decimal > 0) {
-
-        $texto .= ' DÓLARES CON '
-            . strtoupper($this->numeroALetras($decimal))
-            . ' CENTAVOS';
-
-    } else {
-
-        $texto .= ' DÓLARES';
-
+        $datosConsolidados = $this->prepararDatosReciboConsolidado($abonos);
+        return view('abonos.recibo_imprimir', $datosConsolidados);
     }
 
-    return $texto;
-}
+    /**
+     * Prepara la estructura de datos unificada para el recibo consolidado de múltiples lotes.
+     */
+    public function prepararDatosReciboConsolidado($abonos)
+    {
+        $pagoPrincipal = $abonos->first();
+        $ventas = $abonos->map(fn($a) => $a->venta)->filter()->unique('id_venta');
+        $cliente = ($ventas->first() && $ventas->first()->cliente) ? $ventas->first()->cliente : (object) [
+            'nombres_apellidos' => 'Cliente Desconocido',
+            'token_seguimiento' => null
+        ];
+        $lotificacion = $ventas->first()?->lotificacion;
+
+        // Listar todos los lotes de las ventas involucradas
+        $lotesList = $ventas->flatMap(fn($v) => $v->lotes)->unique('id_lote');
+        $lotesTexto = $lotesList->isNotEmpty()
+            ? $lotesList->map(fn($l) => $l->numero_lote)->implode(', ')
+            : 'N/A';
+
+        $montoTotalAbono = (float) $abonos->sum('monto_abonado');
+
+        // Totales combinados y proporcionales de todos los lotes involucrados en el recibo
+        $valor_total = (float) $ventas->sum('precio_final');
+        $total_abonado = (float) \App\Models\Abono::withoutGlobalScope('lotificacion')
+            ->whereIn('id_venta', $ventas->pluck('id_venta'))
+            ->sum('monto_abonado');
+        $saldo_pendiente = max(0, $valor_total - $total_abonado);
+        $cuota_mensual_total = (float) $ventas->sum('cuota_mensual');
+
+        $plazo_meses = (int) ($ventas->max('plazo_meses') ?? 60);
+
+        // Máximo de cuotas pendientes entre los contratos
+        $abonos_faltantes = (int) (\App\Models\Cuota::whereIn('id_venta', $ventas->pluck('id_venta'))
+            ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+            ->groupBy('id_venta')
+            ->selectRaw('count(*) as cant')
+            ->pluck('cant')
+            ->max() ?? 0);
+
+        $monto_en_letras = $this->convertirMontoALetras($montoTotalAbono);
+
+        $imprimirDoble = (bool) setting('imprimir_doble_recibo', true, $lotificacion?->id);
+        $proporcionDoble = (string) setting('proporcion_recibo_doble', '50_50', $lotificacion?->id);
+        $mostrarQr = (bool) setting('mostrar_qr_recibo', true, $lotificacion?->id);
+        $sufijoMoneda = (string) setting('sufijo_moneda_letras', 'DÓLARES NETOS', $lotificacion?->id);
+        $leyendaPie = (string) setting('leyenda_pie_recibo', 'Conserve este comprobante como constancia legal de su pago.', $lotificacion?->id);
+        $numeroReciboMostrar = $pagoPrincipal->numero_recibo_formateado;
+
+        switch ($proporcionDoble) {
+            case '55_45':
+                $anchoCliente = 'calc(55% - 4px)';
+                $anchoEmpresa = 'calc(45% - 4px)';
+                break;
+            case '60_40':
+                $anchoCliente = 'calc(60% - 4px)';
+                $anchoEmpresa = 'calc(40% - 4px)';
+                break;
+            case '65_35':
+                $anchoCliente = 'calc(65% - 4px)';
+                $anchoEmpresa = 'calc(35% - 4px)';
+                break;
+            case '50_50':
+            default:
+                $anchoCliente = 'calc(50% - 4px)';
+                $anchoEmpresa = 'calc(50% - 4px)';
+                break;
+        }
+
+        $pagoConsolidado = clone $pagoPrincipal;
+        $pagoConsolidado->monto_abonado = $montoTotalAbono;
+
+        return [
+            'modoProvisional'      => false,
+            'imprimirDoble'        => $imprimirDoble,
+            'anchoCliente'         => $anchoCliente,
+            'anchoEmpresa'         => $anchoEmpresa,
+            'mostrarQr'            => $mostrarQr,
+            'sufijoMoneda'         => $sufijoMoneda,
+            'leyendaPie'           => $leyendaPie,
+            'numeroReciboMostrar'  => $numeroReciboMostrar,
+            'pago'                 => $pagoConsolidado,
+            'cliente'              => $cliente,
+            'venta'                => (object)[
+                'cuota_mensual' => $cuota_mensual_total,
+                'plazo_meses'   => $plazo_meses,
+                'lotes'         => $lotesList,
+                'precio_final'  => $valor_total,
+                'id_venta'      => $pagoPrincipal->id_venta
+            ],
+            'lotes_texto'          => $lotesTexto,
+            'lotes_count'          => $lotesList->count(),
+            'valor_total'          => $valor_total,
+            'total_abonado'        => $total_abonado,
+            'saldo_pendiente'      => $saldo_pendiente,
+            'abonos_faltantes'     => $abonos_faltantes,
+            'monto_en_letras'      => $monto_en_letras,
+            'lotificacion'         => $lotificacion,
+            'esConsolidado'        => true,
+        ];
+    }
+
+    public function imprimirRecibo($abono_id, Request $request = null)
+    {
+        if ($abono_id instanceof Request) {
+            $temp = $abono_id;
+            $abono_id = $request;
+            $request = $temp;
+        }
+        $request = $request ?: request();
+
+        // Carga el Abono e inmediatamente carga la Venta, Cliente y Lotes relacionados
+        $abono = Abono::withoutGlobalScope('lotificacion')
+            ->with(['venta' => function($q) {
+                $q->withoutGlobalScope('lotificacion')->with([
+                    'cliente' => fn($cq) => $cq->withoutGlobalScope('lotificacion'),
+                    'lotes' => fn($lq) => $lq->withoutGlobalScope('lotificacion')->with(['bloque' => fn($bq) => $bq->withoutGlobalScope('lotificacion')]),
+                    'abonos',
+                    'lotificacion'
+                ]);
+            }])
+            ->findOrFail($abono_id);
+
+        // Si NO se fuerza la impresión individual (?individual=1), detectar si pertenece a un pago consolidado
+        if (!$request->boolean('individual')) {
+            $abonosGrupo = collect();
+
+            if (!empty($abono->grupo_recibo)) {
+                $abonosGrupo = Abono::withoutGlobalScope('lotificacion')
+                    ->where('grupo_recibo', $abono->grupo_recibo)
+                    ->with(['venta' => fn($q) => $q->withoutGlobalScope('lotificacion')->with(['cliente', 'lotes.bloque', 'abonos', 'lotificacion'])])
+                    ->get();
+            } elseif ($abono->venta && $abono->venta->id_cliente && $abono->created_at) {
+                $abonosGrupo = Abono::withoutGlobalScope('lotificacion')
+                    ->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('id_cliente', $abono->venta->id_cliente))
+                    ->where('fecha_pago', $abono->fecha_pago)
+                    ->where('metodo_pago', $abono->metodo_pago)
+                    ->whereBetween('created_at', [
+                        $abono->created_at->copy()->subMinutes(5),
+                        $abono->created_at->copy()->addMinutes(5)
+                    ])
+                    ->with(['venta' => fn($q) => $q->withoutGlobalScope('lotificacion')->with(['cliente', 'lotes.bloque', 'abonos', 'lotificacion'])])
+                    ->get();
+            }
+
+            if ($abonosGrupo->count() > 1) {
+                $datosConsolidados = $this->prepararDatosReciboConsolidado($abonosGrupo);
+                return view('abonos.recibo_imprimir', $datosConsolidados);
+            }
+        }
+
+        $venta = $abono->venta;
+        $lotificacion = $venta ? $venta->lotificacion : null;
+
+        $cliente = ($venta && $venta->cliente) ? $venta->cliente : (object) [
+            'nombres_apellidos' => 'Cliente Desconocido',
+            'token_seguimiento' => null
+        ];
+
+        // Una venta puede tener varios lotes: se listan todos en el recibo
+        $lotesTexto = $venta->lotes->isNotEmpty()
+            ? $venta->lotes->map(function ($lote) {
+                return $lote->numero_lote;
+            })->implode(', ')
+            : 'N/A';
+
+        $valor_total = (float) $venta->precio_final;
+        $total_abonado = (float) $venta->abonos->sum('monto_abonado');
+        $saldo_pendiente = max(0, $valor_total - $total_abonado);
+        $abonos_realizados = $venta->abonos->count();
+
+        // El número real de cuotas pendientes basado en la tabla cuotas
+        $abonos_faltantes = \App\Models\Cuota::where('id_venta', $venta->id_venta)
+            ->whereIn('estado', ['Pendiente', 'Mora', 'Parcial'])
+            ->count();
+
+        $monto_en_letras = $this->convertirMontoALetras($abono->monto_abonado);
+
+        $modoProvisional = ($abono->tipo_pago === 'Recibo Provisional');
+
+        // Configuración de impresión de recibo del proyecto
+        $imprimirDoble = (bool) setting('imprimir_doble_recibo', true, $lotificacion?->id);
+        $proporcionDoble = (string) setting('proporcion_recibo_doble', '50_50', $lotificacion?->id);
+        $mostrarQr = $modoProvisional ? false : (bool) setting('mostrar_qr_recibo', true, $lotificacion?->id);
+        $sufijoMoneda = (string) setting('sufijo_moneda_letras', 'DÓLARES NETOS', $lotificacion?->id);
+        $leyendaPie = (string) setting('leyenda_pie_recibo', 'Conserve este comprobante como constancia legal de su pago.', $lotificacion?->id);
+        $numeroReciboMostrar = $abono->numero_recibo_formateado;
+
+        // Calcular anchos porcentuales según la proporción elegida
+        switch ($proporcionDoble) {
+            case '55_45':
+                $anchoCliente = 'calc(55% - 4px)';
+                $anchoEmpresa = 'calc(45% - 4px)';
+                break;
+            case '60_40':
+                $anchoCliente = 'calc(60% - 4px)';
+                $anchoEmpresa = 'calc(40% - 4px)';
+                break;
+            case '65_35':
+                $anchoCliente = 'calc(65% - 4px)';
+                $anchoEmpresa = 'calc(35% - 4px)';
+                break;
+            case '50_50':
+            default:
+                $anchoCliente = 'calc(50% - 4px)';
+                $anchoEmpresa = 'calc(50% - 4px)';
+                break;
+        }
+
+        return view('abonos.recibo_imprimir', [
+            'modoProvisional'      => $modoProvisional,
+            'imprimirDoble'        => $imprimirDoble,
+            'anchoCliente'         => $anchoCliente,
+            'anchoEmpresa'         => $anchoEmpresa,
+            'mostrarQr'            => $mostrarQr,
+            'sufijoMoneda'         => $sufijoMoneda,
+            'leyendaPie'           => $leyendaPie,
+            'numeroReciboMostrar'  => $numeroReciboMostrar,
+            'pago'                 => $abono,
+            'cliente'              => $cliente,
+            'venta'                => $venta,
+            'lotes_texto'          => $lotesTexto,
+            'lotes_count'          => $venta->lotes->count(),
+            'lotificacion'         => $lotificacion,
+            'valor_total'          => $valor_total,
+            'total_abonado'        => $total_abonado,
+            'saldo_pendiente'      => $saldo_pendiente,
+            'abonos_faltantes'     => $abonos_faltantes,
+            'monto_en_letras'      => $monto_en_letras,
+            'esConsolidado'        => false,
+        ]);
+    }
+
+    /**
+     * Genera un recibo provisional (en blanco o con datos manuales) para llenado por la cajera.
+     * Registra un abono de $0 tipo 'Recibo Provisional' en el historial de la venta
+     * para que quede trazabilidad y registro auditable de los recibos emitidos.
+     */
+    public function reciboProvisional(\Illuminate\Http\Request $request, $id_venta)
+    {
+        $venta = \App\Models\Venta::withoutGlobalScope('lotificacion')
+            ->with([
+                'cliente' => fn($q) => $q->withoutGlobalScope('lotificacion'),
+                'lotes' => fn($q) => $q->withoutGlobalScope('lotificacion')->with('bloque'),
+                'lotificacion',
+                'abonos',
+            ])
+            ->findOrFail($id_venta);
+
+        $cliente      = $venta->cliente;
+        $lotificacion = $venta->lotificacion;
+
+        // Datos manuales ingresados desde el formulario (o null si se dejó en blanco)
+        $dejarEnBlanco = $request->boolean('dejar_en_blanco');
+        if ($dejarEnBlanco) {
+            $nombreManual   = null;
+            $montoManual    = null;
+            $conceptoManual = null;
+        } else {
+            $nombreManual   = $request->filled('nombre_cliente') ? trim($request->input('nombre_cliente')) : ($cliente->nombres_apellidos ?? '');
+            $montoManual    = $request->filled('monto') ? (float) $request->input('monto') : null;
+            $conceptoManual = $request->filled('concepto') ? trim($request->input('concepto')) : null;
+        }
+        $fechaPago = $request->filled('fecha_pago') ? $request->input('fecha_pago') : now()->format('Y-m-d');
+        $motivo    = $request->filled('motivo') ? trim($request->input('motivo')) : 'Generado manualmente';
+
+        // Generar el siguiente número de recibo consecutivo
+        $reciboData = \App\Models\Abono::generarSiguienteNumeroRecibo($venta->lotificacion_id);
+
+        $comentarioFinal = "PROVISIONAL — " . $motivo;
+        if ($montoManual) $comentarioFinal .= " | Monto: $" . number_format($montoManual, 2);
+        if ($conceptoManual) $comentarioFinal .= " | Concepto: " . $conceptoManual;
+        if ($nombreManual && $nombreManual !== ($cliente->nombres_apellidos ?? '')) $comentarioFinal .= " | Cliente: " . $nombreManual;
+
+        // Guardar en historial como $0 para tener trazabilidad sin alterar saldos financieros
+        $abono = \App\Models\Abono::create([
+            'id_venta'      => $id_venta,
+            'numero_recibo' => $reciboData['numero_recibo'],
+            'codigo_recibo' => $reciboData['codigo_recibo'],
+            'fecha_pago'    => $fechaPago,
+            'monto_abonado' => 0,
+            'tipo_pago'     => 'Recibo Provisional',
+            'metodo_pago'   => 'Efectivo',
+            'referencia'    => $montoManual ? 'Monto manual: $' . number_format($montoManual, 2) : 'Llenado en blanco',
+            'comentario'    => $comentarioFinal,
+            'user_id'       => auth()->id(),
+        ]);
+
+        // Texto de lotes
+        $lotesTexto = $venta->lotes->isNotEmpty()
+            ? $venta->lotes->map(fn($l) => $l->numero_lote)->implode(', ')
+            : 'N/A';
+
+        $sufijoMoneda = (string) setting('sufijo_moneda_letras', 'DÓLARES NETOS', $lotificacion?->id);
+        $montoEnLetras = ($montoManual && $montoManual > 0) ? $this->convertirMontoALetras($montoManual) : '';
+
+        return view('abonos.recibo_imprimir', [
+            'modoProvisional'      => true,
+            'imprimirDoble'        => true,
+            'anchoCliente'         => null,
+            'anchoEmpresa'         => null,
+            'mostrarQr'            => false,
+            'sufijoMoneda'         => $sufijoMoneda,
+            'leyendaPie'           => (string) setting('leyenda_pie_recibo', 'Conserve este comprobante como constancia legal de su pago.', $lotificacion?->id),
+            'numeroReciboMostrar'  => $abono->numero_recibo_formateado ?? $reciboData['codigo_recibo'],
+            'pago'                 => $abono,
+            'cliente'              => $cliente,
+            'venta'                => $venta,
+            'lotes_texto'          => $lotesTexto,
+            'lotificacion'         => $lotificacion,
+            'valor_total'          => 0,
+            'total_abonado'        => 0,
+            'saldo_pendiente'      => 0,
+            'abonos_faltantes'     => 0,
+            'monto_en_letras'      => $montoEnLetras,
+            'nombreManual'         => $nombreManual,
+            'montoManual'          => $montoManual,
+            'conceptoManual'       => $conceptoManual,
+        ]);
+    }
+
+
+        /**
+         * Convierte el monto numérico a texto en palabras (sin sufijo de moneda redundante)
+         */
+        public function convertirMontoALetras($monto)
+        {
+            $monto = number_format((float) $monto, 2, '.', '');
+
+            [$entero, $decimal] = explode('.', $monto);
+
+            $entero = (int) $entero;
+            $decimal = (int) $decimal;
+
+            $texto = strtoupper(
+                $this->numeroALetras($entero)
+            );
+
+            if ($decimal > 0) {
+                $texto .= ' CON '
+                    . strtoupper($this->numeroALetras($decimal))
+                    . ' CENTAVOS';
+            }
+
+            return $texto;
+        }
 
         
-        private function numeroALetras($numero)
+        public function numeroALetras($numero)
         {
     $unidades = [
         '',
@@ -552,4 +1131,167 @@ class AbonoController extends Controller
 
     return 'cantidad demasiado grande';
         }
+
+    /**
+     * Módulo de Recibos Firmados por el Cliente
+     */
+    public function auditoriaRecibos(Request $request)
+    {
+        $estadoFirma = $request->input('estado_firma', 'todos');
+        $search = $request->input('search');
+        $fechaDesde = $request->input('fecha_desde');
+        $fechaHasta = $request->input('fecha_hasta');
+
+        $query = Abono::withoutGlobalScope('lotificacion')
+            ->with([
+                'venta' => fn($q) => $q->withoutGlobalScope('lotificacion')->with([
+                    'cliente' => fn($cq) => $cq->withoutGlobalScope('lotificacion'),
+                    'lotes' => fn($lq) => $lq->withoutGlobalScope('lotificacion')->with([
+                        'bloque' => fn($bq) => $bq->withoutGlobalScope('lotificacion')
+                    ]),
+                    'lotificacion'
+                ]),
+                'user',
+                'userReciboFirmado'
+            ]);
+
+        $activeLotId = session('lotificacion_id');
+        if ($activeLotId) {
+            $query->whereHas('venta', function($vq) use ($activeLotId) {
+                $vq->withoutGlobalScope('lotificacion')->where('ventas.lotificacion_id', $activeLotId);
+            });
+        }
+
+        if ($estadoFirma === 'firmados') {
+            $query->whereNotNull('abonos.recibo_firmado');
+        } elseif ($estadoFirma === 'pendientes') {
+            $query->whereNull('abonos.recibo_firmado');
+        }
+
+        if ($fechaDesde) {
+            $query->whereDate('abonos.fecha_pago', '>=', $fechaDesde);
+        }
+        if ($fechaHasta) {
+            $query->whereDate('abonos.fecha_pago', '<=', $fechaHasta);
+        }
+
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('abonos.numero_recibo', 'like', "%{$search}%")
+                  ->orWhere('abonos.id_abono', 'like', "%{$search}%")
+                  ->orWhere('abonos.referencia', 'like', "%{$search}%")
+                  ->orWhereHas('venta', function($vq) use ($search) {
+                      $vq->withoutGlobalScope('lotificacion')
+                         ->where(function($vq2) use ($search) {
+                             $vq2->whereHas('cliente', function($cq) use ($search) {
+                                 $cq->withoutGlobalScope('lotificacion')
+                                    ->where(function($cq2) use ($search) {
+                                        $cq2->where('clientes.nombres_apellidos', 'like', "%{$search}%")
+                                            ->orWhere('clientes.expediente_num', 'like', "%{$search}%")
+                                            ->orWhere('clientes.pv_num', 'like', "%{$search}%")
+                                            ->orWhere('clientes.identificacion', 'like', "%{$search}%");
+                                    });
+                             })->orWhereHas('lotes', function($lq) use ($search) {
+                                 $lq->withoutGlobalScope('lotificacion')
+                                    ->where('lotes.numero_lote', 'like', "%{$search}%");
+                             });
+                         });
+                  });
+            });
+        }
+
+        // Estadísticas globales
+        $baseQuery = Abono::withoutGlobalScope('lotificacion');
+        if ($activeLotId) {
+            $baseQuery->whereHas('venta', function($vq) use ($activeLotId) {
+                $vq->withoutGlobalScope('lotificacion')->where('ventas.lotificacion_id', $activeLotId);
+            });
+        }
+        if ($fechaDesde) $baseQuery->whereDate('abonos.fecha_pago', '>=', $fechaDesde);
+        if ($fechaHasta) $baseQuery->whereDate('abonos.fecha_pago', '<=', $fechaHasta);
+
+        $totalRecibos = (clone $baseQuery)->count();
+        $totalFirmados = (clone $baseQuery)->whereNotNull('abonos.recibo_firmado')->count();
+        $totalPendientes = (clone $baseQuery)->whereNull('abonos.recibo_firmado')->count();
+        $porcentajeCumplimiento = $totalRecibos > 0 ? round(($totalFirmados / $totalRecibos) * 100, 1) : 100;
+        $montoTotalAuditoria = (clone $baseQuery)->sum('abonos.monto_abonado') ?? 0;
+
+        $abonos = $query->orderBy('abonos.fecha_pago', 'desc')
+            ->orderBy('abonos.id_abono', 'desc')
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('abonos.auditoria', compact(
+            'abonos',
+            'estadoFirma',
+            'search',
+            'fechaDesde',
+            'fechaHasta',
+            'totalRecibos',
+            'totalFirmados',
+            'totalPendientes',
+            'porcentajeCumplimiento',
+            'montoTotalAuditoria'
+        ));
+    }
+
+    /**
+     * Subir soporte/archivo del recibo firmado físicamente por el cliente
+     */
+    public function subirReciboFirmado(Request $request, $id)
+    {
+        $request->validate([
+            'recibo_firmado' => 'required|file|mimes:jpeg,png,jpg,pdf,webp|max:15360',
+        ], [
+            'recibo_firmado.required' => 'Debe seleccionar un archivo (imagen o PDF).',
+            'recibo_firmado.mimes' => 'El formato debe ser PDF, JPG, PNG o WEBP.',
+            'recibo_firmado.max' => 'El tamaño del archivo no puede superar los 15MB.'
+        ]);
+
+        $abono = Abono::withoutGlobalScope('lotificacion')->findOrFail($id);
+
+        if ($request->hasFile('recibo_firmado')) {
+            if ($abono->recibo_firmado && Storage::disk('public')->exists($abono->recibo_firmado)) {
+                Storage::disk('public')->delete($abono->recibo_firmado);
+            }
+
+            $rutaArchivo = $request->file('recibo_firmado')->store('recibos_firmados', 'public');
+            
+            $abono->update([
+                'recibo_firmado' => $rutaArchivo,
+                'fecha_recibo_firmado' => now(),
+                'user_recibo_firmado_id' => auth()->id()
+            ]);
+        }
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Recibo firmado por el cliente guardado exitosamente para auditoría.',
+                'url' => asset('storage/' . $abono->recibo_firmado)
+            ]);
+        }
+
+        return redirect()->back()->with('success', 'Recibo firmado por el cliente guardado exitosamente para auditoría.');
+    }
+
+    /**
+     * Eliminar el recibo firmado (por si se subió un archivo erróneo)
+     */
+    public function eliminarReciboFirmado(Request $request, $id)
+    {
+        $abono = Abono::withoutGlobalScope('lotificacion')->findOrFail($id);
+
+        if ($abono->recibo_firmado && Storage::disk('public')->exists($abono->recibo_firmado)) {
+            Storage::disk('public')->delete($abono->recibo_firmado);
+        }
+
+        $abono->update([
+            'recibo_firmado' => null,
+            'fecha_recibo_firmado' => null,
+            'user_recibo_firmado_id' => null
+        ]);
+
+        return redirect()->back()->with('success', 'Recibo firmado eliminado correctamente.');
+    }
 }

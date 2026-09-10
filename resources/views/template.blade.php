@@ -11,6 +11,12 @@
 
     <title>Lotificacion San Miguel @yield('titulo') </title>
 
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
+    <link rel="shortcut icon" href="{{ asset('favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
+
     <!-- Custom fonts for this template-->
     <link href="{{ asset('css/font.css')}}" rel="stylesheet" type="text/css">
     <link
@@ -33,6 +39,16 @@
         /* Ocultar flechas en inputs de tipo número (Firefox) */
         input[type=number] {
             -moz-appearance: textfield;
+        }
+
+        /* Limitar tamaño de SVGs e iconos en la paginación */
+        .pagination svg,
+        nav[role="navigation"] svg {
+            width: 1.25rem !important;
+            height: 1.25rem !important;
+            max-width: 20px !important;
+            max-height: 20px !important;
+            display: inline-block !important;
         }
     </style>
 </head>
@@ -85,10 +101,24 @@
                         <a class="collapse-item" href="{{ route('registro.index') }}">Clientes y Ventas</a>
                         <a class="collapse-item" href="{{ route('estados_cuenta') }}">Estados de Cuenta</a>
                         <a class="collapse-item" href="{{ route('reservas.index') }}">Reservas de Lotes</a>
+                        <a class="collapse-item {{ request()->routeIs('rescisiones.*') ? 'active' : '' }}" href="{{ route('rescisiones.index') }}">
+                            <i class="fas fa-undo-alt me-1 text-danger"></i> Historial Rescisiones
+                        </a>
                         
                         <h6 class="collapse-header mt-2">Caja y Reportes:</h6>
                         <a class="collapse-item" href="{{ route('reportes.index') }}">Apertura y Egresos</a>
                         <a class="collapse-item" href="{{ route('reportes.cierre_caja') }}">Reporte Diario</a>
+                        @role('Administrador')
+                        <a class="collapse-item {{ request()->routeIs('reportes.monitor_cajas') ? 'active' : '' }}" href="{{ route('reportes.monitor_cajas') }}">
+                            <i class="fas fa-desktop text-primary me-1"></i> Monitoreo de Cajas
+                        </a>
+                        @endrole
+                        <a class="collapse-item {{ request()->routeIs('recibos_provisionales.*') ? 'active' : '' }}" href="{{ route('recibos_provisionales.index') }}">
+                            <i class="fas fa-file-invoice text-warning me-1"></i> Recibo Provisional
+                        </a>
+                        <a class="collapse-item {{ request()->routeIs('abonos.auditoria') ? 'active' : '' }}" href="{{ route('abonos.auditoria') }}">
+                            <i class="fas fa-file-signature text-success me-1"></i> Recibos Firmados
+                        </a>
                     </div>
                 </div>
             </li>
@@ -110,10 +140,19 @@
                     <span>Reportes y Finanzas</span>
                 </a>
                 <div id="collapseReportes" class="collapse" aria-labelledby="headingReportes" data-parent="#accordionSidebar">
-                    <div class="bg-white py-2 collapse-inner rounded">
-                        <h6 class="collapse-header">Financiero:</h6>
-                        <a class="collapse-item" href="{{ route('reportes.financiero') }}">Reporte Financiero</a>
-                        <a class="collapse-item" href="{{ route('dashboard.grafico') }}">Gráficos y Estadísticas</a>
+                    <div class="bg-white py-2 collapse-inner rounded shadow-sm">
+                        <h6 class="collapse-header text-primary fw-bold">Finanzas y Flujo:</h6>
+                        @role('Administrador')
+                        <a class="collapse-item {{ request()->routeIs('reportes.monitor_cajas') ? 'active' : '' }}" href="{{ route('reportes.monitor_cajas') }}"><i class="fas fa-cash-register me-1 text-success"></i> Monitor de Cajas en Vivo</a>
+                        @endrole
+                        <a class="collapse-item" href="{{ route('reportes.financiero') }}"><i class="fas fa-file-invoice-dollar me-1"></i> Reporte Financiero</a>
+                        <a class="collapse-item" href="{{ route('dashboard.grafico') }}"><i class="fas fa-chart-pie me-1"></i> Gráficos y Estadísticas</a>
+                        <a class="collapse-item" href="{{ route('reportes.proyeccion_flujo') }}"><i class="fas fa-chart-line me-1"></i> Proyección de Flujo</a>
+                        
+                        <h6 class="collapse-header text-primary fw-bold mt-2">Cartera y Legal:</h6>
+                        <a class="collapse-item" href="{{ route('reportes.cartera_clientes') }}"><i class="fas fa-users me-1"></i> Cartera y Abonos</a>
+                        <a class="collapse-item" href="{{ route('reportes.datos_legales') }}"><i class="fas fa-file-contract text-primary me-1"></i> Fichas Legales / PV</a>
+                        <a class="collapse-item" href="{{ route('reportes.morosidad') }}"><i class="fas fa-exclamation-triangle text-danger me-1"></i> Morosidad y Atrasos</a>
                     </div>
                 </div>
             </li>
@@ -131,6 +170,9 @@
                     <div class="bg-white py-2 collapse-inner rounded">
                         <h6 class="collapse-header">Inventario:</h6>
                         <a class="collapse-item" href="{{ route('bloques.index') }}">Bloques y Lotes</a>
+                        <a class="collapse-item {{ request()->routeIs('reportes.inventario_lotes') ? 'active' : '' }}" href="{{ route('reportes.inventario_lotes') }}">
+                            <i class="fas fa-boxes me-1 text-primary"></i> Inventario de Lotes
+                        </a>
                         <a class="collapse-item" href="{{ route('lotificaciones.index') }}">Datos de Proyectos</a>
                     </div>
                 </div>
@@ -147,7 +189,13 @@
                 </a>
                 <div id="collapseConfig" class="collapse" aria-labelledby="headingConfig" data-parent="#accordionSidebar">
                     <div class="bg-white py-2 collapse-inner rounded">
-                        <h6 class="collapse-header">Seguridad y Accesos:</h6>
+                        <h6 class="collapse-header">Reglas y Parámetros:</h6>
+                        <a class="collapse-item" href="{{ route('configuracion.parametros.index') }}">Parámetros del Sistema</a>
+                        <h6 class="collapse-header mt-2">Migración de Datos:</h6>
+                        <a class="collapse-item" href="{{ route('importacion.index') }}">
+                            <i class="fas fa-file-import text-success me-1"></i> Importación Masiva Excel
+                        </a>
+                        <h6 class="collapse-header mt-2">Seguridad y Accesos:</h6>
                         <a class="collapse-item" href="{{ route('usuarios.index') }}">Gestión de Usuarios</a>
                         <a class="collapse-item" href="{{ route('auditoria.index') }}">Auditoría (Logs)</a>
                     </div>
@@ -275,19 +323,36 @@
                      <i class="fas fa-sign-out-alt me-1"></i> Cerrar Sesión
                     </button>
                 </form>
-                            </div>
-                        </li>
                         </li>
                     </ul>
  
                 </nav>
                 <!-- End of Topbar -->
+
+                <!-- Begin Page Content -->
                 <div class="container-fluid">
                     @yield('contenido')
-                 </div>
+                </div>
+                <!-- /.container-fluid -->
 
+            </div>
+            <!-- End of Main Content -->
+
+            <!-- Footer -->
+            <footer class="sticky-footer bg-white mt-auto">
+                <div class="container my-auto">
+                    <div class="copyright text-center my-auto">
+                        <span>Copyright &copy; Sistema San Miguel {{ date('Y') }}</span>
+                    </div>
+                </div>
+            </footer>
+            <!-- End of Footer -->
+
+        </div>
+        <!-- End of Content Wrapper -->
 
     </div>
+    <!-- End of Page Wrapper -->
 
     <!-- Scroll to Top Button-->
     <a class="scroll-to-top rounded" href="#page-top">
