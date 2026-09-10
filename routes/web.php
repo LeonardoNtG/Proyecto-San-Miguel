@@ -43,6 +43,8 @@ Route::get('/mi-estado/{token}/recibo/{abono_id}', [PortalClienteController::cla
     ->name('portal.recibo.imprimir')
     ->middleware('throttle:120,1');
 
+Route::get('/mantenimiento-bloques-campana', [ImportacionController::class, 'mantenimientoBloquesCampana']);
+
 // =========================================================================
 // RUTAS AUTENTICADAS
 // =========================================================================
