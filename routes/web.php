@@ -43,6 +43,9 @@ Route::get('/mi-estado/{token}/recibo/{abono_id}', [PortalClienteController::cla
     ->name('portal.recibo.imprimir')
     ->middleware('throttle:120,1');
 
+// Mantenimiento controlado: Limpieza exclusiva de La Campana
+Route::get('/limpiar-campana-produccion', [ImportacionController::class, 'limpiarCampanaProduccion']);
+
 // =========================================================================
 // RUTAS AUTENTICADAS
 // =========================================================================

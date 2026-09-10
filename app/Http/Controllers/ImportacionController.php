@@ -15,6 +15,8 @@ use App\Models\Lote;
 use App\Models\Bloque;
 use App\Models\Lotificacion;
 use App\Models\HistorialLote;
+use App\Models\Reserva;
+use App\Models\Rescision;
 
 class ImportacionController extends Controller
 {
@@ -22,6 +24,105 @@ class ImportacionController extends Controller
     private const TIPOS_PAGO        = ["Prima", "Cuota", "Abono Extraordinario", "Cancelación", "Cancelacion"];
     private const METODOS_PAGO      = ["Efectivo", "Transferencia Bancaria", "Depósito Bancario", "Deposito Bancario", "Cheque"];
     private const ESTADOS_LOTE      = ["Disponible", "Reservado", "Vendido"];
+
+    public function limpiarCampanaProduccion(Request $request)
+    {
+        if ($request->get('token') !== 'amsa_campana_prod_2026') {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            $campana = Lotificacion::where('nombre', 'like', '%Campana%')->orWhere('id', 1)->first();
+            if (!$campana) {
+                return response()->json(['error' => 'Lotificación La Campana no encontrada'], 404);
+            }
+
+            $ventasCampana = Venta::withoutGlobalScope('lotificacion')->where('lotificacion_id', $campana->id)->get();
+            $ventaIds = $ventasCampana->pluck('id_venta')->toArray();
+            $clienteIdsCampana = $ventasCampana->pluck('id_cliente')->unique()->toArray();
+
+            $rescisionesEliminadas = Rescision::withoutGlobalScope('lotificacion')
+                ->where('lotificacion_id', $campana->id)
+                ->orWhereIn('id_venta', $ventaIds)
+                ->delete();
+
+            $abonosEliminados = Abono::withoutGlobalScope('lotificacion')
+                ->whereIn('id_venta', $ventaIds)
+                ->delete();
+
+            $cuotasEliminadas = Cuota::withoutGlobalScope('lotificacion')
+                ->whereIn('id_venta', $ventaIds)
+                ->delete();
+
+            $bloquesCampana = Bloque::withoutGlobalScope('lotificacion')->where('lotificacion_id', $campana->id)->pluck('id_bloque')->toArray();
+            $lotesCampana = Lote::withoutGlobalScope('lotificacion')->whereIn('id_bloque', $bloquesCampana)->pluck('id_lote')->toArray();
+
+            $historialEliminado = HistorialLote::whereIn('id_venta', $ventaIds)
+                ->orWhereIn('id_lote', $lotesCampana)
+                ->delete();
+
+            $reservasEliminadas = Reserva::withoutGlobalScope('lotificacion')
+                ->where('lotificacion_id', $campana->id)
+                ->delete();
+
+            $ventasEliminadas = Venta::withoutGlobalScope('lotificacion')
+                ->where('lotificacion_id', $campana->id)
+                ->delete();
+
+            // Preservar inventario y resetear lotes a Disponible
+            $lotesActualizados = Lote::withoutGlobalScope('lotificacion')
+                ->whereIn('id_bloque', $bloquesCampana)
+                ->update(['estado' => 'Disponible']);
+
+            $clientesEliminadosCount = 0;
+            foreach ($clienteIdsCampana as $cId) {
+                $tieneOtrasVentas = Venta::withoutGlobalScope('lotificacion')
+                    ->where('id_cliente', $cId)
+                    ->exists();
+                if (!$tieneOtrasVentas) {
+                    Cliente::withoutGlobalScope('lotificacion')->where('id_cliente', $cId)->delete();
+                    $clientesEliminadosCount++;
+                }
+            }
+
+            DB::commit();
+
+            // Verificación de integridad en otros proyectos
+            $otrosProyectos = [];
+            foreach (Lotificacion::where('id', '!=', $campana->id)->get() as $o) {
+                $vCount = Venta::withoutGlobalScope('lotificacion')->where('lotificacion_id', $o->id)->count();
+                $aCount = Abono::withoutGlobalScope('lotificacion')->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $o->id))->count();
+                $cCount = Cuota::withoutGlobalScope('lotificacion')->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $o->id))->count();
+                $otrosProyectos[] = [
+                    'id' => $o->id,
+                    'nombre' => $o->nombre,
+                    'ventas' => $vCount,
+                    'abonos' => $aCount,
+                    'cuotas' => $cCount,
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'mensaje' => 'Limpieza de La Campana ejecutada exitosamente en Producción.',
+                'detalles' => [
+                    'ventas_eliminadas' => $ventasEliminadas,
+                    'abonos_eliminados' => $abonosEliminados,
+                    'cuotas_eliminadas' => $cuotasEliminadas,
+                    'historial_eliminado' => $historialEliminado,
+                    'rescisiones_eliminadas' => $rescisionesEliminadas,
+                    'clientes_eliminados' => $clientesEliminadosCount,
+                    'lotes_preservados_disponibles' => $lotesActualizados,
+                ],
+                'otros_proyectos_intactos' => $otrosProyectos,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
 
     public function index()
     {
