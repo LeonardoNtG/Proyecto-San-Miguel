@@ -43,6 +43,20 @@ class ImportacionController extends Controller
         ]);
     }
 
+    public function descargarPlantillaCampana()
+    {
+        $content = $this->generarXlsxPlantillaCampana();
+        $nombre  = "Plantilla_Cartera_La_Campana.xlsx";
+
+        return response($content, 200, [
+            "Content-Type"        => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "Content-Disposition" => "attachment; filename=\"{$nombre}\"",
+            "Pragma"              => "no-cache",
+            "Cache-Control"       => "must-revalidate, post-check=0, pre-check=0",
+            "Expires"             => "0",
+        ]);
+    }
+
     /**
      * Genera un archivo .xlsx real (OOXML/ZIP) listo para abrir en Excel sin conversión.
      * Usa inline strings para evitar la necesidad de sharedStrings.xml.
@@ -240,160 +254,176 @@ class ImportacionController extends Controller
         return $content;
     }
 
-    /** @deprecated Reemplazado por generarXlsxPlantilla() - Este método ya no se usa */
-    private function generarXmlPlantilla_obsoleto(): string
+    /**
+     * Genera la plantilla en formato Cartera La Campana (.xlsx real con 2 hojas: LISTA OFICIAL y ABONOS).
+     */
+    private function generarXlsxPlantillaCampana(): string
     {
-        return '<?xml version="1.0" encoding="UTF-8"?>' . "\n" .
-'<?mso-application progid="Excel.Sheet"?>' . "\n" .
-'<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"' . "\n" .
-'          xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"' . "\n" .
-'          xmlns:x="urn:schemas-microsoft-com:office:excel">' . "\n" .
-'  <Styles>' . "\n" .
-'    <Style ss:ID="Header">' . "\n" .
-'      <Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="10"/>' . "\n" .
-'      <Interior ss:Color="#1A3A6B" ss:Pattern="Solid"/>' . "\n" .
-'      <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>' . "\n" .
-'      <Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2"/></Borders>' . "\n" .
-'    </Style>' . "\n" .
-'    <Style ss:ID="Requerido">' . "\n" .
-'      <Font ss:Bold="1" ss:Color="#FFFFFF" ss:Size="10"/>' . "\n" .
-'      <Interior ss:Color="#C0392B" ss:Pattern="Solid"/>' . "\n" .
-'      <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>' . "\n" .
-'    </Style>' . "\n" .
-'    <Style ss:ID="Opcional">' . "\n" .
-'      <Font ss:Bold="1" ss:Color="#000000" ss:Size="10"/>' . "\n" .
-'      <Interior ss:Color="#F0E68C" ss:Pattern="Solid"/>' . "\n" .
-'      <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>' . "\n" .
-'    </Style>' . "\n" .
-'    <Style ss:ID="Dato">' . "\n" .
-'      <Font ss:Size="10"/>' . "\n" .
-'      <Alignment ss:Vertical="Center"/>' . "\n" .
-'    </Style>' . "\n" .
-'    <Style ss:ID="Titulo">' . "\n" .
-'      <Font ss:Bold="1" ss:Size="14" ss:Color="#1A3A6B"/>' . "\n" .
-'      <Alignment ss:Horizontal="Left"/>' . "\n" .
-'    </Style>' . "\n" .
-'  </Styles>' . "\n" .
-'  <Worksheet ss:Name="CLIENTES_CONTRATOS">' . "\n" .
-'    <Table ss:DefaultRowHeight="18">' . "\n" .
-'      <Row ss:Height="30">' . "\n" .
-'        <Cell ss:StyleID="Titulo" ss:MergeAcross="18"><Data ss:Type="String">HOJA 1 - CLIENTES Y CONTRATOS | Campos en ROJO son obligatorios | Campos en AMARILLO son opcionales</Data></Cell>' . "\n" .
-'      </Row>' . "\n" .
-'      <Row ss:Height="25">' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">expediente_num</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">nombres_apellidos</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">identificacion</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Opcional"><Data ss:Type="String">telefono</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Opcional"><Data ss:Type="String">direccion</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Opcional"><Data ss:Type="String">estado_civil</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Opcional"><Data ss:Type="String">oficio</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Opcional"><Data ss:Type="String">pv_num</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">nombre_bloque</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">numero_lote</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">fecha_venta</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">precio_final</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">plazo_meses</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">cuota_mensual</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">estado_contrato</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Opcional"><Data ss:Type="String">prima_pagada</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Opcional"><Data ss:Type="String">fecha_prima</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Opcional"><Data ss:Type="String">beneficiario_final</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Opcional"><Data ss:Type="String">nota_beneficiario</Data></Cell>' . "\n" .
-'      </Row>' . "\n" .
-'      <Row ss:Height="18">' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">EXP-0001</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">MARIA KARINA PEREZ LOPEZ</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">001-230489-0001X</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">89095854</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">DE CLARO 2C AL SUR ESTE</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">SOLTERA</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">MAESTRA</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">PV-2024-001</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">Bloque A</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">A-01</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">30/08/2026</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="Number">9000.00</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="Number">60</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="Number">150.00</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">Vigente</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="Number">500.00</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">30/08/2026</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String"></Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String"></Data></Cell>' . "\n" .
-'      </Row>' . "\n" .
-'    </Table>' . "\n" .
-'  </Worksheet>' . "\n" .
-'  <Worksheet ss:Name="HISTORIAL_PAGOS">' . "\n" .
-'    <Table ss:DefaultRowHeight="18">' . "\n" .
-'      <Row ss:Height="30">' . "\n" .
-'        <Cell ss:StyleID="Titulo" ss:MergeAcross="9"><Data ss:Type="String">HOJA 2 - HISTORIAL DE PAGOS | Campos en ROJO son obligatorios | Campos en AMARILLO son opcionales</Data></Cell>' . "\n" .
-'      </Row>' . "\n" .
-'      <Row ss:Height="25">' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">identificacion_cliente</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">numero_lote</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">nombre_bloque</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">fecha_pago</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">monto_abonado</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">tipo_pago</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Opcional"><Data ss:Type="String">metodo_pago</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Opcional"><Data ss:Type="String">referencia</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Opcional"><Data ss:Type="String">cuenta_destino</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Opcional"><Data ss:Type="String">numero_recibo_original</Data></Cell>' . "\n" .
-'      </Row>' . "\n" .
-'      <Row ss:Height="18">' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">001-230489-0001X</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">A-01</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">Bloque A</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">15/09/2026</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="Number">150.00</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">Cuota</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">Efectivo</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String"></Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String"></Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">REC-001</Data></Cell>' . "\n" .
-'      </Row>' . "\n" .
-'    </Table>' . "\n" .
-'  </Worksheet>' . "\n" .
-'  <Worksheet ss:Name="CATALOGO_LOTES">' . "\n" .
-'    <Table ss:DefaultRowHeight="18">' . "\n" .
-'      <Row ss:Height="30">' . "\n" .
-'        <Cell ss:StyleID="Titulo" ss:MergeAcross="4"><Data ss:Type="String">HOJA 3 - CATALOGO DE LOTES (Opcional) | Solo si hay lotes que no existen aun en el sistema</Data></Cell>' . "\n" .
-'      </Row>' . "\n" .
-'      <Row ss:Height="25">' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">nombre_bloque</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">numero_lote</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">area_metros</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">precio_base</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Requerido"><Data ss:Type="String">estado</Data></Cell>' . "\n" .
-'      </Row>' . "\n" .
-'      <Row ss:Height="18">' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">Bloque A</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">A-01</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="Number">176.25</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="Number">9000.00</Data></Cell>' . "\n" .
-'        <Cell ss:StyleID="Dato"><Data ss:Type="String">Vendido</Data></Cell>' . "\n" .
-'      </Row>' . "\n" .
-'    </Table>' . "\n" .
-'  </Worksheet>' . "\n" .
-'  <Worksheet ss:Name="INSTRUCCIONES">' . "\n" .
-'    <Table ss:DefaultRowHeight="16">' . "\n" .
-'      <Row ss:Height="30"><Cell ss:StyleID="Titulo" ss:MergeAcross="1"><Data ss:Type="String">GUIA DE IMPORTACION MASIVA DE CLIENTES</Data></Cell></Row>' . "\n" .
-'      <Row ss:Height="12"><Cell><Data ss:Type="String"></Data></Cell></Row>' . "\n" .
-'      <Row><Cell ss:StyleID="Header"><Data ss:Type="String">HOJA</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">DESCRIPCION</Data></Cell></Row>' . "\n" .
-'      <Row><Cell ss:StyleID="Dato"><Data ss:Type="String">CLIENTES_CONTRATOS</Data></Cell><Cell ss:StyleID="Dato"><Data ss:Type="String">Una fila por contrato. Si un cliente tiene 2 lotes, son 2 filas con la misma cedula.</Data></Cell></Row>' . "\n" .
-'      <Row><Cell ss:StyleID="Dato"><Data ss:Type="String">HISTORIAL_PAGOS</Data></Cell><Cell ss:StyleID="Dato"><Data ss:Type="String">Un registro por cada abono o pago realizado historicamente.</Data></Cell></Row>' . "\n" .
-'      <Row><Cell ss:StyleID="Dato"><Data ss:Type="String">CATALOGO_LOTES</Data></Cell><Cell ss:StyleID="Dato"><Data ss:Type="String">Opcional. Solo si los lotes aun no existen en el sistema.</Data></Cell></Row>' . "\n" .
-'      <Row ss:Height="12"><Cell><Data ss:Type="String"></Data></Cell></Row>' . "\n" .
-'      <Row><Cell ss:StyleID="Header"><Data ss:Type="String">CAMPO</Data></Cell><Cell ss:StyleID="Header"><Data ss:Type="String">VALORES PERMITIDOS</Data></Cell></Row>' . "\n" .
-'      <Row><Cell ss:StyleID="Dato"><Data ss:Type="String">estado_contrato</Data></Cell><Cell ss:StyleID="Dato"><Data ss:Type="String">Vigente | Rescindido | Finalizado</Data></Cell></Row>' . "\n" .
-'      <Row><Cell ss:StyleID="Dato"><Data ss:Type="String">tipo_pago</Data></Cell><Cell ss:StyleID="Dato"><Data ss:Type="String">Prima | Cuota | Abono Extraordinario | Cancelacion</Data></Cell></Row>' . "\n" .
-'      <Row><Cell ss:StyleID="Dato"><Data ss:Type="String">metodo_pago</Data></Cell><Cell ss:StyleID="Dato"><Data ss:Type="String">Efectivo | Transferencia Bancaria | Deposito Bancario | Cheque</Data></Cell></Row>' . "\n" .
-'      <Row><Cell ss:StyleID="Dato"><Data ss:Type="String">estado (lotes)</Data></Cell><Cell ss:StyleID="Dato"><Data ss:Type="String">Disponible | Reservado | Vendido</Data></Cell></Row>' . "\n" .
-'      <Row><Cell ss:StyleID="Dato"><Data ss:Type="String">fechas</Data></Cell><Cell ss:StyleID="Dato"><Data ss:Type="String">Formato DD/MM/AAAA Ejemplo: 30/08/2026</Data></Cell></Row>' . "\n" .
-'      <Row><Cell ss:StyleID="Dato"><Data ss:Type="String">telefonos</Data></Cell><Cell ss:StyleID="Dato"><Data ss:Type="String">Guardar como TEXTO, no como numero, para preservar ceros iniciales</Data></Cell></Row>' . "\n" .
-'    </Table>' . "\n" .
-'  </Worksheet>' . "\n" .
-'</Workbook>';
+        $tempFile = tempnam(sys_get_temp_dir(), 'amsa_campana_');
+
+        $zip = new \ZipArchive();
+        $zip->open($tempFile, \ZipArchive::OVERWRITE);
+
+        // ── [Content_Types].xml ──────────────────────────────────────────────────
+        $zip->addFromString('[Content_Types].xml',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' .
+              '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' .
+              '<Default Extension="xml" ContentType="application/xml"/>' .
+              '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' .
+              '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' .
+              '<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' .
+              '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' .
+            '</Types>');
+
+        // ── _rels/.rels ──────────────────────────────────────────────────────────
+        $zip->addFromString('_rels/.rels',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' .
+              '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' .
+            '</Relationships>');
+
+        // ── xl/workbook.xml ──────────────────────────────────────────────────────
+        $zip->addFromString('xl/workbook.xml',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">' .
+              '<sheets>' .
+                '<sheet name="LISTA OFICIAL" sheetId="1" r:id="rId1"/>' .
+                '<sheet name="ABONOS"        sheetId="2" r:id="rId2"/>' .
+              '</sheets>' .
+            '</workbook>');
+
+        // ── xl/_rels/workbook.xml.rels ────────────────────────────────────────────
+        $zip->addFromString('xl/_rels/workbook.xml.rels',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' .
+              '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' .
+              '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/>' .
+              '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"    Target="styles.xml"/>' .
+            '</Relationships>');
+
+        // ── xl/styles.xml ─────────────────────────────────────────────────────────
+        $zip->addFromString('xl/styles.xml',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' .
+              '<fonts count="5">' .
+                '<font><sz val="10"/><color rgb="FF000000"/><name val="Calibri"/></font>' .
+                '<font><b/><sz val="10"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>' .
+                '<font><b/><sz val="10"/><color rgb="FF000000"/><name val="Calibri"/></font>' .
+                '<font><b/><sz val="14"/><color rgb="FF1A3A6B"/><name val="Calibri"/></font>' .
+                '<font><sz val="10"/><color rgb="FF000000"/><name val="Calibri"/></font>' .
+              '</fonts>' .
+              '<fills count="6">' .
+                '<fill><patternFill patternType="none"/></fill>' .
+                '<fill><patternFill patternType="gray125"/></fill>' .
+                '<fill><patternFill patternType="solid"><fgColor rgb="FF1A3A6B"/></patternFill></fill>' .
+                '<fill><patternFill patternType="solid"><fgColor rgb="FFC0392B"/></patternFill></fill>' .
+                '<fill><patternFill patternType="solid"><fgColor rgb="FFF0E68C"/></patternFill></fill>' .
+                '<fill><patternFill patternType="solid"><fgColor rgb="FFFFFFFF"/></patternFill></fill>' .
+              '</fills>' .
+              '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' .
+              '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' .
+              '<cellXfs count="5">' .
+                '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' .
+                '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' .
+                '<xf numFmtId="0" fontId="1" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' .
+                '<xf numFmtId="0" fontId="2" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' .
+                '<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1"/>' .
+              '</cellXfs>' .
+            '</styleSheet>');
+
+        $s = function(string $ref, string $text, int $style = 0): string {
+            $safe = htmlspecialchars($text, ENT_XML1, 'UTF-8');
+            return "<c r=\"{$ref}\" t=\"inlineStr\" s=\"{$style}\"><is><t>{$safe}</t></is></c>";
+        };
+        $n = function(string $ref, $val, int $style = 0): string {
+            return "<c r=\"{$ref}\" s=\"{$style}\"><v>{$val}</v></c>";
+        };
+
+        // ── Hoja 1: LISTA OFICIAL (Encabezado en fila 7) ─────────────────────────
+        $zip->addFromString('xl/worksheets/sheet1.xml',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' .
+            '<sheetData>' .
+              '<row r="1" ht="36" customHeight="1">' .
+                $s('A1', 'LOTES COLOCADOS LA CAMPANA', 4) .
+              '</row>' .
+              '<row r="7" ht="28" customHeight="1">' .
+                $s('A7','Nombre del Cliente',1)    . $s('B7','N° de Identificacion',1) . $s('C7','N° Telefono',1) .
+                $s('D7','N° Bloque',1)            . $s('E7','N° Lote',1)               . $s('F7','Cantidad Lotes',1) .
+                $s('G7','Monto Lote',1)           . $s('H7','Plazo Cuotas',1)          . $s('I7','Monto Cuota',1) .
+                $s('J7','Abono Actual',1)         . $s('K7','Saldo',1) .
+              '</row>' .
+              '<row r="8">' .
+                $s('A8','MARIA DE JESUS SILES BENAVIDEZ') . $s('B8','241-290355-0000A') . $s('C8','88888888') .
+                $s('D8','A')                              . $s('E8','4')                . $n('F8', 1) .
+                $n('G8', 9000.00)                         . $n('H8', 60)                . $n('I8', 150.00) .
+                $n('J8', 500.00)                          . $n('K8', 8500.00) .
+              '</row>' .
+            '</sheetData>' .
+            '</worksheet>');
+
+        // ── Hoja 2: ABONOS ─────────────────────────────────────────────────────────
+        $zip->addFromString('xl/worksheets/sheet2.xml',
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' .
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' .
+            '<sheetData>' .
+              '<row r="1" ht="28" customHeight="1">' .
+                $s('A1','Nombre del Cliente',1) . $s('B1','Bloque',1)              . $s('C1','Lote',1) .
+                $s('D1','Cedula',1)             . $s('E1','Telefono',1)            . $s('F1','N° PV',1) .
+                $s('G1','Fecha',1)              . $s('H1','Referencia',1)          . $s('I1','AbonoCancelacion',1) .
+                $s('J1','Observaciones',1)      . $s('K1','Tipo_abono',1)          . $s('L1','Id_transferencia',1) .
+                $s('M1','Fecha_Transferencia',1). $s('N1','A_la_cuenta_de:',1)     . $s('O1','REciboAnulado',1) .
+                $s('P1','RechazadoXBanco',1) .
+              '</row>' .
+              '<row r="2">' .
+                $s('A2','MARIA DE JESUS SILES BENAVIDEZ') . $s('B2','A')           . $s('C2','4') .
+                $s('D2','241-290355-0000A')               . $s('E2','88888888')    . $s('F2','105') .
+                $s('G2','27/08/2026')                     . $s('H2','1556')        . $n('I2', 100.00) .
+                $s('J2','Abono en efectivo')              . $s('K2','Efectivo')    . $s('L2','') .
+                $s('M2','')                               . $s('N2','')            . $s('O2','NO') .
+                $s('P2','NO') .
+              '</row>' .
+              '<row r="3">' .
+                $s('A3','MARIA DE JESUS SILES BENAVIDEZ') . $s('B3','A')           . $s('C3','4') .
+                $s('D3','241-290355-0000A')               . $s('E3','88888888')    . $s('F3','105') .
+                $s('G3','28/08/2026')                     . $s('H3','TR-9988')     . $n('I3', 400.00) .
+                $s('J3','Pago de transferencia')          . $s('K3','Transferencia Bancaria') . $s('L3','TR-9988') .
+                $s('M3','28/08/2026')                     . $s('N3','BAC - $ Dolares') . $s('O3','NO') .
+                $s('P3','NO') .
+              '</row>' .
+            '</sheetData>' .
+            '</worksheet>');
+
+        $zip->close();
+
+        $content = file_get_contents($tempFile);
+        @unlink($tempFile);
+
+        return $content;
+    }
+
+    private function normalizarCedula(?string $raw): string
+    {
+        $clean = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string)$raw));
+        if (strlen($clean) === 14) {
+            return substr($clean, 0, 3) . '-' . substr($clean, 3, 6) . '-' . substr($clean, 9, 5);
+        }
+        return mb_strtoupper(trim((string)$raw), 'UTF-8');
+    }
+
+    private function obtenerValorColumna(array $fila, array $posiblesClaves, $default = null)
+    {
+        foreach ($posiblesClaves as $clave) {
+            $claveNorm = strtolower(trim(preg_replace('/_+/', '_', preg_replace('/[^A-Za-z0-9]/', '_', $clave)), '_'));
+            if (array_key_exists($clave, $fila) && trim((string)$fila[$clave]) !== '') {
+                return trim((string)$fila[$clave]);
+            }
+            if (array_key_exists($claveNorm, $fila) && trim((string)$fila[$claveNorm]) !== '') {
+                return trim((string)$fila[$claveNorm]);
+            }
+        }
+        return $default;
     }
 
     public function procesar(Request $request)
@@ -402,6 +432,7 @@ class ImportacionController extends Controller
             "archivo"         => "required|file|max:20480",
             "lotificacion_id" => "required|exists:lotificaciones,id",
             "modo"            => "required|in:validar,importar",
+            "formato"         => "nullable|in:auto,estandar,campana",
         ], [
             "archivo.required"         => "Debe seleccionar un archivo Excel.",
             "archivo.max"              => "El archivo no debe superar los 20 MB.",
@@ -411,11 +442,20 @@ class ImportacionController extends Controller
         $lotificacion = Lotificacion::findOrFail($request->lotificacion_id);
         $modo         = $request->modo;
         $archivo      = $request->file("archivo");
+        $formato      = $request->get("formato", "auto");
 
         try {
             $datos = $this->parsearExcel($archivo->getPathname(), $archivo->getClientOriginalName());
         } catch (\Exception $e) {
             return back()->with("error", "No se pudo leer el archivo Excel: " . $e->getMessage());
+        }
+
+        // Detectar si el archivo corresponde al Formato Cartera La Campana (2 Hojas: LISTA OFICIAL y ABONOS)
+        $hojaCampana = $this->buscarHoja($datos, ['LISTA OFICIAL', 'LISTA_OFICIAL', 'LOTES COLOCADOS', 'LISTA OFICIAL LA CAMPANA', 'LISTA']);
+        $esFormatoCampana = ($formato === 'campana') || ($formato === 'auto' && !empty($hojaCampana));
+
+        if ($esFormatoCampana) {
+            return $this->procesarFormatoCampana($datos, $lotificacion, $modo);
         }
 
         $errores      = [];
@@ -469,6 +509,379 @@ class ImportacionController extends Controller
             DB::rollBack();
             Log::error("Importación masiva falló: " . $e->getMessage());
             return back()->with("error", "Error inesperado: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Procesa la importación en el Formato Cartera La Campana (2 Hojas: LISTA OFICIAL y ABONOS).
+     */
+    private function procesarFormatoCampana(array $datos, Lotificacion $lotificacion, string $modo)
+    {
+        $hojaLista  = $this->buscarHoja($datos, ['LISTA OFICIAL', 'LISTA_OFICIAL', 'LOTES COLOCADOS', 'LISTA OFICIAL LA CAMPANA', 'LISTA', 'CLIENTES', 'HOJA 1', 'HOJA1'], 0);
+        $hojaAbonos = $this->buscarHoja($datos, ['ABONOS', 'HISTORIAL_ABONOS', 'HISTORIAL DE ABONOS', 'PAGOS', 'HOJA 2', 'HOJA2'], 1);
+
+        if (empty($hojaLista)) {
+            $hojasEncontradas = implode(', ', array_keys($datos));
+            return back()->with("error", "No se encontró la hoja 'LISTA OFICIAL' en el archivo. Hojas encontradas: [{$hojasEncontradas}]");
+        }
+
+        $errores      = [];
+        $advertencias = [];
+        $resumen      = ["clientes_nuevos" => 0, "clientes_existentes" => 0, "contratos" => 0, "pagos" => 0, "lotes_creados" => 0];
+
+        // 1. Pre-indexar abonos por cliente+lote para deducir fechas de venta y verificar montos
+        $abonosPorLote = [];
+        if (!empty($hojaAbonos)) {
+            foreach ($hojaAbonos as $abnFila) {
+                $anulado = strtolower((string)$this->obtenerValorColumna($abnFila, ['reciboanulado', 'recibo_anulado', 'anulado', 'reciboanulada'], ''));
+                $rechazado = strtolower((string)$this->obtenerValorColumna($abnFila, ['rechazadoxbanco', 'rechazado_por_banco', 'rechazado', 'rechazadobanco'], ''));
+                if (in_array($anulado, ['si', 's', '1', 'true', 'anulado']) || in_array($rechazado, ['si', 's', '1', 'true', 'rechazado'])) {
+                    continue;
+                }
+
+                $cedRaw = $this->obtenerValorColumna($abnFila, ['cedula', 'identificacion', 'n_de_identificacion', 'no_identificacion', 'identificacion_cliente'], '');
+                $cedNorm = $this->normalizarCedula($cedRaw);
+                $blq = trim((string)$this->obtenerValorColumna($abnFila, ['bloque', 'n_bloque', 'nombre_bloque'], ''));
+                $lt  = trim((string)$this->obtenerValorColumna($abnFila, ['lote', 'n_lote', 'numero_lote'], ''));
+                $fec = $this->obtenerValorColumna($abnFila, ['fecha', 'fecha_pago'], '');
+                $mto = (float)$this->obtenerValorColumna($abnFila, ['abonocancelacion', 'abono_cancelacion', 'abono', 'monto_abonado', 'monto'], 0);
+
+                if (!empty($cedNorm) && !empty($blq) && !empty($lt)) {
+                    $clave = strtolower("{$cedNorm}_{$blq}_{$lt}");
+                    if (!isset($abonosPorLote[$clave])) {
+                        $abonosPorLote[$clave] = [
+                            'fechas' => [],
+                            'total'  => 0,
+                            'filas'  => []
+                        ];
+                    }
+                    if (!empty($fec)) {
+                        $abonosPorLote[$clave]['fechas'][] = $fec;
+                    }
+                    $abonosPorLote[$clave]['total'] += $mto;
+                    $abonosPorLote[$clave]['filas'][] = $abnFila;
+                }
+            }
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $mapeoVentas = [];
+            $clientesCache = [];
+
+            // 2. Procesar LISTA OFICIAL (Clientes, Lotes y Contratos)
+            foreach ($hojaLista as $i => $fila) {
+                $numFila = $i + 2;
+
+                $nombres = mb_strtoupper((string)$this->obtenerValorColumna($fila, ['nombre_del_cliente', 'nombre_cliente', 'nombres_apellidos', 'cliente', 'nombre'], ''), 'UTF-8');
+                $identificacionRaw = (string)$this->obtenerValorColumna($fila, ['n_de_identificacion', 'numero_de_identificacion', 'identificacion', 'cedula', 'no_de_identificacion', 'identificacion_cliente'], '');
+                $identificacion = $this->normalizarCedula($identificacionRaw);
+                $telefono = (string)$this->obtenerValorColumna($fila, ['n_telefono', 'numero_telefono', 'telefono', 'celular'], '');
+                $nombreBloque = trim((string)$this->obtenerValorColumna($fila, ['n_bloque', 'numero_bloque', 'bloque', 'nombre_bloque'], ''));
+                $numeroLote = trim((string)$this->obtenerValorColumna($fila, ['n_lote', 'numero_lote', 'lote'], ''));
+                $montoLote = (float)$this->obtenerValorColumna($fila, ['monto_lote', 'monto_del_lote', 'precio_lote', 'precio_final', 'monto', 'precio'], 0);
+                $plazoMeses = (int)$this->obtenerValorColumna($fila, ['plazo_cuotas', 'plazo', 'plazo_meses', 'meses'], 0);
+                $montoCuota = (float)$this->obtenerValorColumna($fila, ['monto_cuota', 'cuota_mensual', 'cuota', 'monto_de_cuota'], 0);
+                $abonoActual = (float)$this->obtenerValorColumna($fila, ['abono_actual', 'abonos_actuales', 'total_abonado', 'abonos'], 0);
+                $saldo = (float)$this->obtenerValorColumna($fila, ['saldo', 'saldo_pendiente', 'saldo_actual'], 0);
+
+                // Ignorar filas sin datos
+                if (empty($nombres) && empty($identificacion) && empty($nombreBloque) && empty($numeroLote)) {
+                    continue;
+                }
+
+                if (empty($nombres) || empty($identificacion) || empty($nombreBloque) || empty($numeroLote)) {
+                    $errores[] = "[Lista Oficial F{$numFila}] Faltan datos requeridos (Cliente: '{$nombres}', Cédula: '{$identificacion}', Bloque: '{$nombreBloque}', Lote: '{$numeroLote}').";
+                    continue;
+                }
+
+                if ($montoLote <= 0) {
+                    $errores[] = "[Lista Oficial F{$numFila}] Monto del Lote debe ser mayor a 0 para el cliente {$nombres} (Lote {$nombreBloque}-{$numeroLote}).";
+                    continue;
+                }
+
+                // Ajustar plazo y cuota si alguno falta
+                if ($plazoMeses <= 0 && $montoCuota > 0) {
+                    $plazoMeses = (int)ceil($montoLote / $montoCuota);
+                } elseif ($plazoMeses <= 0) {
+                    $plazoMeses = 60; // 5 años por defecto
+                }
+                if ($montoCuota <= 0) {
+                    $montoCuota = round($montoLote / $plazoMeses, 2);
+                }
+
+                // 2.1 Buscar o crear Cliente
+                if (isset($clientesCache[$identificacion])) {
+                    $cliente = $clientesCache[$identificacion];
+                    $resumen["clientes_existentes"]++;
+                } else {
+                    $clienteExistente = Cliente::withoutGlobalScope("lotificacion")->where("identificacion", $identificacion)->first();
+                    if ($clienteExistente) {
+                        $cliente = $clienteExistente;
+                        $resumen["clientes_existentes"]++;
+                    } else {
+                        $expedienteNuevo = Cliente::generarSiguienteExpediente();
+                        $cliente = Cliente::create([
+                            "expediente_num"    => $expedienteNuevo,
+                            "nombres_apellidos" => $nombres,
+                            "identificacion"    => $identificacion,
+                            "telefono"          => !empty($telefono) ? $telefono : null,
+                            "token_seguimiento" => Str::uuid()->toString(),
+                        ]);
+                        $resumen["clientes_nuevos"]++;
+                    }
+                    $clientesCache[$identificacion] = $cliente;
+                }
+
+                // 2.2 Buscar o crear Bloque estrictamente dentro del proyecto seleccionado
+                $bloque = Bloque::withoutGlobalScope("lotificacion")
+                    ->where("lotificacion_id", $lotificacion->id)
+                    ->where(function($q) use ($nombreBloque) {
+                        $q->where("nombre", $nombreBloque)
+                          ->orWhere("nombre", "Bloque " . $nombreBloque)
+                          ->orWhere("nombre", trim(str_ireplace("Bloque", "", $nombreBloque)));
+                    })->first();
+
+                if (!$bloque) {
+                    $bloque = Bloque::create([
+                        "nombre"          => str_starts_with(strtoupper($nombreBloque), 'BLOQUE') ? $nombreBloque : 'Bloque ' . $nombreBloque,
+                        "lotificacion_id" => $lotificacion->id,
+                        "prefijo"         => trim(str_ireplace("Bloque", "", $nombreBloque)),
+                    ]);
+                }
+
+                // 2.3 Buscar o crear Lote dentro del Bloque
+                $posiblesLotes = array_unique(array_filter([
+                    $numeroLote,
+                    ltrim($numeroLote, '0'),
+                    preg_replace('/^' . preg_quote($bloque->nombre, '/') . '[\s\-_]*/i', '', $numeroLote),
+                    ltrim(preg_replace('/^' . preg_quote($bloque->nombre, '/') . '[\s\-_]*/i', '', $numeroLote), '0'),
+                    $bloque->nombre . '-' . $numeroLote,
+                    $bloque->nombre . '-' . str_pad($numeroLote, 2, '0', STR_PAD_LEFT),
+                    $bloque->prefijo . '-' . $numeroLote,
+                    $bloque->prefijo . '-' . str_pad($numeroLote, 2, '0', STR_PAD_LEFT),
+                ]));
+
+                $lote = Lote::withoutGlobalScope("lotificacion")
+                    ->where("id_bloque", $bloque->id_bloque)
+                    ->whereIn("numero_lote", $posiblesLotes)
+                    ->first();
+
+                if (!$lote) {
+                    $lote = Lote::create([
+                        "id_bloque"   => $bloque->id_bloque,
+                        "numero_lote" => $numeroLote,
+                        "area_metros" => 150.00,
+                        "precio_base" => $montoLote,
+                        "estado"      => "Vendido",
+                    ]);
+                    $resumen["lotes_creados"]++;
+                }
+
+                // 2.4 Verificar si ya existe contrato vigente
+                $historialVigente = HistorialLote::where("id_lote", $lote->id_lote)
+                    ->where("estado", "Activo")
+                    ->whereHas("venta", fn($q) => $q->withoutGlobalScope("lotificacion")->where("lotificacion_id", $lotificacion->id)->where("estado_contrato", "Vigente"))
+                    ->first();
+
+                if ($historialVigente) {
+                    $advertencias[] = "[Lista Oficial F{$numFila}] Lote {$nombreBloque}-{$numeroLote} ya tiene contrato activo en {$lotificacion->nombre}. Omitido.";
+                    continue;
+                }
+
+                // 2.5 Deducir fecha de venta del primer abono o fecha actual
+                $claveAbonos = strtolower("{$identificacion}_{$nombreBloque}_{$numeroLote}");
+                $claveAbonosPrefijo = strtolower("{$identificacion}_{$bloque->prefijo}_{$numeroLote}");
+                $claveAbonosLoteClean = strtolower("{$identificacion}_{$nombreBloque}_" . ltrim($numeroLote, '0'));
+
+                $infoAbonos = $abonosPorLote[$claveAbonos] ?? $abonosPorLote[$claveAbonosPrefijo] ?? $abonosPorLote[$claveAbonosLoteClean] ?? null;
+
+                $fechaVenta = Carbon::now()->format('Y-m-d');
+                if ($infoAbonos && !empty($infoAbonos['fechas'])) {
+                    $fechasParsed = array_filter(array_map(fn($f) => $this->parsearFecha($f), $infoAbonos['fechas']));
+                    if (!empty($fechasParsed)) {
+                        sort($fechasParsed);
+                        $fechaVenta = $fechasParsed[0];
+                    }
+                }
+
+                // 2.6 Determinar estado del contrato (Vigente o Finalizado)
+                $totalAbonadoReal = $infoAbonos ? $infoAbonos['total'] : $abonoActual;
+                $saldoCalculado = max(0, $montoLote - $totalAbonadoReal);
+                $estadoContrato = ($saldoCalculado <= 0.01 && $totalAbonadoReal > 0) ? 'Finalizado' : 'Vigente';
+
+                // 2.7 Crear Venta
+                $venta = Venta::create([
+                    "id_cliente"         => $cliente->id_cliente,
+                    "lotificacion_id"    => $lotificacion->id,
+                    "fecha_venta"        => $fechaVenta,
+                    "precio_final"       => $montoLote,
+                    "plazo_meses"        => $plazoMeses,
+                    "cuota_mensual"      => $montoCuota,
+                    "extension_lote"     => $lote->area_metros . " m²",
+                    "estado_contrato"    => $estadoContrato,
+                ]);
+
+                // 2.8 Asignar historial de lote
+                HistorialLote::create([
+                    "id_lote"          => $lote->id_lote,
+                    "id_venta"         => $venta->id_venta,
+                    "estado"           => "Activo",
+                    "fecha_asignacion" => $fechaVenta,
+                ]);
+
+                $lote->estado = "Vendido";
+                $lote->save();
+
+                // 2.9 Generar Plan de Cuotas
+                if ($plazoMeses > 0) {
+                    $this->generarPlanCuotas($venta, $fechaVenta);
+                }
+
+                // Registrar en mapeo de ventas
+                $clavesMapeo = [
+                    $claveAbonos,
+                    $claveAbonosPrefijo,
+                    $claveAbonosLoteClean,
+                    strtolower("{$identificacion}_{$bloque->nombre}_{$numeroLote}"),
+                    strtolower("{$identificacion}_{$bloque->nombre}_" . ltrim($numeroLote, '0')),
+                    strtolower("{$identificacion}_{$bloque->prefijo}_" . ltrim($numeroLote, '0')),
+                ];
+                foreach ($clavesMapeo as $cm) {
+                    $mapeoVentas[$cm] = $venta->id_venta;
+                }
+
+                $resumen["contratos"]++;
+            }
+
+            if (!empty($errores)) {
+                DB::rollBack();
+                return $this->respuestaResultado($errores, $advertencias, $resumen, $modo, false, $lotificacion->id);
+            }
+
+            // 3. Procesar Hoja de ABONOS
+            if (!empty($hojaAbonos)) {
+                foreach ($hojaAbonos as $j => $filaAbn) {
+                    $numFila = $j + 2;
+
+                    $anulado = strtolower((string)$this->obtenerValorColumna($filaAbn, ['reciboanulado', 'recibo_anulado', 'anulado', 'reciboanulada'], ''));
+                    $rechazado = strtolower((string)$this->obtenerValorColumna($filaAbn, ['rechazadoxbanco', 'rechazado_por_banco', 'rechazado', 'rechazadobanco'], ''));
+                    if (in_array($anulado, ['si', 's', '1', 'true', 'anulado'])) {
+                        $advertencias[] = "[Abonos F{$numFila}] Recibo marcado como ANULADO en Excel. Omitido.";
+                        continue;
+                    }
+                    if (in_array($rechazado, ['si', 's', '1', 'true', 'rechazado'])) {
+                        $advertencias[] = "[Abonos F{$numFila}] Abono marcado como RECHAZADO POR BANCO en Excel. Omitido.";
+                        continue;
+                    }
+
+                    $cedRaw = (string)$this->obtenerValorColumna($filaAbn, ['cedula', 'identificacion', 'n_de_identificacion', 'no_identificacion', 'identificacion_cliente'], '');
+                    $identificacion = $this->normalizarCedula($cedRaw);
+                    $nombreBloque = trim((string)$this->obtenerValorColumna($filaAbn, ['bloque', 'n_bloque', 'nombre_bloque'], ''));
+                    $numeroLote = trim((string)$this->obtenerValorColumna($filaAbn, ['lote', 'n_lote', 'numero_lote'], ''));
+                    $fechaPago = (string)$this->obtenerValorColumna($filaAbn, ['fecha', 'fecha_pago'], '');
+                    $monto = (float)$this->obtenerValorColumna($filaAbn, ['abonocancelacion', 'abono_cancelacion', 'abono', 'monto_abonado', 'monto', 'valor'], 0);
+                    $pvNum = (string)$this->obtenerValorColumna($filaAbn, ['n_pv', 'numero_pv', 'pv_num', 'pv', 'no_pv'], '');
+                    $referencia = (string)$this->obtenerValorColumna($filaAbn, ['referencia', 'id_transferencia', 'recibo'], '');
+                    $observaciones = (string)$this->obtenerValorColumna($filaAbn, ['observaciones', 'comentario', 'detalle'], '');
+                    $tipoAbono = strtolower((string)$this->obtenerValorColumna($filaAbn, ['tipo_abono', 'tipo_de_abono', 'metodo_pago', 'metodo', 'tipo'], 'efectivo'));
+                    $fechaTransferencia = (string)$this->obtenerValorColumna($filaAbn, ['fecha_transferencia', 'fecha_transf'], '');
+                    $cuentaDestino = (string)$this->obtenerValorColumna($filaAbn, ['a_la_cuenta_de', 'a_la_cuenta_de_', 'cuenta_destino', 'cuenta', 'banco'], '');
+
+                    if (empty($identificacion) && empty($nombreBloque) && empty($numeroLote) && $monto <= 0) {
+                        continue;
+                    }
+
+                    if (empty($identificacion) || empty($nombreBloque) || empty($numeroLote)) {
+                        $advertencias[] = "[Abonos F{$numFila}] Fila con datos de identificación incompletos. Omitida.";
+                        continue;
+                    }
+
+                    $fechaPagoParsed = $this->parsearFecha($fechaPago);
+                    if (!$fechaPagoParsed) {
+                        $errores[] = "[Abonos F{$numFila}] Fecha de pago inválida: '{$fechaPago}'.";
+                        continue;
+                    }
+
+                    if ($monto <= 0) {
+                        $advertencias[] = "[Abonos F{$numFila}] Monto de abono 0 o inválido: {$monto}. Omitido.";
+                        continue;
+                    }
+
+                    // Mapear método de pago
+                    $metodoPago = 'Efectivo';
+                    if (str_contains($tipoAbono, 'transf') || !empty($fechaTransferencia) || !empty($cuentaDestino)) {
+                        $metodoPago = 'Transferencia Bancaria';
+                    } elseif (str_contains($tipoAbono, 'dep') || str_contains($tipoAbono, 'banc')) {
+                        $metodoPago = 'Depósito Bancario';
+                    } elseif (str_contains($tipoAbono, 'cheq')) {
+                        $metodoPago = 'Cheque';
+                    }
+
+                    $fechaTransfParsed = !empty($fechaTransferencia) ? $this->parsearFecha($fechaTransferencia) : ($metodoPago !== 'Efectivo' ? $fechaPagoParsed : null);
+
+                    // Buscar venta asociada
+                    $posiblesClaves = [
+                        strtolower("{$identificacion}_{$nombreBloque}_{$numeroLote}"),
+                        strtolower("{$identificacion}_Bloque {$nombreBloque}_{$numeroLote}"),
+                        strtolower("{$identificacion}_" . trim(str_ireplace("Bloque", "", $nombreBloque)) . "_{$numeroLote}"),
+                        strtolower("{$identificacion}_{$nombreBloque}_" . ltrim($numeroLote, '0')),
+                        strtolower("{$identificacion}_" . trim(str_ireplace("Bloque", "", $nombreBloque)) . "_" . ltrim($numeroLote, '0')),
+                    ];
+
+                    $idVenta = null;
+                    foreach ($posiblesClaves as $k) {
+                        if (isset($mapeoVentas[$k])) {
+                            $idVenta = $mapeoVentas[$k];
+                            break;
+                        }
+                    }
+
+                    if (!$idVenta) {
+                        $advertencias[] = "[Abonos F{$numFila}] No se encontró contrato para Cédula: {$identificacion}, Bloque: {$nombreBloque}, Lote: {$numeroLote}. Abono omitido.";
+                        continue;
+                    }
+
+                    $datosRecibo = Abono::generarSiguienteNumeroRecibo($lotificacion->id);
+                    $codRecibo = !empty($pvNum) ? "PV-{$pvNum}" : (!empty($referencia) ? $referencia : $datosRecibo["codigo_recibo"]);
+
+                    Abono::create([
+                        "id_venta"            => $idVenta,
+                        "fecha_pago"          => $fechaPagoParsed,
+                        "monto_abonado"       => $monto,
+                        "tipo_pago"           => "Cuota",
+                        "metodo_pago"         => $metodoPago,
+                        "referencia"          => !empty($referencia) ? $referencia : (!empty($pvNum) ? "PV-{$pvNum}" : null),
+                        "cuenta_destino"      => !empty($cuentaDestino) ? $cuentaDestino : null,
+                        "fecha_transferencia" => $fechaTransfParsed,
+                        "comentario"          => !empty($observaciones) ? $observaciones : null,
+                        "numero_recibo"       => $datosRecibo["numero_recibo"],
+                        "codigo_recibo"       => $codRecibo,
+                        "es_migracion"        => true,
+                    ]);
+
+                    $resumen["pagos"]++;
+                }
+            }
+
+            if (!empty($errores)) {
+                DB::rollBack();
+                return $this->respuestaResultado($errores, $advertencias, $resumen, $modo, false, $lotificacion->id);
+            }
+
+            if ($modo === "importar") {
+                DB::commit();
+            } else {
+                DB::rollBack();
+            }
+
+            return $this->respuestaResultado($errores, $advertencias, $resumen, $modo, true, $lotificacion->id);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("Importación Formato La Campana falló: " . $e->getMessage() . " en " . $e->getFile() . " L#" . $e->getLine());
+            return back()->with("error", "Error durante la importación: " . $e->getMessage());
         }
     }
 
@@ -1058,8 +1471,16 @@ class ImportacionController extends Controller
             'expediente_num', 'expediente', 'nombres_apellidos', 'nombre', 'identificacion',
             'identificacion_cliente', 'nombre_bloque', 'bloque', 'numero_lote', 'lote',
             'fecha_venta', 'precio_final', 'plazo_meses', 'cuota_mensual', 'estado_contrato',
-            'fecha_pago', 'monto_abonado', 'tipo_pago', 'area_metros', 'precio_base'
+            'fecha_pago', 'monto_abonado', 'tipo_pago', 'area_metros', 'precio_base',
+            'nombre_del_cliente', 'n_de_identificacion', 'n_telefono', 'n_bloque', 'n_lote',
+            'cantidad_lotes', 'monto_lote', 'plazo_cuotas', 'monto_cuota', 'abono_actual', 'saldo',
+            'n_pv', 'abonocancelacion', 'observaciones', 'tipo_abono', 'id_transferencia',
+            'fecha_transferencia', 'a_la_cuenta_de', 'reciboanulado', 'rechazadoxbanco', 'cedula'
         ];
+
+        $normalizarEncabezado = function($txt) {
+            return strtolower(trim(preg_replace('/_+/', '_', preg_replace('/[^A-Za-z0-9]/', '_', trim((string)$txt))), '_'));
+        };
 
         foreach ($sheet->sheetData->row as $row) {
             $rowData = [];
@@ -1093,22 +1514,22 @@ class ImportacionController extends Controller
 
             // Detección inteligente de fila de encabezados:
             if (empty($header)) {
-                $filaTexto = array_map(fn($v) => strtolower(str_replace([' ', '-'], '_', trim($v))), $rowData);
+                $filaTexto = array_map($normalizarEncabezado, $rowData);
                 $coincidencias = count(array_intersect($filaTexto, $palabrasClaveEncabezado));
 
                 // Si tiene al menos 2 columnas que coinciden con los nombres de campos estándar:
                 if ($coincidencias >= 2) {
                     foreach ($rowData as $col => $enc) {
-                        $header[$col] = strtolower(str_replace([" ", "-"], "_", trim($enc)));
+                        $header[$col] = $normalizarEncabezado($enc);
                     }
                     continue;
                 }
 
                 // O si es la primera fila con más de 3 celdas no vacías y no es banner:
                 $primeraCelda = strtolower(reset($rowData) ?: '');
-                if (!str_starts_with($primeraCelda, 'hoja') && !str_starts_with($primeraCelda, 'guia') && count($rowData) >= 4) {
+                if (!str_starts_with($primeraCelda, 'hoja') && !str_starts_with($primeraCelda, 'guia') && !str_starts_with($primeraCelda, 'lotes colocados') && count($rowData) >= 4) {
                     foreach ($rowData as $col => $enc) {
-                        $header[$col] = strtolower(str_replace([" ", "-"], "_", trim($enc)));
+                        $header[$col] = $normalizarEncabezado($enc);
                     }
                     continue;
                 }

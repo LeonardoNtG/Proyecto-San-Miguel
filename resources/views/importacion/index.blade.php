@@ -10,12 +10,15 @@
             <i class="fas fa-file-import text-primary me-2"></i> Importación Masiva de Clientes
         </h1>
         <p class="text-muted small mb-0">
-            Migración de cartera histórica desde sistema anterior &middot; Formato Excel (.xlsx)
+            Migración de cartera histórica y contratos &middot; Soporte Multi-Formato Excel (.xlsx)
         </p>
     </div>
-    <div>
-        <a href="{{ route('importacion.plantilla') }}" class="btn btn-success btn-sm shadow-sm">
-            <i class="fas fa-file-excel me-1"></i> Descargar Plantilla Excel
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ route('importacion.plantilla_campana') }}" class="btn btn-success btn-sm shadow-sm">
+            <i class="fas fa-file-excel me-1"></i> Descargar Formato La Campana (2 Hojas)
+        </a>
+        <a href="{{ route('importacion.plantilla') }}" class="btn btn-outline-primary btn-sm shadow-sm bg-white">
+            <i class="fas fa-file-excel text-primary me-1"></i> Plantilla Estándar ERP (4 Hojas)
         </a>
     </div>
 </div>
@@ -117,7 +120,7 @@
         <div class="alert alert-success d-flex align-items-center justify-content-between flex-wrap gap-3 mt-3 shadow-sm border-0">
             <div>
                 <div class="font-weight-bold"><i class="fas fa-check-double me-1"></i> ¡El archivo pasó todas las validaciones!</div>
-                <div class="small">Vuelve a seleccionar el archivo y pulsa <strong>Importar Definitivamente</strong> para guardar los datos.</div>
+                <div class="small">Vuelve a seleccionar el archivo, elige <strong>"2° Importar Definitivamente"</strong> y pulsa Procesar para guardar los datos.</div>
             </div>
         </div>
         @endif
@@ -134,12 +137,31 @@
     </div>
     <div class="card-body">
         <div class="alert alert-info border-0 shadow-sm mb-4">
-            <div class="font-weight-bold mb-2"><i class="fas fa-info-circle me-1"></i> Instrucciones de migración:</div>
-            <ul class="mb-0 small pl-3">
-                <li>Asegúrate de que los <strong>Bloques</strong> del proyecto ya existan registrados en el sistema.</li>
-                <li>El archivo debe contener las hojas: <code>CLIENTES_CONTRATOS</code>, <code>HISTORIAL_PAGOS</code> y opcionalmente <code>CATALOGO_LOTES</code>.</li>
-                <li>Recomendamos ejecutar primero en modo <strong>"1° Solo Validar"</strong> para revisar que no haya incongruencias antes de guardar.</li>
-            </ul>
+            <div class="font-weight-bold mb-2"><i class="fas fa-info-circle me-1"></i> Formatos aceptados por el sistema:</div>
+            <div class="row">
+                <div class="col-md-6 mb-2">
+                    <div class="p-2 rounded bg-white border">
+                        <strong class="text-success"><i class="fas fa-check-circle me-1"></i> Opción A: Cartera La Campana (2 Hojas)</strong>
+                        <ul class="small mb-0 pl-3 mt-1 text-muted">
+                            <li>Hoja 1: <code>LISTA OFICIAL</code> (Clientes, Lote, Plazo, Cuota, Saldo).</li>
+                            <li>Hoja 2: <code>ABONOS</code> (Historial de pagos, recibos, transferencias).</li>
+                            <li>El sistema autogenera expedientes, planes de cuotas y fechas.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <div class="p-2 rounded bg-white border">
+                        <strong class="text-primary"><i class="fas fa-check-circle me-1"></i> Opción B: Plantilla Estándar ERP (4 Hojas)</strong>
+                        <ul class="small mb-0 pl-3 mt-1 text-muted">
+                            <li>Hojas: <code>CLIENTES_CONTRATOS</code>, <code>HISTORIAL_PAGOS</code>, <code>CATALOGO_LOTES</code>.</li>
+                            <li>Permite especificar campos adicionales de clientes y beneficiarios.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="small text-muted mt-2">
+                <i class="fas fa-shield-alt text-primary me-1"></i> <strong>Aislamiento de seguridad:</strong> Los datos se importarán <em>únicamente</em> en el Proyecto Destino seleccionado sin alterar otros proyectos de lotificación.
+            </div>
         </div>
 
         <form method="POST" action="{{ route('importacion.procesar') }}" enctype="multipart/form-data" id="formImportacion">
@@ -159,15 +181,18 @@
                     </select>
                 </div>
 
-                <div class="col-md-5 mb-3">
-                    <label class="font-weight-bold small text-gray-700" for="inp_archivo">
-                        <i class="fas fa-file-excel text-success me-1"></i> Archivo Excel (.xlsx):
+                <div class="col-md-4 mb-3">
+                    <label class="font-weight-bold small text-gray-700" for="sel_formato">
+                        <i class="fas fa-layer-group text-info me-1"></i> Formato de Excel:
                     </label>
-                    <input type="file" name="archivo" id="inp_archivo" class="form-control-file border p-1 rounded w-100 bg-light" accept=".xlsx,.xls,.ods" required>
-                    <small class="text-muted">Formato .xlsx de Excel (Máximo 20 MB).</small>
+                    <select name="formato" id="sel_formato" class="form-control">
+                        <option value="auto" selected>✨ Detección Automática (Recomendado)</option>
+                        <option value="campana">📁 Formato La Campana (2 Hojas: LISTA OFICIAL + ABONOS)</option>
+                        <option value="estandar">📊 Formato Estándar ERP (4 Hojas)</option>
+                    </select>
                 </div>
 
-                <div class="col-md-3 mb-3">
+                <div class="col-md-4 mb-3">
                     <label class="font-weight-bold small text-gray-700">
                         <i class="fas fa-cog text-secondary me-1"></i> Modo de Ejecución:
                     </label>
@@ -185,6 +210,14 @@
                             </label>
                         </div>
                     </div>
+                </div>
+
+                <div class="col-12 mb-3">
+                    <label class="font-weight-bold small text-gray-700" for="inp_archivo">
+                        <i class="fas fa-file-excel text-success me-1"></i> Archivo Excel (.xlsx):
+                    </label>
+                    <input type="file" name="archivo" id="inp_archivo" class="form-control-file border p-2 rounded w-100 bg-light" accept=".xlsx,.xls,.ods" required>
+                    <small class="text-muted">Selecciona tu archivo de Excel (.xlsx). Máximo 20 MB.</small>
                 </div>
             </div>
 

@@ -222,6 +222,7 @@ Route::middleware(['auth'])->group(function () {
         // Importación Masiva de Clientes
         Route::get('importacion', [ImportacionController::class, 'index'])->name('importacion.index');
         Route::get('importacion/plantilla', [ImportacionController::class, 'descargarPlantilla'])->name('importacion.plantilla');
+        Route::get('importacion/plantilla-campana', [ImportacionController::class, 'descargarPlantillaCampana'])->name('importacion.plantilla_campana');
         Route::post('importacion/procesar', [ImportacionController::class, 'procesar'])->name('importacion.procesar');
 
         // Gestión del Sistema
