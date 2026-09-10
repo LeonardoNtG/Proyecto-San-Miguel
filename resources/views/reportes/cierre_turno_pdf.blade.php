@@ -27,7 +27,7 @@
         left: 0;
         right: 0;
         text-align: center;
-        opacity: 0.45;
+        opacity: 0.40;
         z-index: -1000;
     }
     .watermark img {
@@ -112,7 +112,7 @@
 
     /* BARRAS DE SECCIÓN */
     .section-header {
-        background-color: #475569;
+        background-color: rgba(71, 85, 105, 0.72);
         color: #ffffff;
         font-size: 9.5px;
         font-weight: bold;
@@ -132,14 +132,14 @@
         background-color: transparent;
     }
     .table-data th {
-        background-color: #64748b;
+        background-color: rgba(100, 116, 139, 0.65);
         color: #ffffff;
         font-size: 8.5px;
         font-weight: bold;
         text-transform: uppercase;
         letter-spacing: 0.3px;
         padding: 5px 6px;
-        border: 1px solid #475569;
+        border: 1px solid rgba(71, 85, 105, 0.4);
         text-align: left;
     }
     .table-data td {
@@ -177,13 +177,13 @@
         background-color: transparent;
     }
     .summary-table th {
-        background-color: #475569;
+        background-color: rgba(71, 85, 105, 0.72);
         color: #ffffff;
         font-size: 8.5px;
         font-weight: bold;
         text-transform: uppercase;
         padding: 5px 8px;
-        border: 1px solid #334155;
+        border: 1px solid rgba(51, 65, 85, 0.4);
     }
     .summary-table td {
         padding: 4px 8px;
