@@ -4,6 +4,8 @@
  * Acceso directo vía navegador: https://proyectosanmiguel.com/AMSAsystem/limpiar.php
  */
 
+@set_time_limit(180);
+@ini_set('memory_limit', '512M');
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -60,56 +62,55 @@ try {
             $migrationOutput = "Aviso al migrar: " . $e->getMessage();
         }
 
-        // 4. Asegurar columnas de compatibilidad (por si hay archivos antiguos en servidor)
-        if (\Illuminate\Support\Facades\Schema::hasTable('historial_lotes')) {
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('historial_lotes', 'motivo_liberacion')) {
-                \Illuminate\Support\Facades\Schema::table('historial_lotes', function (\Illuminate\Database\Schema\Blueprint $table) {
-                    $table->text('motivo_liberacion')->nullable()->after('observaciones');
-                });
-                $columnFixes[] = "✔ Agregada columna de compatibilidad 'motivo_liberacion' a la tabla 'historial_lotes'.";
-            }
-        }
-        if (\Illuminate\Support\Facades\Schema::hasTable('abonos')) {
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'comentario')) {
-                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
-                    $table->text('comentario')->nullable()->after('cuenta_destino');
-                });
-                $columnFixes[] = "✔ Agregada columna 'comentario' a la tabla 'abonos'.";
-            }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'fecha_transferencia')) {
-                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
-                    $table->date('fecha_transferencia')->nullable()->after('cuenta_destino');
-                });
-                $columnFixes[] = "✔ Agregada columna 'fecha_transferencia' a la tabla 'abonos'.";
-            }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'recibo_firmado')) {
-                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
-                    $table->string('recibo_firmado')->nullable()->after('ruta_recibo');
-                });
-                $columnFixes[] = "✔ Agregada columna 'recibo_firmado' a la tabla 'abonos'.";
-            }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'fecha_recibo_firmado')) {
-                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
-                    $table->dateTime('fecha_recibo_firmado')->nullable()->after('recibo_firmado');
-                });
-                $columnFixes[] = "✔ Agregada columna 'fecha_recibo_firmado' a la tabla 'abonos'.";
-            }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'user_recibo_firmado_id')) {
-                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
-                    $table->unsignedBigInteger('user_recibo_firmado_id')->nullable()->after('fecha_recibo_firmado');
-                });
-                $columnFixes[] = "✔ Agregada columna 'user_recibo_firmado_id' a la tabla 'abonos'.";
-            }
-            if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'es_migracion')) {
-                \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
-                    $table->boolean('es_migracion')->default(false)->after('comentario');
-                });
-                $columnFixes[] = "✔ Agregada columna 'es_migracion' a la tabla 'abonos'.";
-            }
-        }
-
-        // 4.1 Asegurar existencia de tabla configuraciones
+        // 4. Asegurar columnas y tablas de compatibilidad
         try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('historial_lotes')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('historial_lotes', 'motivo_liberacion')) {
+                    \Illuminate\Support\Facades\Schema::table('historial_lotes', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->text('motivo_liberacion')->nullable()->after('observaciones');
+                    });
+                    $columnFixes[] = "✔ Agregada columna de compatibilidad 'motivo_liberacion' a la tabla 'historial_lotes'.";
+                }
+            }
+            if (\Illuminate\Support\Facades\Schema::hasTable('abonos')) {
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'comentario')) {
+                    \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->text('comentario')->nullable()->after('cuenta_destino');
+                    });
+                    $columnFixes[] = "✔ Agregada columna 'comentario' a la tabla 'abonos'.";
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'fecha_transferencia')) {
+                    \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->date('fecha_transferencia')->nullable()->after('cuenta_destino');
+                    });
+                    $columnFixes[] = "✔ Agregada columna 'fecha_transferencia' a la tabla 'abonos'.";
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'recibo_firmado')) {
+                    \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->string('recibo_firmado')->nullable()->after('ruta_recibo');
+                    });
+                    $columnFixes[] = "✔ Agregada columna 'recibo_firmado' a la tabla 'abonos'.";
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'fecha_recibo_firmado')) {
+                    \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->dateTime('fecha_recibo_firmado')->nullable()->after('recibo_firmado');
+                    });
+                    $columnFixes[] = "✔ Agregada columna 'fecha_recibo_firmado' a la tabla 'abonos'.";
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'user_recibo_firmado_id')) {
+                    \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->unsignedBigInteger('user_recibo_firmado_id')->nullable()->after('fecha_recibo_firmado');
+                    });
+                    $columnFixes[] = "✔ Agregada columna 'user_recibo_firmado_id' a la tabla 'abonos'.";
+                }
+                if (!\Illuminate\Support\Facades\Schema::hasColumn('abonos', 'es_migracion')) {
+                    \Illuminate\Support\Facades\Schema::table('abonos', function (\Illuminate\Database\Schema\Blueprint $table) {
+                        $table->boolean('es_migracion')->default(false)->after('comentario');
+                    });
+                    $columnFixes[] = "✔ Agregada columna 'es_migracion' a la tabla 'abonos'.";
+                }
+            }
+
             if (!\Illuminate\Support\Facades\Schema::hasTable('configuraciones')) {
                 \Illuminate\Support\Facades\Schema::create('configuraciones', function (\Illuminate\Database\Schema\Blueprint $table) {
                     $table->id();
@@ -126,7 +127,7 @@ try {
                 $columnFixes[] = "✔ Tabla 'configuraciones' creada exitosamente en la base de datos.";
             }
         } catch (\Throwable $e) {
-            // Ignorar si falla
+            $columnFixes[] = "Aviso en verificación de columnas: " . $e->getMessage();
         }
 
         // 5. Limpiar caché desde Artisan
@@ -138,300 +139,20 @@ try {
             // Ignorar si falla
         }
 
-        // 5.5 Recalcular cuotas de todas las ventas existentes para sincronizar amortización desde el final
-        try {
-            $todasVentas = \App\Models\Venta::withoutGlobalScope('lotificacion')->get();
-            foreach ($todasVentas as $v) {
-                \App\Http\Controllers\AbonoController::recalcularCuotas($v->id_venta);
+        // 5.1 Ejecución bajo demanda de recálculo masivo de contratos
+        if (isset($_GET['recalcular_todo']) && $_GET['recalcular_todo'] === '1') {
+            try {
+                $todasVentas = \App\Models\Venta::withoutGlobalScope('lotificacion')->get();
+                foreach ($todasVentas as $v) {
+                    \App\Http\Controllers\AbonoController::recalcularCuotas($v->id_venta);
+                }
+                $columnFixes[] = "✔ Cuotas recalculadas y sincronizadas exitosamente para " . $todasVentas->count() . " contratos.";
+            } catch (\Throwable $e) {
+                $columnFixes[] = "⚠ Error recalculando contratos: " . $e->getMessage();
             }
-            $columnFixes[] = "✔ Cuotas recalculadas y sincronizadas exitosamente para " . $todasVentas->count() . " contratos.";
-        } catch (\Throwable $e) {
-            // Ignorar si falla
         }
 
-        // 5.6 Auto-reparar abonos bancarios que hayan quedado con metodo_pago 'Efectivo' por desincronización
-        try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('abonos')) {
-                $abonosDesincronizados = \App\Models\Abono::where(function($q) {
-                        $q->where('metodo_pago', 'Efectivo')
-                          ->orWhere('metodo_pago', 'Deposito Bancario')
-                          ->orWhereNull('metodo_pago');
-                    })
-                    ->where(function($q) {
-                        $q->whereNotNull('cuenta_destino')
-                          ->orWhereNotNull('fecha_transferencia')
-                          ->orWhere(function($q2) {
-                              $q2->whereNotNull('referencia')
-                                 ->where('referencia', '!=', 'Pago en Efectivo')
-                                 ->where('referencia', '!=', '');
-                          });
-                    })
-                    ->get();
-
-                $reparados = 0;
-                foreach ($abonosDesincronizados as $abn) {
-                    if (empty($abn->cuenta_destino) && empty($abn->fecha_transferencia) && (empty($abn->referencia) || $abn->referencia === 'Pago en Efectivo')) {
-                        continue;
-                    }
-                    $abn->metodo_pago = 'Transferencia Bancaria';
-                    $abn->save();
-                    $reparados++;
-                }
-                if ($reparados > 0) {
-                    $columnFixes[] = "✔ Reparados {$reparados} abonos bancarios con método de pago desincronizado (incluyendo Recibo #1134).";
-                }
-            }
-        } catch (\Throwable $e) {
-            // Ignorar si falla
-        }
-
-        // 5.7 Actualizar fecha de transferencia de María Jesús Herrera al 08 de Septiembre de 2026
-        try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('abonos')) {
-                $abonosMariaJesus = \App\Models\Abono::where(function($q) {
-                        $q->where('referencia', 'like', '%14703669%')
-                          ->orWhereHas('venta.cliente', function($qc) {
-                              $qc->where('nombres_apellidos', 'like', '%MARIA JESUS HERRERA%');
-                          });
-                    })
-                    ->where('monto_abonado', 600.00)
-                    ->get();
-
-                $actualizadosMJ = 0;
-                foreach ($abonosMariaJesus as $abn) {
-                    $abn->fecha_transferencia = '2026-09-08';
-                    $abn->save();
-                    $actualizadosMJ++;
-                }
-                if ($actualizadosMJ > 0) {
-                    $columnFixes[] = "✔ Fecha de transferencia de María Jesús Herrera (Lote Q-02, $600.00) actualizada en base de datos a: 08/09/2026.";
-                }
-            }
-        } catch (\Throwable $e) {
-            // Ignorar si falla
-        }
-
-        // 5.8 Backfill lotificacion_id en rescisiones
-        try {
-            if (\Illuminate\Support\Facades\Schema::hasTable('rescisiones')) {
-                $resSinLotif = \App\Models\Rescision::withoutGlobalScopes()->whereNull('lotificacion_id')->get();
-                $actualizadasRes = 0;
-                foreach ($resSinLotif as $r) {
-                    $v = \App\Models\Venta::withoutGlobalScopes()->find($r->id_venta);
-                    if ($v && $v->lotificacion_id) {
-                        $r->lotificacion_id = $v->lotificacion_id;
-                        $r->save();
-                        $actualizadasRes++;
-                    }
-                }
-                if ($actualizadasRes > 0) {
-                    $columnFixes[] = "✔ Asignado lotificacion_id a {$actualizadasRes} rescisiones que no tenían proyecto asignado.";
-                }
-            }
-        } catch (\Throwable $e) {
-            // Ignorar si falla
-        }
-
-        // 5.9 Traspaso y corrección integral de contratos para Ermicenda (EXP-3921) y Reyna (EXP-3912)
-        try {
-            $cErm = \App\Models\Cliente::withoutGlobalScopes()
-                ->where('id_cliente', 3921)
-                ->orWhere('expediente_num', 'like', '%3921%')
-                ->orWhere('nombres_apellidos', 'like', '%ESCORCIA%')
-                ->first();
-
-            $cRey = \App\Models\Cliente::withoutGlobalScopes()
-                ->where('id_cliente', 3912)
-                ->orWhere('expediente_num', 'like', '%3912%')
-                ->orWhere('nombres_apellidos', 'like', '%REYNA%')
-                ->first();
-
-            if ($cErm && $cRey) {
-                // Actualizar datos del cliente
-                $cErm->nombres_apellidos = 'ERMICENDA DEL CARMEN ESCORCIA MAIRENA';
-                $cErm->identificacion    = '448-280566-0000B';
-                $cErm->telefono          = '50558208776';
-                $cErm->pv_num            = 'PENDERM';
-                $cErm->save();
-
-                $cRey->nombres_apellidos = 'REYNA MAIRENA SANCHEZ';
-                $cRey->identificacion    = '448-050145-0000P';
-                $cRey->telefono          = '50558208776';
-                $cRey->save();
-
-                // Buscar ventas de Ermicenda
-                $ventasErm = \App\Models\Venta::withoutGlobalScopes()
-                    ->with('lotes')
-                    ->where('id_cliente', $cErm->id_cliente)
-                    ->get();
-
-                $traspasados = 0;
-                $ventaQ1Id = null;
-                $ventaQ28Id = null;
-
-                foreach ($ventasErm as $v) {
-                    $lotesStr = $v->lotes->map(fn($l) => $l->numero_lote)->implode(',');
-                    $esLote28 = str_contains($lotesStr, '28') || str_contains($lotesStr, 'Q-28');
-                    $esLote1 = str_contains($lotesStr, '1') || str_contains($lotesStr, '01') || str_contains($lotesStr, 'Q-01') || str_contains($lotesStr, 'Q-1');
-
-                    if ($esLote28 || (!$esLote1 && $ventasErm->count() > 1)) {
-                        // Reasignar esta venta a Reyna
-                        $v->id_cliente = $cRey->id_cliente;
-                        $v->estado_contrato = 'Vigente';
-                        $v->save();
-                        $ventaQ28Id = $v->id_venta;
-                        $traspasados++;
-                    } elseif ($esLote1) {
-                        $ventaQ1Id = $v->id_venta;
-                    }
-                }
-
-                // Si no encontramos ventaQ28Id entre las de Ermicenda porque ya fue reasignada, buscar entre las de Reyna
-                if (!$ventaQ28Id) {
-                    $ventasRey = \App\Models\Venta::withoutGlobalScopes()->with('lotes')->where('id_cliente', $cRey->id_cliente)->get();
-                    foreach ($ventasRey as $v) {
-                        $lotesStr = $v->lotes->map(fn($l) => $l->numero_lote)->implode(',');
-                        if (str_contains($lotesStr, '28') || str_contains($lotesStr, 'Q-28')) {
-                            $ventaQ28Id = $v->id_venta;
-                            break;
-                        }
-                    }
-                }
-
-                // Sincronizar abonos de Ermicenda (Lote Q-01)
-                if ($ventaQ1Id) {
-                    $abonosEsperadosQ1 = [
-                        ['fecha' => '2026-05-05', 'ref' => '92',   'monto' => 100.00],
-                        ['fecha' => '2026-06-10', 'ref' => '654',  'monto' => 100.00],
-                        ['fecha' => '2026-07-13', 'ref' => '1067', 'monto' => 100.00],
-                        ['fecha' => '2026-08-08', 'ref' => '1340', 'monto' => 100.00],
-                    ];
-                    foreach ($abonosEsperadosQ1 as $abEsp) {
-                        $existe = \App\Models\Abono::where('id_venta', $ventaQ1Id)
-                            ->where(function ($q) use ($abEsp) {
-                                $q->where('referencia', $abEsp['ref'])
-                                  ->orWhere('numero_recibo', (int)$abEsp['ref'])
-                                  ->orWhere('codigo_recibo', $abEsp['ref']);
-                            })
-                            ->exists();
-                        if (!$existe) {
-                            \App\Models\Abono::create([
-                                'id_venta'       => $ventaQ1Id,
-                                'numero_recibo'  => (int)$abEsp['ref'],
-                                'codigo_recibo'  => $abEsp['ref'],
-                                'fecha_pago'     => $abEsp['fecha'],
-                                'monto_abonado'  => $abEsp['monto'],
-                                'tipo_pago'      => 'Cuota',
-                                'metodo_pago'    => 'Efectivo',
-                                'referencia'     => $abEsp['ref'],
-                                'user_id'        => 1,
-                                'es_migracion'   => true,
-                            ]);
-                        }
-                    }
-                    \App\Http\Controllers\AbonoController::recalcularCuotas($ventaQ1Id);
-                }
-
-                // Sincronizar abonos de Reyna para Lote Q-28
-                if ($ventaQ28Id) {
-                    $abonosEsperadosQ28 = [
-                        ['fecha' => '2026-05-06', 'ref' => '108', 'monto' => 100.00],
-                        ['fecha' => '2026-06-10', 'ref' => '653', 'monto' => 100.00],
-                    ];
-                    foreach ($abonosEsperadosQ28 as $abEsp) {
-                        $existe = \App\Models\Abono::where('id_venta', $ventaQ28Id)
-                            ->where(function ($q) use ($abEsp) {
-                                $q->where('referencia', $abEsp['ref'])
-                                  ->orWhere('numero_recibo', (int)$abEsp['ref'])
-                                  ->orWhere('codigo_recibo', $abEsp['ref']);
-                            })
-                            ->exists();
-                        if (!$existe) {
-                            \App\Models\Abono::create([
-                                'id_venta'       => $ventaQ28Id,
-                                'numero_recibo'  => (int)$abEsp['ref'],
-                                'codigo_recibo'  => $abEsp['ref'],
-                                'fecha_pago'     => $abEsp['fecha'],
-                                'monto_abonado'  => $abEsp['monto'],
-                                'tipo_pago'      => 'Cuota',
-                                'metodo_pago'    => 'Efectivo',
-                                'referencia'     => $abEsp['ref'],
-                                'user_id'        => 1,
-                                'es_migracion'   => true,
-                            ]);
-                        }
-                    }
-                    \App\Http\Controllers\AbonoController::recalcularCuotas($ventaQ28Id);
-                }
-
-                // Recalcular todos los contratos de Reyna
-                $ventasReynaTotales = \App\Models\Venta::withoutGlobalScopes()->where('id_cliente', $cRey->id_cliente)->get();
-                foreach ($ventasReynaTotales as $vR) {
-                    \App\Http\Controllers\AbonoController::recalcularCuotas($vR->id_venta);
-                }
-
-                $columnFixes[] = "✔ Traspaso completado: Lote Q-28 trasladado exitosamente a Reyna Mairena Sánchez (EXP-3912). Ermicenda (EXP-3921) ahora posee únicamente Lote Q-01.";
-            }
-        } catch (\Throwable $e) {
-            $columnFixes[] = "⚠ Error al traspasar Q-28: " . $e->getMessage();
-        }
-
-        // 5.10 Auditoría detallada de inventario de lotes
-        $auditoriaLotes = [];
-        try {
-            $lotificacionesList = \App\Models\Lotificacion::all();
-            foreach ($lotificacionesList as $lotif) {
-                $bloques = \App\Models\Bloque::withoutGlobalScope('lotificacion')
-                    ->where('lotificacion_id', $lotif->id)
-                    ->with(['lotes' => function($q) {
-                        $q->withoutGlobalScope('lotificacion')->orderBy('id_lote');
-                    }])
-                    ->orderBy('nombre')
-                    ->get();
-
-                $totalLotesLotif = 0;
-                $detallesBloques = [];
-                $duplicados = [];
-                $lotesEspeciales = [];
-
-                foreach ($bloques as $b) {
-                    $cant = $b->lotes->count();
-                    $totalLotesLotif += $cant;
-                    
-                    $lotesNums = $b->lotes->pluck('numero_lote')->toArray();
-                    $conteoNums = array_count_values(array_map('strval', $lotesNums));
-                    foreach ($conteoNums as $num => $rep) {
-                        if ($rep > 1) {
-                            $duplicados[] = "Bloque {$b->nombre} tiene el Lote {$num} repetido {$rep} veces";
-                        }
-                    }
-
-                    // Chequear si hay lotes no numéricos o especiales (0, Área Verde, etc.)
-                    foreach ($b->lotes as $lt) {
-                        if (!is_numeric($lt->numero_lote) || (int)$lt->numero_lote === 0) {
-                            $lotesEspeciales[] = "Bloque {$b->nombre} - Lote: '{$lt->numero_lote}' (ID: {$lt->id_lote})";
-                        }
-                    }
-
-                    $detallesBloques[] = "Bloque {$b->nombre}: <strong>{$cant} lotes</strong> (" . implode(', ', array_slice($lotesNums, 0, 3)) . " ... " . end($lotesNums) . ")";
-                }
-
-                $auditoriaLotes[] = [
-                    'proyecto' => $lotif->nombre,
-                    'proyecto_id' => $lotif->id,
-                    'total_lotes' => $totalLotesLotif,
-                    'bloques' => $detallesBloques,
-                    'duplicados' => $duplicados,
-                    'lotes_especiales' => $lotesEspeciales
-                ];
-            }
-        } catch (\Throwable $e) {
-            $auditoriaLotes = [
-                ['proyecto' => 'Error', 'total_lotes' => 0, 'bloques' => [$e->getMessage()], 'duplicados' => [], 'lotes_especiales' => []]
-            ];
-        }
-
-        $campanaCleanReport = null;
+        // 5.2 Limpieza bajo demanda de Clientes de La Campana
         if (isset($_GET['limpiar_campana']) && $_GET['limpiar_campana'] === '1') {
             try {
                 \Illuminate\Support\Facades\DB::beginTransaction();
@@ -496,7 +217,66 @@ try {
             }
         }
 
-        // 6. Verificar tablas críticas
+        // 6. Auditoría detallada de inventario de lotes
+        $auditoriaLotes = [];
+        try {
+            $lotificacionesList = \App\Models\Lotificacion::all();
+            foreach ($lotificacionesList as $lotif) {
+                $bloques = \App\Models\Bloque::withoutGlobalScope('lotificacion')
+                    ->where('lotificacion_id', $lotif->id)
+                    ->with(['lotes' => function($q) {
+                        $q->withoutGlobalScope('lotificacion')->orderBy('id_lote');
+                    }])
+                    ->orderBy('nombre')
+                    ->get();
+
+                $totalLotesLotif = 0;
+                $detallesBloques = [];
+                $duplicados = [];
+                $lotesEspeciales = [];
+
+                foreach ($bloques as $b) {
+                    $cant = $b->lotes->count();
+                    $totalLotesLotif += $cant;
+                    
+                    $lotesNums = $b->lotes->pluck('numero_lote')->toArray();
+                    $conteoNums = array_count_values(array_map('strval', $lotesNums));
+                    foreach ($conteoNums as $num => $rep) {
+                        if ($rep > 1) {
+                            $duplicados[] = "Bloque {$b->nombre} tiene el Lote {$num} repetido {$rep} veces";
+                        }
+                    }
+
+                    // Chequear si hay lotes no numéricos o especiales
+                    foreach ($b->lotes as $lt) {
+                        if (!is_numeric($lt->numero_lote) || (int)$lt->numero_lote === 0) {
+                            $lotesEspeciales[] = "Bloque {$b->nombre} - Lote: '{$lt->numero_lote}' (ID: {$lt->id_lote})";
+                        }
+                    }
+
+                    $prim = !empty($lotesNums) ? implode(', ', array_slice($lotesNums, 0, 3)) : 'Sin lotes';
+                    $ult = !empty($lotesNums) ? end($lotesNums) : '';
+                    $rango = !empty($ult) ? "({$prim} ... {$ult})" : "({$prim})";
+
+                    $detallesBloques[] = "Bloque {$b->nombre}: <strong>{$cant} lotes</strong> {$rango}";
+                }
+
+                $auditoriaLotes[] = [
+                    'proyecto' => $lotif->nombre,
+                    'proyecto_id' => $lotif->id,
+                    'total_lotes' => $totalLotesLotif,
+                    'bloques' => $detallesBloques,
+                    'duplicados' => $duplicados,
+                    'lotes_especiales' => $lotesEspeciales
+                ];
+            }
+        } catch (\Throwable $e) {
+            $auditoriaLotes = [
+                ['proyecto' => 'Error al auditar', 'total_lotes' => 0, 'bloques' => [$e->getMessage()], 'duplicados' => [], 'lotes_especiales' => []]
+            ];
+        }
+
+        // 7. Verificar tablas críticas
         $tablesToVerify = ['users', 'lotificaciones', 'lotificacion_user', 'clientes', 'ventas', 'cuotas', 'abonos', 'historial_lotes', 'apertura_cajas', 'cierre_cajas', 'salidas', 'configuraciones', 'rescisiones', 'cuentas_bancarias'];
         foreach ($tablesToVerify as $t) {
             try {
@@ -515,7 +295,7 @@ try {
     $dbStatus = "❌ Error en el arranque de Laravel: " . $e->getMessage() . " (" . $e->getFile() . " L#" . $e->getLine() . ")";
 }
 
-// 7. Leer los últimos errores con detalle de storage/logs/laravel.log
+// 8. Leer los últimos errores con detalle de storage/logs/laravel.log
 $logFile = $baseDir . '/storage/logs/laravel.log';
 if (file_exists($logFile)) {
     $content = file_get_contents($logFile);
@@ -575,8 +355,8 @@ if (file_exists($logFile)) {
         <div>
             <a href="./inicio" class="btn">🚀 Probar Inicio (/inicio)</a>
             <a href="./registro" class="btn" style="background: #059669;">👥 Probar Clientes (/registro)</a>
-            <a href="./abonos/11/imprimir" class="btn" style="background: #7c3aed;">🖨️ Ver Recibo 11</a>
-            <a href="./limpiar.php?limpiar_campana=1" class="btn" style="background: #dc2626;" onclick="return confirm('¿Seguro que desea resetear clientes y contratos SOLO de La Campana manteniendo el inventario de lotes?');">🧹 Limpiar Clientes de La Campana</a>
+            <a href="./limpiar.php?recalcular_todo=1" class="btn" style="background: #7c3aed;">🔄 Recalcular Todo</a>
+            <a href="./limpiar.php" class="btn" style="background: #475569;">🔄 Reejecutar Diagnóstico</a>
         </div>
 
         <?php
@@ -586,7 +366,7 @@ if (file_exists($logFile)) {
             try {
                 if (class_exists(\App\Http\Controllers\AbonoController::class)) {
                     $ac = new \App\Http\Controllers\AbonoController();
-                    $ref = new \ReflectionMethod($ac, 'convertirMontoALetras');
+                    $ref = new \ReflectionMethod($ac, 'numeroALetras');
                     $ref->setAccessible(true);
                     $pruebaLetras = $ref->invoke($ac, 150.00);
                 }
@@ -599,7 +379,6 @@ if (file_exists($logFile)) {
             <p style="margin: 0; font-size: 0.9rem;">Ruta base: <code><?= htmlspecialchars($baseDir) ?></code></p>
             <p style="margin: 0; font-size: 0.9rem;">Última modificación de AbonoController.php: <strong><?= $abonoCtrlDate ?></strong></p>
             <p style="margin: 0; font-size: 0.9rem;">Resultado de convertir 150.00: <strong style="color: #4ade80;">"<?= htmlspecialchars($pruebaLetras) ?>"</strong></p>
-        </div>    <a href="./limpiar.php" class="btn" style="background: #475569;">🔄 Reejecutar Diagnóstico</a>
         </div>
     </div>
 
