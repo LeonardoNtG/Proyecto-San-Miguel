@@ -266,6 +266,17 @@
     .center-col {
         text-align: center;
     }
+    
+    /* REGLAS DE PAGINACIÓN */
+    tr {
+        page-break-inside: avoid;
+    }
+    .signatures-table {
+        page-break-inside: avoid;
+    }
+    .section-header {
+        page-break-after: avoid;
+    }
 </style>
 </head>
 <body>
