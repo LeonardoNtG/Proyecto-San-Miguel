@@ -162,7 +162,7 @@ class ReportesController extends Controller
         $rawEfectivo = [];
         $rawTransferencias = [];
         $totalEfectivo = 0.0;
-        $totalTransferencias = 0.0;cias = 0.0;
+        $totalTransferencias = 0.0;
 
         foreach ($abonos as $abono) {
             $cliente = $abono->venta && $abono->venta->cliente ? $abono->venta->cliente->nombres_apellidos : 'Cliente Desconocido';
