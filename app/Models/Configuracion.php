@@ -250,6 +250,13 @@ class Configuracion extends Model
                         'label' => 'Plazo Máximo de Financiamiento (Meses)',
                         'descripcion' => 'Número máximo de cuotas mensuales permitidas al crear un contrato.',
                     ],
+                    'permitir_traspaso_contratos' => [
+                        'clave' => 'permitir_traspaso_contratos',
+                        'tipo' => 'boolean',
+                        'default' => false,
+                        'label' => 'Habilitar Traspaso / Cesión de Contratos',
+                        'descripcion' => 'Permite transferir o ceder un contrato y sus pagos a otro cliente desde el expediente. Por defecto está deshabilitada y oculta para proteger la integridad operativa.',
+                    ],
                 ]
             ],
 

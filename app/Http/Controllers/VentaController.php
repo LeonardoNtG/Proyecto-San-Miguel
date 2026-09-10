@@ -539,6 +539,12 @@ class VentaController extends Controller
         DB::beginTransaction();
         try {
             $venta = Venta::withoutGlobalScope('lotificacion')->with(['cliente', 'lotes.bloque', 'abonos'])->findOrFail($id_venta);
+
+            $habilitado = (bool) setting('permitir_traspaso_contratos', false, $venta->lotificacion_id);
+            if (!$habilitado && (!auth()->check() || !auth()->user()->hasRole('Administrador'))) {
+                return back()->with('error', 'La función de traspaso de contratos se encuentra deshabilitada en la configuración de este proyecto. Un Administrador debe habilitarla desde el módulo de Parámetros del Sistema.');
+            }
+
             $clienteOrigen = $venta->cliente;
 
             $termino = trim((string)$request->cliente_destino);

@@ -82,12 +82,14 @@
                 @endif
                 
                 @if($venta && $venta->estado_contrato !== 'Rescindido')
-                <button type="button" class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#traspasarModal" title="Traspasar o ceder este contrato a otro cliente">
-                    <i class="fas fa-exchange-alt me-1"></i> Traspasar Contrato
-                </button>
-                <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#rescindirModal">
-                    <i class="fas fa-ban"></i> Rescindir Venta
-                </button>
+                    @if(setting('permitir_traspaso_contratos', false, $venta->lotificacion_id))
+                    <button type="button" class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#traspasarModal" title="Traspasar o ceder este contrato a otro cliente">
+                        <i class="fas fa-exchange-alt me-1"></i> Traspasar Contrato
+                    </button>
+                    @endif
+                    <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#rescindirModal">
+                        <i class="fas fa-ban"></i> Rescindir Venta
+                    </button>
                 @endif
             </div>
         </div>
@@ -570,7 +572,7 @@
     </div>
 
     {{-- Modal de Traspaso / Cesión de Contrato --}}
-    @if($venta && $venta->estado_contrato !== 'Rescindido')
+    @if($venta && $venta->estado_contrato !== 'Rescindido' && setting('permitir_traspaso_contratos', false, $venta->lotificacion_id))
     <div class="modal fade" id="traspasarModal" tabindex="-1" aria-labelledby="traspasarModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content shadow border-0">
