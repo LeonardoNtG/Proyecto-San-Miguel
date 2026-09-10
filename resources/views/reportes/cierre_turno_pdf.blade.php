@@ -2,339 +2,503 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Reporte de Cierre de Turno</title>
+<title>Reporte de Cierre de Caja</title>
 <style>
-    @page { margin: 25px 30px; }
+    @page {
+        margin: 22px 28px;
+        size: letter portrait;
+    }
+    * {
+        box-sizing: border-box;
+    }
     body {
-        font-family: 'DejaVu Sans', Arial, sans-serif;
-        color: #2e2e2e;
-        font-size: 11px;
-    }
-    .header-table {
-        width: 100%;
-        margin-bottom: 20px;
-    }
-    .header-table td {
-        vertical-align: middle;
-    }
-    .logo-container {
-        width: 25%;
-    }
-    .logo-container img {
-        width: 100px;
-    }
-    .title-container {
-        width: 75%;
-        text-align: right;
-        background-color: #d8e4fc;
-        padding: 10px;
-        border-radius: 4px;
-    }
-    .title-container h1 {
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        color: #1e293b;
+        font-size: 9.5px;
+        line-height: 1.35;
         margin: 0;
-        font-size: 18px;
-        color: #1c3666;
-        text-transform: uppercase;
+        padding: 0;
     }
-    .title-container h2 {
-        margin: 5px 0 0;
-        font-size: 14px;
-        color: #2e2e2e;
-    }
-    .title-container .timestamp {
-        font-size: 10px;
-        font-style: italic;
-        color: #1c3666;
-        margin-top: 5px;
-    }
-    
-    .summary-section {
-        width: 100%;
-        margin-bottom: 20px;
-        text-align: right;
-    }
-    .summary-table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-    .summary-table td {
-        padding: 2px 0;
-        font-size: 11px;
-    }
-    .summary-label {
-        font-weight: bold;
-        color: #1c3666;
-        text-align: right;
-        width: 80%;
-    }
-    .summary-value {
-        font-weight: bold;
-        color: #000;
-        text-align: right;
-        width: 20%;
-    }
-    
-    .table-title {
-        font-weight: bold;
-        font-size: 11px;
-        font-style: italic;
-        color: #6a1b9a;
-        margin-bottom: 5px;
-        text-transform: uppercase;
-    }
-    
-    .data-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-bottom: 20px;
-        border: 1px solid #333;
-    }
-    .data-table th {
-        border-bottom: 1px solid #333;
-        padding: 6px;
-        text-align: left;
-        font-size: 10px;
-        color: #666;
-        font-weight: bold;
-    }
-    .data-table td {
-        padding: 5px 6px;
-        font-size: 10px;
-        border-bottom: 1px solid #eee;
-    }
-    .data-table .num-col {
-        text-align: right;
-    }
-    .data-table .total-row td {
-        font-weight: bold;
-        color: #1c3666;
-        border-top: 1px solid #333;
-        border-bottom: none;
-    }
-    
-    .signatures {
-        width: 100%;
-        margin-top: 60px;
-    }
-    .signatures td {
-        width: 50%;
-        text-align: center;
-        font-weight: bold;
-        font-size: 11px;
-    }
-    .signatures .line {
-        border-top: 1px solid #000;
-        width: 70%;
-        margin: 0 auto 5px auto;
-    }
-    
+
+    /* MARCA DE AGUA CORPORATIVA DISCRETA */
     .watermark {
         position: fixed;
-        top: 28%;
+        top: 25%;
         left: 0;
         right: 0;
-        width: 100%;
         text-align: center;
-        opacity: 0.30;
+        opacity: 0.045;
         z-index: -1000;
     }
     .watermark img {
-        width: 360px;
+        width: 380px;
         height: auto;
+    }
+
+    /* ENCABEZADO INSTITUCIONAL */
+    .header-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 14px;
+        table-layout: fixed;
+    }
+    .header-table td {
+        vertical-align: middle;
+        padding: 0;
+    }
+    .logo-box {
+        width: 130px;
+        height: 60px;
+        border: 1px dashed #cbd5e1;
+        border-radius: 4px;
+        text-align: center;
+        vertical-align: middle;
+        background-color: #ffffff;
+        padding: 4px;
+    }
+    .logo-box img {
+        max-width: 120px;
+        max-height: 52px;
+        object-fit: contain;
+    }
+    .logo-placeholder {
+        font-size: 8.5px;
+        font-weight: bold;
+        color: #64748b;
+        letter-spacing: 0.5px;
+        line-height: 14px;
+        padding-top: 14px;
+    }
+    .header-title-td {
+        padding-left: 14px;
+        text-align: left;
+    }
+    .doc-main-title {
+        font-size: 16px;
+        font-weight: 800;
+        color: #0f172a;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0 0 3px 0;
+    }
+    .doc-meta {
+        font-size: 9.5px;
+        color: #334155;
+        margin: 1px 0;
+    }
+    .doc-meta strong {
+        color: #0f172a;
+    }
+    .report-number-box {
+        width: 135px;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        background-color: #f8fafc;
+        text-align: center;
+        padding: 6px 4px;
+    }
+    .report-number-label {
+        font-size: 8px;
+        text-transform: uppercase;
+        color: #64748b;
+        font-weight: bold;
+        letter-spacing: 0.4px;
+        margin-bottom: 2px;
+    }
+    .report-number-code {
+        font-size: 11.5px;
+        font-weight: 800;
+        color: #0f172a;
+        letter-spacing: 0.5px;
+    }
+
+    /* BARRAS DE SECCIÓN */
+    .section-header {
+        background-color: #1e3a5f;
+        color: #ffffff;
+        font-size: 9.5px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 5px 8px;
+        border-radius: 3px 3px 0 0;
+        margin-top: 10px;
+    }
+
+    /* TABLAS DE DATOS */
+    .table-data {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 12px;
+        table-layout: fixed;
+    }
+    .table-data th {
+        background-color: #334e68;
+        color: #ffffff;
+        font-size: 8.5px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        padding: 5px 6px;
+        border: 1px solid #243b53;
+        text-align: left;
+    }
+    .table-data td {
+        padding: 4px 6px;
+        font-size: 8.5px;
+        border: 1px solid #e2e8f0;
+        vertical-align: middle;
+        word-wrap: break-word;
+    }
+    .table-data tr:nth-child(even) td {
+        background-color: #f8fafc;
+    }
+    .table-data .total-row td {
+        background-color: #e2e8f0 !important;
+        font-weight: bold;
+        color: #0f172a;
+        font-size: 9px;
+        border-top: 1.5px solid #94a3b8;
+        border-bottom: 1.5px solid #94a3b8;
+    }
+    .table-data .empty-row td {
+        text-align: center;
+        color: #64748b;
+        font-style: italic;
+        padding: 8px;
+        background-color: #ffffff;
+    }
+
+    /* RESUMEN FINANCIERO DEL DÍA */
+    .summary-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 12px;
+    }
+    .summary-table th {
+        background-color: #1e3a5f;
+        color: #ffffff;
+        font-size: 8.5px;
+        font-weight: bold;
+        text-transform: uppercase;
+        padding: 5px 8px;
+        border: 1px solid #102a43;
+    }
+    .summary-table td {
+        padding: 4px 8px;
+        font-size: 9px;
+        border: 1px solid #e2e8f0;
+    }
+    .summary-table tr:nth-child(even) td {
+        background-color: #f8fafc;
+    }
+    .summary-table .final-row td {
+        background-color: #e2e8f0 !important;
+        font-weight: bold;
+        color: #0f172a;
+        font-size: 10px;
+        border-top: 1.5px solid #94a3b8;
+        border-bottom: 1.5px solid #94a3b8;
+    }
+
+    /* BADGES Y FORMATOS */
+    .badge-lote {
+        font-weight: 700;
+        color: #0f172a;
+    }
+    .date-transf {
+        font-weight: 700;
+        color: #0369a1;
+    }
+    .date-pago {
+        color: #334155;
+    }
+    .ref-code {
+        font-family: 'Courier New', Courier, monospace;
+        font-weight: bold;
+        color: #0f172a;
+        font-size: 8px;
+    }
+
+    /* OBSERVACIONES */
+    .obs-container {
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        padding: 6px 8px;
+        background-color: #f8fafc;
+        min-height: 38px;
+        font-size: 8.5px;
+        color: #334155;
+        margin-bottom: 14px;
+    }
+
+    /* FIRMAS */
+    .signatures-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 22px;
+        table-layout: fixed;
+    }
+    .signatures-table td {
+        width: 50%;
+        text-align: center;
+        vertical-align: top;
+        padding: 0 20px;
+    }
+    .signature-line {
+        border-top: 1px solid #0f172a;
+        width: 80%;
+        margin: 0 auto 4px auto;
+    }
+    .signature-role {
+        font-size: 8.5px;
+        color: #64748b;
+        margin-bottom: 2px;
+    }
+    .signature-name {
+        font-size: 9.5px;
+        font-weight: bold;
+        color: #0f172a;
+        text-transform: uppercase;
+    }
+
+    .num-col {
+        text-align: right;
+    }
+    .center-col {
+        text-align: center;
     }
 </style>
 </head>
 <body>
 
+    {{-- MARCA DE AGUA --}}
     @if(!empty($logoBase64))
     <div class="watermark">
         <img src="{{ $logoBase64 }}">
     </div>
     @endif
 
+    {{-- ENCABEZADO --}}
     <table class="header-table">
         <tr>
-            <td class="logo-container" style="text-align: left; vertical-align: middle; width: 30%;">
-                @if(!empty($logoBase64))
-                    <img src="{{ $logoBase64 }}" style="max-width: 150px; max-height: 75px; object-fit: contain;">
-                @else
-                    <div style="font-size:15px; font-weight:bold; color: #1c3666;">
-                        <i style="color:#2ca02c;">LOTIFICACIÓN</i><br>
-                        {{ $lotificacionNombre ?? 'SISTEMA' }}
-                    </div>
-                @endif
+            <td style="width: 135px;">
+                <div class="logo-box">
+                    @if(!empty($logoBase64))
+                        <img src="{{ $logoBase64 }}" alt="Logo">
+                    @else
+                        <div class="logo-placeholder">
+                            {{ strtoupper($lotificacionNombre ?? 'PROYECTO') }}
+                        </div>
+                    @endif
+                </div>
             </td>
-            <td class="title-container" style="width: 70%;">
-                <h1>{{ $lotificacionNombre ?? 'LOTIFICACIÓN' }}</h1>
-                <h2>Reporte de cierre de caja - {{ $fechaFormateada }}</h2>
-                <div class="timestamp">Generado a las {{ $horaGeneracion }}</div>
+            <td class="header-title-td">
+                <div class="doc-main-title">REPORTE DE CIERRE DE CAJA</div>
+                <div class="doc-meta"><strong>Lotificación:</strong> {{ $lotificacionNombre ?? 'Nombre del Proyecto' }}</div>
+                <div class="doc-meta"><strong>Fecha:</strong> {{ $fechaTexto ?? $fechaFormateada }}</div>
+                <div class="doc-meta"><strong>Generado:</strong> {{ $horaGeneracion }}</div>
+            </td>
+            <td style="width: 140px; text-align: right;">
+                <div class="report-number-box">
+                    <div class="report-number-label">No. de reporte:</div>
+                    <div class="report-number-code">{{ $codigoReporte ?? ('CC-' . str_replace(['/', '-'], '', $fechaFormateada)) }}</div>
+                </div>
             </td>
         </tr>
     </table>
 
-    <div class="summary-section">
-        <table class="summary-table">
-            <tr>
-                <td class="summary-label" style="color:#0073e6;">Saldo anterior:</td>
-                <td class="summary-value" style="color:#0073e6;">{{ ($esProyectoSinSaldoAnterior ?? false) ? '0.00' : number_format($saldoInicial, 2) }}</td>
-            </tr>
-            <tr>
-                <td class="summary-label" style="color:#0073e6;">Abonos en efectivo:</td>
-                <td class="summary-value" style="color:#0073e6;">{{ number_format($totalEfectivo, 2) }}</td>
-            </tr>
-            <tr>
-                <td class="summary-label" style="color:#6a1b9a;">Ha ingresado a caja ({{ ($esProyectoSinSaldoAnterior ?? false) ? 'Efectivo de hoy' : 'Saldo anterior + Efectivo de hoy' }}):</td>
-                <td class="summary-value" style="color:#6a1b9a;">{{ number_format((($esProyectoSinSaldoAnterior ?? false) ? 0 : $saldoInicial) + $totalEfectivo, 2) }}</td>
-            </tr>
-            <tr>
-                <td class="summary-label" style="color:#0073e6;">Salidas de hoy:</td>
-                <td class="summary-value" style="color:#0073e6;">{{ number_format($totalSalidas, 2) }}</td>
-            </tr>
-            <tr>
-                <td class="summary-label" style="color:#0073e6;">Existencia en caja:</td>
-                <td class="summary-value" style="color:#0073e6;">{{ number_format($saldoFinalCaja, 2) }}</td>
-            </tr>
-            <tr><td colspan="2" style="height: 10px;"></td></tr>
-            <tr>
-                <td class="summary-label" style="color:#0073e6;">Abonos por transferencias:</td>
-                <td class="summary-value" style="color:#0073e6;">{{ number_format($totalTransferencias, 2) }}</td>
-            </tr>
-            <tr>
-                <td class="summary-label" style="color:#e65c00;">Monto total abonado el día de hoy (Efectivo + transferencias):</td>
-                <td class="summary-value" style="color:#e65c00;">{{ number_format($totalEfectivo + $totalTransferencias, 2) }}</td>
-            </tr>
-        </table>
+    {{-- 1. RESUMEN DEL DÍA --}}
+    <div class="section-header">
+        RESUMEN DEL DÍA
     </div>
-
-    <!-- CUADRO 1: EFECTIVO -->
-    <div class="table-title">CUADRO 1 <br> ABONOS EN EFECTIVO</div>
-    <table class="data-table">
+    <table class="summary-table">
         <thead>
             <tr>
-                <th>Nombre del Cliente</th>
-                <th>Lote(s)</th>
-                <th class="num-col">Abonado</th>
-                <th style="text-align:center;">F. Cuota / Pago</th>
-                <th>Hora</th>
-                <th>Recibo / Ref.</th>
+                <th style="width: 70%; text-align: left;">CONCEPTO</th>
+                <th style="width: 30%; text-align: right;">MONTO (U$)</th>
             </tr>
         </thead>
         <tbody>
+            <tr>
+                <td>Saldo anterior</td>
+                <td class="num-col">{{ ($esProyectoSinSaldoAnterior ?? false) ? '0.00' : number_format($saldoInicial, 2) }}</td>
+            </tr>
+            <tr>
+                <td>Ingresos en efectivo</td>
+                <td class="num-col">{{ number_format($totalEfectivo, 2) }}</td>
+            </tr>
+            <tr>
+                <td>Ingresos por transferencias / depósitos</td>
+                <td class="num-col">{{ number_format($totalTransferencias, 2) }}</td>
+            </tr>
+            <tr>
+                <td>Egresos (Salidas de caja)</td>
+                <td class="num-col">{{ number_format($totalSalidas, 2) }}</td>
+            </tr>
+            <tr class="final-row">
+                <td><strong>Saldo final en caja (Existencia en gaveta)</strong></td>
+                <td class="num-col"><strong>{{ number_format($saldoFinalCaja, 2) }}</strong></td>
+            </tr>
+            <tr>
+                <td><strong>Total abonado del día (Efectivo + Bancos)</strong></td>
+                <td class="num-col"><strong>{{ number_format($totalEfectivo + $totalTransferencias, 2) }}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+    {{-- 2. DETALLE DE ABONOS EN EFECTIVO --}}
+    <div class="section-header">
+        ABONOS EN EFECTIVO
+    </div>
+    <table class="table-data">
+        <thead>
+            <tr>
+                <th style="width: 4%;" class="center-col">#</th>
+                <th style="width: 31%;">Cliente</th>
+                <th style="width: 14%;">Lote(s)</th>
+                <th style="width: 12%;" class="num-col">Monto</th>
+                <th style="width: 16%;">Forma de pago</th>
+                <th style="width: 9%;" class="center-col">Hora</th>
+                <th style="width: 14%;">Recibo / Ref.</th>
+            </tr>
+        </thead>
+        <tbody>
+            @php $idxEf = 1; @endphp
             @forelse($abonosEfectivo as $abono)
             <tr>
-                <td>{{ $abono['cliente'] }}</td>
-                <td>{{ $abono['lotes_texto'] ?? ('Lote ' . $abono['lotes']) }}</td>
-                <td class="num-col">{{ number_format($abono['monto'], 2) }}</td>
-                <td style="text-align:center; font-weight:bold; color:#1c3666;">{{ $abono['fecha_pago'] }}</td>
-                <td>{{ $abono['hora'] }}</td>
-                <td>{{ $abono['numero_recibo'] ?? $abono['referencia'] }}</td>
+                <td class="center-col">{{ $idxEf++ }}</td>
+                <td><strong>{{ $abono['cliente'] }}</strong></td>
+                <td><span class="badge-lote">{{ $abono['lotes_texto'] ?? ('Lote ' . $abono['lotes']) }}</span></td>
+                <td class="num-col"><strong>${{ number_format($abono['monto'], 2) }}</strong></td>
+                <td>{{ $abono['metodo_pago'] ?? 'Efectivo' }}</td>
+                <td class="center-col">{{ $abono['hora'] }}</td>
+                <td><span class="ref-code">{{ $abono['numero_recibo'] ?? $abono['referencia'] }}</span></td>
             </tr>
             @empty
-            <tr>
-                <td colspan="6" style="text-align:center; font-style:italic;">No hay abonos en efectivo registrados.</td>
+            <tr class="empty-row">
+                <td colspan="7">No hay abonos en efectivo registrados.</td>
             </tr>
             @endforelse
             <tr class="total-row">
-                <td colspan="2">TOTAL REGISTRADO EN EFECTIVO</td>
-                <td class="num-col">{{ number_format($totalEfectivo, 2) }}</td>
+                <td colspan="3" style="text-align: right; text-transform: uppercase;">TOTAL EFECTIVO:</td>
+                <td class="num-col"><strong>${{ number_format($totalEfectivo, 2) }}</strong></td>
                 <td colspan="3"></td>
             </tr>
         </tbody>
     </table>
 
-    <!-- CUADRO 2: TRANSFERENCIAS -->
-    <div class="table-title">CUADRO 2 <br> TRANSFERENCIAS / DEPÓSITOS</div>
-    <table class="data-table" style="background-color: #e5e4e2;">
+    {{-- 3. DETALLE DE TRANSFERENCIAS / DEPÓSITOS --}}
+    <div class="section-header">
+        TRANSFERENCIAS / DEPÓSITOS
+    </div>
+    <table class="table-data">
         <thead>
             <tr>
-                <th>Nombre del Cliente</th>
-                <th>Lote(s)</th>
-                <th class="num-col">Abonado</th>
-                <th>F. Transf.</th>
-                <th>F. Cuota / Pago</th>
-                <th>Banco / Cuenta Destino</th>
-                <th>Ref.</th>
+                <th style="width: 4%;" class="center-col">#</th>
+                <th style="width: 25%;">Cliente</th>
+                <th style="width: 11%;">Lote(s)</th>
+                <th style="width: 11%;" class="num-col">Monto</th>
+                <th style="width: 11%;" class="center-col">F. Transf.</th>
+                <th style="width: 11%;" class="center-col">F. Registro</th>
+                <th style="width: 15%;">Banco / Cuenta destino</th>
+                <th style="width: 12%;">Referencia</th>
             </tr>
         </thead>
         <tbody>
+            @php $idxTr = 1; @endphp
             @forelse($abonosTransferencia as $abono)
             <tr>
-                <td>{{ $abono['cliente'] }}</td>
-                <td>{{ $abono['lotes_texto'] ?? ('Lote ' . $abono['lotes']) }}</td>
-                <td class="num-col">{{ number_format($abono['monto'], 2) }}</td>
-                <td style="font-weight:bold; color:#1c3666;">{{ $abono['fecha_transferencia'] }}</td>
-                <td>{{ $abono['fecha_pago'] }}</td>
-                <td>{{ $abono['cuenta_destino'] }} <span style="font-size:8px; color:#555;">({{ $abono['metodo_pago'] }})</span></td>
-                <td style="color:#6a1b9a; font-weight:bold; font-family:monospace;">{{ $abono['referencia'] }}</td>
+                <td class="center-col">{{ $idxTr++ }}</td>
+                <td><strong>{{ $abono['cliente'] }}</strong></td>
+                <td><span class="badge-lote">{{ $abono['lotes_texto'] ?? ('Lote ' . $abono['lotes']) }}</span></td>
+                <td class="num-col"><strong>${{ number_format($abono['monto'], 2) }}</strong></td>
+                <td class="center-col"><span class="date-transf">{{ $abono['fecha_transferencia'] }}</span></td>
+                <td class="center-col"><span class="date-pago">{{ $abono['fecha_pago'] }}</span></td>
+                <td>{{ $abono['cuenta_destino'] }}</td>
+                <td><span class="ref-code">{{ $abono['referencia'] }}</span></td>
             </tr>
             @empty
-            <tr>
-                <td colspan="7" style="text-align:center; font-style:italic;">No hay transferencias registradas.</td>
+            <tr class="empty-row">
+                <td colspan="8">No hay transferencias registradas.</td>
             </tr>
             @endforelse
             <tr class="total-row">
-                <td colspan="2" style="color:#1c3666;">TOTAL REGISTRADO EN TRANSFERENCIAS</td>
-                <td class="num-col" style="color:#1c3666;">{{ number_format($totalTransferencias, 2) }}</td>
+                <td colspan="3" style="text-align: right; text-transform: uppercase;">TOTAL TRANSFERENCIAS:</td>
+                <td class="num-col"><strong>${{ number_format($totalTransferencias, 2) }}</strong></td>
                 <td colspan="4"></td>
             </tr>
         </tbody>
     </table>
 
-    <!-- CUADRO 3: RESCISIONES DE CONTRATOS (INFORMATIVO) -->
-    <div class="table-title" style="color: #6a1b9a;">CUADRO 3 <br> RESCISIONES DE CONTRATOS (INFORMATIVO)</div>
-    <table class="data-table" style="background-color: #faf5ff;">
+    {{-- 4. DETALLE DE RESCISIONES DE CONTRATOS (SI EXISTEN) --}}
+    @if(!empty($rescisionesData) && count($rescisionesData) > 0)
+    <div class="section-header">
+        RESCISIONES DE CONTRATOS
+    </div>
+    <table class="table-data">
         <thead>
             <tr>
-                <th style="width: 20%;">Nombre del Cliente</th>
+                <th style="width: 4%;" class="center-col">#</th>
+                <th style="width: 25%;">Cliente</th>
                 <th style="width: 15%;">Lote(s) Rescindido(s)</th>
-                <th style="width: 10%;">Tipo</th>
-                <th style="width: 20%;">Destino / Aplicación</th>
-                <th class="num-col" style="width: 12%;">Monto Rescindido</th>
-                <th style="width: 8%;">Hora</th>
-                <th style="width: 15%;">Motivo</th>
+                <th style="width: 12%;" class="num-col">Monto</th>
+                <th style="width: 22%;">Tipo / Aplicación</th>
+                <th style="width: 22%;">Motivo / Observaciones</th>
             </tr>
         </thead>
         <tbody>
-            @forelse($rescisionesData ?? [] as $resc)
+            @php $idxRes = 1; @endphp
+            @foreach($rescisionesData as $resc)
             <tr>
+                <td class="center-col">{{ $idxRes++ }}</td>
                 <td><strong>{{ $resc['cliente'] }}</strong></td>
-                <td><span style="color:#b91c1c; font-weight:bold;">{{ $resc['lotes_afectados'] }}</span></td>
-                <td><span style="font-weight:bold; color: #4b5563;">{{ $resc['tipo'] }}</span></td>
+                <td><span class="badge-lote" style="color: #b91c1c;">{{ $resc['lotes_afectados'] }}</span></td>
+                <td class="num-col"><strong>${{ number_format($resc['monto_abonos_lote'], 2) }}</strong></td>
                 <td>
                     {{ $resc['destino_texto'] }}
                     @if($resc['destino_abonos'] === 'acreditar_otro_lote')
-                        <br><span style="font-size:8px; color:#15803d; font-weight:bold;">(Transf: ${{ number_format($resc['monto_transferido'], 2) }})</span>
+                        <span style="font-size:7.5px; color:#15803d; font-weight:bold;">(Transf: ${{ number_format($resc['monto_transferido'], 2) }})</span>
                     @elseif($resc['destino_abonos'] === 'devolucion_efectivo')
-                        <br><span style="font-size:8px; color:#b91c1c; font-weight:bold;">(Devol: ${{ number_format($resc['monto_devuelto'], 2) }})</span>
+                        <span style="font-size:7.5px; color:#b91c1c; font-weight:bold;">(Devol: ${{ number_format($resc['monto_devuelto'], 2) }})</span>
                     @endif
                 </td>
-                <td class="num-col" style="font-weight:bold; color:#6a1b9a;">${{ number_format($resc['monto_abonos_lote'], 2) }}</td>
-                <td>{{ $resc['hora'] }}</td>
-                <td style="font-size:8.5px; color:#475569;">{{ $resc['comentario'] ?: 'N/A' }}</td>
+                <td style="font-size: 8px;">{{ $resc['comentario'] ?: 'Sin observaciones' }}</td>
             </tr>
-            @empty
-            <tr>
-                <td colspan="7" style="text-align:center; font-style:italic; color:#6b7280; padding: 6px;">No se registraron rescisiones de contratos en esta fecha.</td>
-            </tr>
-            @endforelse
+            @endforeach
             <tr class="total-row">
-                <td colspan="4" style="color:#6a1b9a;">TOTAL REGISTRADO EN RESCISIONES</td>
-                <td class="num-col" style="color:#6a1b9a;">${{ number_format($totalRescisiones ?? 0, 2) }}</td>
-                <td colspan="2" style="font-size:8px; color:#6b7280; font-style:italic;">* No suma ni resta a la existencia en caja diaria</td>
+                <td colspan="3" style="text-align: right; text-transform: uppercase;">TOTAL RESCISIONES:</td>
+                <td class="num-col"><strong>${{ number_format($totalRescisiones ?? 0, 2) }}</strong></td>
+                <td colspan="2" style="font-size: 8px; color: #64748b; font-style: italic;">* Movimiento contable informativo</td>
             </tr>
         </tbody>
     </table>
+    @endif
 
-    <table class="signatures">
+    {{-- 5. OBSERVACIONES --}}
+    <div class="section-header">
+        OBSERVACIONES
+    </div>
+    <div class="obs-container">
+        @if(!empty($comentario))
+            <strong>Justificación / Nota de Cierre:</strong> {{ $comentario }}
+        @else
+            <em>Sin observaciones adicionales registradas en este cierre.</em>
+        @endif
+    </div>
+
+    {{-- 6. FIRMAS --}}
+    <table class="signatures-table">
         <tr>
             <td>
-                <div class="line"></div>
-                Elaborado y firmado por :<br>
-                {{ strtoupper($cajero) }}
+                <div class="signature-line"></div>
+                <div class="signature-role">Elaborado por:</div>
+                <div class="signature-name">{{ strtoupper($cajero) }}</div>
             </td>
             <td>
-                <div class="line"></div>
-                Recibido, aprobado y firmado por:
+                <div class="signature-line"></div>
+                <div class="signature-role">Recibido, aprobado y firmado por:</div>
+                <div class="signature-name">&nbsp;</div>
             </td>
         </tr>
     </table>

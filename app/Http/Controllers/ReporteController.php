@@ -896,6 +896,7 @@ class ReporteController extends Controller
 
         $data = [
             'fechaFormateada' => \Carbon\Carbon::parse($cierre->fecha)->format('d/m/Y'),
+            'fechaTexto' => \Carbon\Carbon::parse($cierre->fecha)->locale('es')->translatedFormat('d \d\e F \d\e Y'),
             'horaGeneracion' => now()->format('h:i a'),
             'cajero' => $cierre->user ? $cierre->user->name : 'Cajero',
             'lotificacionNombre' => $lotificacionNombre,
@@ -906,10 +907,13 @@ class ReporteController extends Controller
             'totalSalidas' => $totalSalidasEfectivo,
             'saldoFinalCaja' => $existenciaEnCaja,
             'totalTransferencias' => $totalTransferencias,
+            'totalAbonadoDia' => $totalEfectivo + $totalTransferencias,
             'abonosEfectivo' => $abonosEfectivo,
             'abonosTransferencia' => $abonosTransferencia,
             'rescisionesData' => $rescisionesData,
             'totalRescisiones' => $totalRescisiones,
+            'codigoReporte' => 'CC-' . \Carbon\Carbon::parse($cierre->fecha)->format('Ymd') . '-' . str_pad($cierre->id, 3, '0', STR_PAD_LEFT),
+            'comentario' => $cierre->comentario,
         ];
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reportes.cierre_turno_pdf', $data)

@@ -311,6 +311,7 @@ class ReportesController extends Controller
 
         $data = [
             'fechaFormateada' => Carbon::parse($fecha)->format('d/m/Y'),
+            'fechaTexto' => Carbon::parse($fecha)->locale('es')->translatedFormat('d \d\e F \d\e Y'),
             'horaGeneracion' => now()->format('h:i a'),
             'cajero' => $cajeroNombre,
             'lotificacionNombre' => $lotificacionNombre,
@@ -321,10 +322,13 @@ class ReportesController extends Controller
             'totalSalidas' => $totalSalidasEfectivo,
             'saldoFinalCaja' => $existenciaEnCaja,
             'totalTransferencias' => $totalTransferencias,
+            'totalAbonadoDia' => $totalEfectivo + $totalTransferencias,
             'abonosEfectivo' => $abonosEfectivo,
             'abonosTransferencia' => $abonosTransferencia,
             'rescisionesData' => $rescisionesData,
             'totalRescisiones' => $totalRescisiones,
+            'codigoReporte' => 'CC-' . Carbon::parse($fecha)->format('Ymd'),
+            'comentario' => null,
         ];
 
         $pdf = Pdf::loadView('reportes.cierre_turno_pdf', $data)
