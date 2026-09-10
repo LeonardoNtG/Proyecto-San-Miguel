@@ -27,7 +27,7 @@
         left: 0;
         right: 0;
         text-align: center;
-        opacity: 0.40;
+        opacity: 0.12;
         z-index: -1000;
     }
     .watermark img {
