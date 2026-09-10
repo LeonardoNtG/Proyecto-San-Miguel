@@ -101,6 +101,7 @@
         background: #fff;
         cursor: pointer;
         transition: all 0.2s ease;
+        height: 100%;
     }
     .lote-item-box:hover {
         border-color: #4e73df;
@@ -222,25 +223,59 @@
                         <div class="row g-3 mb-4">
                             @foreach($ventas as $v)
                                 @php
-                                    $nombreL = $v->lotes->map(fn($l) => 'Bloque '.($l->bloque->nombre ?? '').' - Lote '.$l->numero_lote)->implode(', ');
+                                    $nombreL = $v->lotes->map(fn($l) => 'Bloque '.($l->bloque->nombre ?? 'N/A').' - Lote '.$l->numero_lote)->implode(', ');
                                     $saldoVenta = $v->precio_final - $v->abonos->sum('monto_abonado');
+                                    $totalLotes = $v->lotes->count();
                                 @endphp
-                                <div class="col-md-6 col-12">
+                                <div class="col-12">
                                     <div class="lote-item-box selected" onclick="toggleLoteCard('{{ $v->id_venta }}')">
-                                        <div class="d-flex align-items-center justify-content-between">
-                                            <div class="d-flex align-items-center text-truncate pe-2">
-                                                <input class="form-check-input check-lote-abono me-3 fs-5" type="checkbox" name="ventas_ids[]" id="chk_venta_{{ $v->id_venta }}" value="{{ $v->id_venta }}" data-cuota="{{ $v->cuota_mensual }}" data-saldo="{{ $saldoVenta }}" data-nombre="{{ $nombreL }}" checked onchange="actualizarSugerenciaMonto(); event.stopPropagation();">
-                                                <div class="text-truncate">
-                                                    <strong class="text-dark d-block fs-6 text-truncate">{{ $nombreL }}</strong>
-                                                    <small class="text-muted d-block text-truncate">
+                                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pb-2 mb-2 border-bottom">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <input class="form-check-input check-lote-abono fs-4 m-0" type="checkbox" name="ventas_ids[]" id="chk_venta_{{ $v->id_venta }}" value="{{ $v->id_venta }}" data-cuota="{{ $v->cuota_mensual }}" data-saldo="{{ $saldoVenta }}" data-nombre="{{ $nombreL }}" checked onclick="event.stopPropagation();" onchange="sincronizarCardLote(this)">
+                                                <div>
+                                                    <span class="fw-bold text-dark fs-6">
+                                                        <i class="fas fa-file-contract text-primary me-1"></i> Contrato #{{ $v->id_venta }}
+                                                    </span>
+                                                    <span class="badge bg-light text-secondary border ms-1">
                                                         {{ $v->beneficiario_final ? 'Beneficiario: '.$v->beneficiario_final : 'Titular directo' }}
-                                                    </small>
+                                                    </span>
+                                                    @if($totalLotes > 1)
+                                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">
+                                                            <i class="fas fa-layer-group me-1"></i>{{ $totalLotes }} Lotes asociados
+                                                        </span>
+                                                    @endif
                                                 </div>
                                             </div>
-                                            <div class="text-end flex-shrink-0">
-                                                <span class="badge bg-primary text-white fw-bold px-2 py-1 fs-6">${{ number_format($v->cuota_mensual, 2) }}</span>
-                                                <small class="text-muted d-block mt-1" style="font-size: 0.75rem;">Saldo: ${{ number_format($saldoVenta, 2) }}</small>
+                                            <div class="d-flex align-items-center gap-3 ms-auto">
+                                                <div class="text-end">
+                                                    <span class="text-muted d-block small" style="font-size: 0.75rem;">Cuota Mensual:</span>
+                                                    <span class="badge bg-primary text-white fw-bold px-2 py-1 fs-6">${{ number_format($v->cuota_mensual, 2) }}</span>
+                                                </div>
+                                                <div class="text-end border-start ps-3">
+                                                    <span class="text-muted d-block small" style="font-size: 0.75rem;">Saldo Pendiente:</span>
+                                                    <strong class="text-danger fs-6">${{ number_format($saldoVenta, 2) }}</strong>
+                                                </div>
                                             </div>
+                                        </div>
+
+                                        {{-- LISTADO ADAPTABLE Y DETALLADO DE LOTES --}}
+                                        <div class="d-flex flex-wrap gap-2 pt-1 align-items-center">
+                                            <span class="text-muted small fw-bold text-uppercase me-1" style="font-size: 0.75rem;">
+                                                <i class="fas fa-map-marked-alt text-primary me-1"></i>Lotes incluidos:
+                                            </span>
+                                            @forelse($v->lotes as $lote)
+                                                <div class="d-inline-flex align-items-center bg-white border border-primary-subtle rounded px-2 py-1 shadow-sm">
+                                                    <span class="badge bg-primary text-white me-1.5 px-2 py-1" style="font-size: 0.8rem;">
+                                                        Bloque {{ $lote->bloque->nombre ?? 'N/A' }}
+                                                    </span>
+                                                    <strong class="text-dark fs-6 ms-1">Lote {{ $lote->numero_lote }}</strong>
+                                                    @if($lote->area_metros)
+                                                        <small class="text-muted ms-1.5 font-monospace" style="font-size: 0.75rem;">({{ $lote->area_metros }} m²)</small>
+                                                    @endif
+                                                </div>
+                                            @empty
+                                                <span class="badge bg-secondary text-white">Sin lote asignado</span>
+                                            @endforelse
                                         </div>
                                     </div>
                                 </div>
@@ -265,9 +300,29 @@
                 {{-- PASO 2: MONTO Y FORMA DE PAGO --}}
                 {{-- ================================================= --}}
                 <div class="wizard-pane {{ $ventas->count() > 1 ? '' : 'active' }}" id="wizard-pane-2">
-                    <div class="text-center mb-4">
+                    <div class="text-center mb-3">
                         <h4 class="fw-bold text-gray-800 mb-1">Monto y Forma de Pago</h4>
-                        <p class="text-muted small">Ingrese la cantidad recibida y el método de pago.</p>
+                        <p class="text-muted small mb-2">Ingrese la cantidad recibida y el método de pago.</p>
+                        
+                        @if($ventas->count() > 1)
+                            <div id="paso2-lotes-seleccionados-box" class="p-2 mb-2 bg-light rounded border d-inline-block text-center mx-auto" style="max-width: 650px;">
+                                <small class="text-muted fw-bold text-uppercase d-block mb-1" style="font-size: 0.75rem;"><i class="fas fa-layer-group me-1 text-primary"></i>Lotes Seleccionados:</small>
+                                <div id="paso2-lotes-tags" class="d-flex flex-wrap justify-content-center gap-1"></div>
+                            </div>
+                        @else
+                            <div class="p-2 mb-2 bg-light rounded border d-inline-block text-center mx-auto" style="max-width: 650px;">
+                                <small class="text-muted fw-bold text-uppercase d-block mb-1" style="font-size: 0.75rem;"><i class="fas fa-layer-group me-1 text-primary"></i>Lote a Abonar:</small>
+                                <div class="d-flex flex-wrap justify-content-center gap-1">
+                                    @if(isset($venta) && $venta->lotes)
+                                        @foreach($venta->lotes as $lote)
+                                            <span class="badge bg-white text-dark border border-primary-subtle shadow-sm px-2 py-1 fw-bold">
+                                                <i class="fas fa-map-marker-alt text-primary me-1"></i>Bloque {{ $lote->bloque->nombre ?? 'N/A' }} &mdash; Lote {{ $lote->numero_lote }}
+                                            </span>
+                                        @endforeach
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
                     </div>
 
                     {{-- MONTO DESTACADO --}}
@@ -682,6 +737,19 @@
                 alert('Por favor seleccione al menos un lote para continuar.');
                 return;
             }
+            var tagsContainer = document.getElementById('paso2-lotes-tags');
+            if (tagsContainer) {
+                tagsContainer.innerHTML = '';
+                chks.forEach(function(c) {
+                    var nombres = c.getAttribute('data-nombre').split(',');
+                    nombres.forEach(function(n) {
+                        var tag = document.createElement('span');
+                        tag.className = 'badge bg-white text-dark border border-primary-subtle shadow-sm px-2 py-1 fw-bold';
+                        tag.innerHTML = '<i class="fas fa-map-marker-alt text-primary me-1"></i>' + n.trim();
+                        tagsContainer.appendChild(tag);
+                    });
+                });
+            }
         }
 
         if (numPaso === 3) {
@@ -745,16 +813,20 @@
         }
     }
 
+    function sincronizarCardLote(chk) {
+        var card = chk.closest('.lote-item-box');
+        if (card) {
+            if (chk.checked) card.classList.add('selected');
+            else card.classList.remove('selected');
+        }
+        actualizarSugerenciaMonto();
+    }
+
     function toggleLoteCard(ventaId) {
         var chk = document.getElementById('chk_venta_' + ventaId);
         if (chk) {
             chk.checked = !chk.checked;
-            var card = chk.closest('.lote-item-box');
-            if (card) {
-                if (chk.checked) card.classList.add('selected');
-                else card.classList.remove('selected');
-            }
-            actualizarSugerenciaMonto();
+            sincronizarCardLote(chk);
         }
     }
 
@@ -941,9 +1013,10 @@
                     acumAsignado += asignadoL;
                 }
 
-                var badgeSpan = document.createElement('span');
-                badgeSpan.className = 'badge bg-dark text-white me-1 mb-1 px-2 py-1';
-                badgeSpan.innerHTML = '<i class="fas fa-map-marker-alt me-1 text-warning"></i>' + nomL + ' <span class="badge bg-success ms-1">$' + asignadoL.toFixed(2) + '</span>';
+                var badgeSpan = document.createElement('div');
+                badgeSpan.className = 'p-2 bg-white rounded border d-flex justify-content-between align-items-center w-100 mb-1 shadow-sm';
+                badgeSpan.innerHTML = '<div class="fw-bold text-dark"><i class="fas fa-map-marker-alt me-2 text-primary"></i>' + nomL + '</div>' +
+                                      '<div><span class="badge bg-success fs-6 fw-bold px-2 py-1">$' + asignadoL.toFixed(2) + '</span></div>';
                 contenedorLotesModal.appendChild(badgeSpan);
             });
         }
