@@ -85,13 +85,16 @@
 
 <div class="container-fluid py-3">
 
-    {{-- CABECERA Y FILTRO DE FECHA --}}
+    {{-- CABECERA Y FILTROS --}}
     <div class="card shadow-sm border-0 mb-4 bg-white">
         <div class="card-body p-3">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                 <div>
-                    <div class="d-flex align-items-center gap-2 mb-1">
+                    <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
                         <span class="badge bg-primary px-2.5 py-1 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">Panel Administrativo</span>
+                        <span class="badge {{ $esGlobal ? 'bg-dark' : 'bg-success' }} px-2.5 py-1 text-uppercase fw-bold" style="font-size: 0.7rem; letter-spacing: 0.5px;">
+                            <i class="fas fa-building me-1"></i> {{ $etiquetaProyecto }}
+                        </span>
                         <span class="text-muted small"><i class="fas fa-clock me-1"></i> Actualizado: {{ now()->format('h:i A') }}</span>
                     </div>
                     <h3 class="mb-0 fw-bold text-dark d-flex align-items-center gap-2">
@@ -105,22 +108,39 @@
                 <div class="d-flex align-items-center flex-wrap gap-2">
                     {{-- Accesos rápidos de fecha --}}
                     <div class="btn-group btn-group-sm" role="group">
-                        <a href="{{ route('reportes.monitor_cajas', ['fecha' => \Carbon\Carbon::today()->format('Y-m-d')]) }}" 
+                        <a href="{{ route('reportes.monitor_cajas', ['fecha' => \Carbon\Carbon::today()->format('Y-m-d'), 'proyecto_id' => $proyectoFiltro, 'user_id' => $filtroUsuarioId]) }}" 
                            class="btn {{ $fecha == \Carbon\Carbon::today()->format('Y-m-d') ? 'btn-primary fw-bold' : 'btn-outline-secondary' }}">
                             Hoy
                         </a>
-                        <a href="{{ route('reportes.monitor_cajas', ['fecha' => \Carbon\Carbon::yesterday()->format('Y-m-d')]) }}" 
+                        <a href="{{ route('reportes.monitor_cajas', ['fecha' => \Carbon\Carbon::yesterday()->format('Y-m-d'), 'proyecto_id' => $proyectoFiltro, 'user_id' => $filtroUsuarioId]) }}" 
                            class="btn {{ $fecha == \Carbon\Carbon::yesterday()->format('Y-m-d') ? 'btn-primary fw-bold' : 'btn-outline-secondary' }}">
                             Ayer
                         </a>
                     </div>
 
-                    {{-- Selector de Fecha y Usuario --}}
+                    {{-- Selector de Proyecto, Fecha y Usuario --}}
                     <form method="GET" action="{{ route('reportes.monitor_cajas') }}" class="d-flex align-items-center gap-2 flex-wrap">
-                        <input type="date" name="fecha" value="{{ $fecha }}" class="form-control form-control-sm" onchange="this.form.submit()" style="width: 145px;">
+                        {{-- Selector de Proyecto --}}
+                        <select name="proyecto_id" class="form-select form-select-sm border-primary fw-semibold" onchange="this.form.submit()" style="max-width: 250px;">
+                            <option value="actual" @selected($proyectoFiltro === 'actual')>
+                                📍 Proyecto Activo ({{ $proyectosDisponibles->firstWhere('id', session('lotificacion_id'))->nombre ?? 'Activo' }})
+                            </option>
+                            <option value="global" @selected($proyectoFiltro === 'global' || $proyectoFiltro === 'todos')>
+                                ⭐ Consolidado Global (Todos)
+                            </option>
+                            <optgroup label="Filtrar por Proyecto:">
+                                @foreach($proyectosDisponibles as $proy)
+                                    <option value="{{ $proy->id }}" @selected((string)$proyectoFiltro === (string)$proy->id)>
+                                        {{ $proy->nombre }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        </select>
+
+                        <input type="date" name="fecha" value="{{ $fecha }}" class="form-control form-control-sm" onchange="this.form.submit()" style="width: 140px;">
                         
-                        <select name="user_id" class="form-select form-select-sm" onchange="this.form.submit()" style="width: 170px;">
-                            <option value="">-- Todos los Usuarios --</option>
+                        <select name="user_id" class="form-select form-select-sm" onchange="this.form.submit()" style="width: 160px;">
+                            <option value="">-- Todos los Cajeros --</option>
                             @foreach($todosLosUsuarios as $u)
                                 <option value="{{ $u->id }}" {{ $filtroUsuarioId == $u->id ? 'selected' : '' }}>{{ $u->name }}</option>
                             @endforeach
@@ -502,8 +522,13 @@
                 </div>
             </div>
         @empty
-            <div class="col-12 text-center py-5">
-                <p class="text-muted fs-5">No se encontraron usuarios en el sistema.</p>
+            <div class="col-12 text-center py-5 bg-white rounded-3 shadow-sm">
+                <i class="fas fa-cash-register text-muted fs-1 mb-3"></i>
+                <h5 class="fw-bold text-dark">No hay cajas activas ni movimientos para {{ $etiquetaProyecto }}</h5>
+                <p class="text-muted small mb-3">No se registran transacciones de abonos ni aperturas para este proyecto en la fecha seleccionada ({{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}).</p>
+                <a href="{{ route('reportes.monitor_cajas', ['fecha' => $fecha, 'proyecto_id' => 'global']) }}" class="btn btn-sm btn-outline-primary fw-semibold">
+                    <i class="fas fa-globe me-1"></i> Ver Consolidado Global (Todos los Proyectos)
+                </a>
             </div>
         @endforelse
     </div>
@@ -606,7 +631,7 @@
                     </tbody>
                     <tfoot class="table-light fw-bold">
                         <tr>
-                            <td class="ps-3" colspan="2">TOTALES GLOBALES ({{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }})</td>
+                            <td class="ps-3" colspan="2">TOTALES ({{ $etiquetaProyecto }}) - {{ \Carbon\Carbon::parse($fecha)->format('d/m/Y') }}</td>
                             <td class="text-end text-muted">-</td>
                             <td class="text-end text-success">U$ {{ number_format($kpis['totalEfectivoGlobal'], 2) }}</td>
                             <td class="text-end text-info">U$ {{ number_format($kpis['totalBancosGlobal'], 2) }}</td>
