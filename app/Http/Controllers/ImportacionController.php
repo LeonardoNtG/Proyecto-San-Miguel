@@ -513,10 +513,52 @@ class ImportacionController extends Controller
     }
 
     /**
+     * Descompone cadenas de lote (simples o multilote) en un array de números de lote individuales normalizados.
+     * Ejemplos:
+     *  - "1,2,4,5,9,10,11" -> ["1", "2", "4", "5", "9", "10", "11"]
+     *  - "26, 27 y 28" -> ["26", "27", "28"]
+     *  - "Lote 26, 27 y 28" -> ["26", "27", "28"]
+     *  - "13,14" -> ["13", "14"]
+     *  - "04" -> ["04"]
+     */
+    private function descomponerNumerosLote(string $raw): array
+    {
+        $texto = trim($raw);
+        if (empty($texto)) {
+            return [];
+        }
+
+        // Quitar prefijos comunes como "Lote", "Lotes", "N°", "No."
+        $texto = preg_replace('/^(lotes?|n[°o]?\.?)\s+/i', '', $texto);
+
+        // Reemplazar conjunciones y separadores como ' y ', ' e ', ' & ', '/', ';' o puntos entre números por coma
+        $texto = preg_replace('/(?<=\d)\s*\.\s*(?=\d)/', ',', $texto);
+        $texto = preg_replace('/\s+(y|e|&)\s+/i', ',', $texto);
+        $texto = str_replace(['/', ';'], ',', $texto);
+
+        // Separar por comas
+        $partes = explode(',', $texto);
+        $lotes = [];
+
+        foreach ($partes as $p) {
+            $pLimpio = trim($p);
+            $pLimpio = preg_replace('/^lotes?\s*/i', '', $pLimpio);
+            if (!empty($pLimpio)) {
+                $lotes[] = $pLimpio;
+            }
+        }
+
+        return array_values(array_unique($lotes));
+    }
+
+    /**
      * Procesa la importación en el Formato Cartera La Campana (2 Hojas: LISTA OFICIAL y ABONOS).
      */
     private function procesarFormatoCampana(array $datos, Lotificacion $lotificacion, string $modo)
     {
+        @set_time_limit(300);
+        @ini_set('memory_limit', '512M');
+
         $hojaLista  = $this->buscarHoja($datos, ['LISTA OFICIAL', 'LISTA_OFICIAL', 'LOTES COLOCADOS', 'LISTA OFICIAL LA CAMPANA', 'LISTA', 'CLIENTES', 'HOJA 1', 'HOJA1'], 0);
         $hojaAbonos = $this->buscarHoja($datos, ['ABONOS', 'HISTORIAL_ABONOS', 'HISTORIAL DE ABONOS', 'PAGOS', 'HOJA 2', 'HOJA2'], 1);
 
@@ -542,24 +584,36 @@ class ImportacionController extends Controller
                 $cedRaw = $this->obtenerValorColumna($abnFila, ['cedula', 'identificacion', 'n_de_identificacion', 'no_identificacion', 'identificacion_cliente'], '');
                 $cedNorm = $this->normalizarCedula($cedRaw);
                 $blq = trim((string)$this->obtenerValorColumna($abnFila, ['bloque', 'n_bloque', 'nombre_bloque'], ''));
-                $lt  = trim((string)$this->obtenerValorColumna($abnFila, ['lote', 'n_lote', 'numero_lote'], ''));
+                $ltRaw = trim((string)$this->obtenerValorColumna($abnFila, ['lote', 'n_lote', 'numero_lote'], ''));
                 $fec = $this->obtenerValorColumna($abnFila, ['fecha', 'fecha_pago'], '');
                 $mto = (float)$this->obtenerValorColumna($abnFila, ['abonocancelacion', 'abono_cancelacion', 'abono', 'monto_abonado', 'monto'], 0);
 
-                if (!empty($cedNorm) && !empty($blq) && !empty($lt)) {
-                    $clave = strtolower("{$cedNorm}_{$blq}_{$lt}");
-                    if (!isset($abonosPorLote[$clave])) {
-                        $abonosPorLote[$clave] = [
-                            'fechas' => [],
-                            'total'  => 0,
-                            'filas'  => []
-                        ];
+                if (!empty($cedNorm) && !empty($blq) && !empty($ltRaw)) {
+                    $lotesDescomp = $this->descomponerNumerosLote($ltRaw);
+                    $clavesIndex = [
+                        strtolower("{$cedNorm}_{$blq}_{$ltRaw}"),
+                        strtolower("{$cedNorm}_{$blq}_" . str_replace(' ', '', $ltRaw)),
+                    ];
+                    foreach ($lotesDescomp as $ld) {
+                        $clavesIndex[] = strtolower("{$cedNorm}_{$blq}_{$ld}");
+                        $clavesIndex[] = strtolower("{$cedNorm}_{$blq}_" . ltrim($ld, '0'));
                     }
-                    if (!empty($fec)) {
-                        $abonosPorLote[$clave]['fechas'][] = $fec;
+                    $clavesIndex = array_unique($clavesIndex);
+
+                    foreach ($clavesIndex as $clave) {
+                        if (!isset($abonosPorLote[$clave])) {
+                            $abonosPorLote[$clave] = [
+                                'fechas' => [],
+                                'total'  => 0,
+                                'filas'  => []
+                            ];
+                        }
+                        if (!empty($fec)) {
+                            $abonosPorLote[$clave]['fechas'][] = $fec;
+                        }
+                        $abonosPorLote[$clave]['total'] += $mto;
+                        $abonosPorLote[$clave]['filas'][] = $abnFila;
                     }
-                    $abonosPorLote[$clave]['total'] += $mto;
-                    $abonosPorLote[$clave]['filas'][] = $abnFila;
                 }
             }
         }
@@ -578,7 +632,7 @@ class ImportacionController extends Controller
                 $identificacionRaw = (string)$this->obtenerValorColumna($fila, ['n_de_identificacion', 'numero_de_identificacion', 'identificacion', 'cedula', 'no_de_identificacion', 'identificacion_cliente', 'n_identificacion', 'no_identificacion', 'doc_identidad', 'dni', 'c_dula', 'identificaci_n', 'n_de_identificaci_n'], '');
                 $telefono = (string)$this->obtenerValorColumna($fila, ['n_telefono', 'numero_telefono', 'telefono', 'celular', 'tel', 'no_telefono', 'n_de_telefono', 'n_tel_fono'], '');
                 $nombreBloque = trim((string)$this->obtenerValorColumna($fila, ['n_bloque', 'numero_bloque', 'bloque', 'nombre_bloque', 'no_bloque', 'n_de_bloque'], ''));
-                $numeroLote = trim((string)$this->obtenerValorColumna($fila, ['n_lote', 'numero_lote', 'lote', 'no_lote', 'n_de_lote'], ''));
+                $numeroLoteRaw = trim((string)$this->obtenerValorColumna($fila, ['n_lote', 'numero_lote', 'lote', 'no_lote', 'n_de_lote'], ''));
                 $montoLote = (float)$this->obtenerValorColumna($fila, ['monto_lote', 'monto_del_lote', 'precio_lote', 'precio_final', 'monto', 'precio', 'valor_lote', 'precio_total'], 0);
                 $plazoMeses = (int)$this->obtenerValorColumna($fila, ['plazo_cuotas', 'plazo', 'plazo_meses', 'meses', 'plazo_de_cuotas', 'cuotas'], 0);
                 $montoCuota = (float)$this->obtenerValorColumna($fila, ['monto_cuota', 'cuota_mensual', 'cuota', 'monto_de_cuota', 'valor_cuota'], 0);
@@ -606,7 +660,7 @@ class ImportacionController extends Controller
                                 foreach ($abnInfo['filas'] as $abnF) {
                                     $abnLt = trim((string)$this->obtenerValorColumna($abnF, ['lote', 'n_lote', 'numero_lote'], ''));
                                     $abnBlq = trim((string)$this->obtenerValorColumna($abnF, ['bloque', 'n_bloque', 'nombre_bloque'], ''));
-                                    if ($abnBlq === $nombreBloque && ($abnLt === $numeroLote || ltrim($abnLt, '0') === ltrim($numeroLote, '0'))) {
+                                    if ($abnBlq === $nombreBloque && ($abnLt === $numeroLoteRaw || ltrim($abnLt, '0') === ltrim($numeroLoteRaw, '0'))) {
                                         $cedulaDesdeAbonos = (string)$this->obtenerValorColumna($abnF, ['cedula', 'identificacion', 'n_de_identificacion'], '');
                                         if (!empty($cedulaDesdeAbonos)) {
                                             break 2;
@@ -624,17 +678,17 @@ class ImportacionController extends Controller
                 $identificacion = $this->normalizarCedula($identificacionRaw);
 
                 // Ignorar filas sin datos
-                if (empty($nombres) && empty($identificacion) && empty($nombreBloque) && empty($numeroLote)) {
+                if (empty($nombres) && empty($identificacion) && empty($nombreBloque) && empty($numeroLoteRaw)) {
                     continue;
                 }
 
-                if (empty($nombres) || empty($identificacion) || empty($nombreBloque) || empty($numeroLote)) {
-                    $errores[] = "[Lista Oficial F{$numFila}] Faltan datos requeridos (Cliente: '{$nombres}', Cédula: '{$identificacion}', Bloque: '{$nombreBloque}', Lote: '{$numeroLote}').";
+                if (empty($nombres) || empty($identificacion) || empty($nombreBloque) || empty($numeroLoteRaw)) {
+                    $errores[] = "[Lista Oficial F{$numFila}] Faltan datos requeridos (Cliente: '{$nombres}', Cédula: '{$identificacion}', Bloque: '{$nombreBloque}', Lote: '{$numeroLoteRaw}').";
                     continue;
                 }
 
                 if ($montoLote <= 0) {
-                    $errores[] = "[Lista Oficial F{$numFila}] Monto del Lote debe ser mayor a 0 para el cliente {$nombres} (Lote {$nombreBloque}-{$numeroLote}).";
+                    $errores[] = "[Lista Oficial F{$numFila}] Monto del Lote debe ser mayor a 0 para el cliente {$nombres} (Lote {$nombreBloque}-{$numeroLoteRaw}).";
                     continue;
                 }
 
@@ -690,59 +744,87 @@ class ImportacionController extends Controller
 
                 $prefijoBloque = trim(str_ireplace("Bloque", "", $bloque->nombre));
 
-                // 2.3 Buscar o crear Lote dentro del Bloque
-                $posiblesLotes = array_unique(array_filter([
-                    $numeroLote,
-                    ltrim($numeroLote, '0'),
-                    preg_replace('/^' . preg_quote($bloque->nombre, '/') . '[\s\-_]*/i', '', $numeroLote),
-                    ltrim(preg_replace('/^' . preg_quote($bloque->nombre, '/') . '[\s\-_]*/i', '', $numeroLote), '0'),
-                    $bloque->nombre . '-' . $numeroLote,
-                    $bloque->nombre . '-' . str_pad($numeroLote, 2, '0', STR_PAD_LEFT),
-                    $prefijoBloque . '-' . $numeroLote,
-                    $prefijoBloque . '-' . str_pad($numeroLote, 2, '0', STR_PAD_LEFT),
-                ]));
-
-                $lote = Lote::withoutGlobalScope("lotificacion")
-                    ->where("id_bloque", $bloque->id_bloque)
-                    ->whereIn("numero_lote", $posiblesLotes)
-                    ->first();
-
-                if (!$lote) {
-                    $lote = Lote::create([
-                        "id_bloque"   => $bloque->id_bloque,
-                        "numero_lote" => $numeroLote,
-                        "area_metros" => 150.00,
-                        "precio_base" => $montoLote,
-                        "estado"      => "Vendido",
-                    ]);
-                    $resumen["lotes_creados"]++;
+                // 2.3 Manejo Relacional de Lotes (Simples y Multilotes)
+                // Descomponer en lotes individuales (ej: "1,2,4,5,9,10,11" -> ["1","2","4","5","9","10","11"])
+                $lotesIndividuales = $this->descomponerNumerosLote($numeroLoteRaw);
+                if (empty($lotesIndividuales)) {
+                    $lotesIndividuales = [$numeroLoteRaw];
                 }
 
-                // 2.4 Verificar si ya existe contrato vigente
-                $historialVigente = HistorialLote::where("id_lote", $lote->id_lote)
+                $lotesObjetos = [];
+                $loteIds = [];
+                $areaTotalContrato = 0.0;
+
+                foreach ($lotesIndividuales as $numLoteInd) {
+                    $posiblesLotes = array_unique(array_filter([
+                        $numLoteInd,
+                        ltrim($numLoteInd, '0'),
+                        preg_replace('/^' . preg_quote($bloque->nombre, '/') . '[\s\-_]*/i', '', $numLoteInd),
+                        ltrim(preg_replace('/^' . preg_quote($bloque->nombre, '/') . '[\s\-_]*/i', '', $numLoteInd), '0'),
+                        $bloque->nombre . '-' . $numLoteInd,
+                        $bloque->nombre . '-' . str_pad($numLoteInd, 2, '0', STR_PAD_LEFT),
+                        $prefijoBloque . '-' . $numLoteInd,
+                        $prefijoBloque . '-' . str_pad($numLoteInd, 2, '0', STR_PAD_LEFT),
+                    ]));
+
+                    $loteInd = Lote::withoutGlobalScope("lotificacion")
+                        ->where("id_bloque", $bloque->id_bloque)
+                        ->whereIn("numero_lote", $posiblesLotes)
+                        ->first();
+
+                    if (!$loteInd) {
+                        $loteInd = Lote::create([
+                            "id_bloque"   => $bloque->id_bloque,
+                            "numero_lote" => $numLoteInd,
+                            "area_metros" => 150.00,
+                            "precio_base" => 0, // El valor financiero oficial reside en Venta/Contrato
+                            "estado"      => "Vendido",
+                        ]);
+                        $resumen["lotes_creados"]++;
+                    }
+
+                    $lotesObjetos[] = $loteInd;
+                    $loteIds[] = $loteInd->id_lote;
+                    $areaTotalContrato += (float)($loteInd->area_metros ?: 150.00);
+                }
+
+                // 2.4 Verificar si ya existe contrato vigente para este cliente, proyecto y lote(s)
+                $historialVigente = HistorialLote::whereIn("id_lote", $loteIds)
                     ->where("estado", "Activo")
-                    ->whereHas("venta", fn($q) => $q->withoutGlobalScope("lotificacion")->where("lotificacion_id", $lotificacion->id)->where("estado_contrato", "Vigente"))
+                    ->whereHas("venta", function($q) use ($lotificacion, $cliente) {
+                        $q->withoutGlobalScope("lotificacion")
+                          ->where("lotificacion_id", $lotificacion->id)
+                          ->where("id_cliente", $cliente->id_cliente)
+                          ->where("estado_contrato", "Vigente");
+                    })
                     ->first();
 
-                $claveAbonos = strtolower("{$identificacion}_{$nombreBloque}_{$numeroLote}");
-                $claveAbonosPrefijo = strtolower("{$identificacion}_{$prefijoBloque}_{$numeroLote}");
-                $claveAbonosLoteClean = strtolower("{$identificacion}_{$nombreBloque}_" . ltrim($numeroLote, '0'));
+                // Construcción de claves de mapeo (compuestas e individuales) para ABONOS
+                $clavesMapeo = [
+                    strtolower("{$identificacion}_{$nombreBloque}_{$numeroLoteRaw}"),
+                    strtolower("{$identificacion}_{$prefijoBloque}_{$numeroLoteRaw}"),
+                    strtolower("{$identificacion}_{$bloque->nombre}_{$numeroLoteRaw}"),
+                    strtolower("{$identificacion}_{$nombreBloque}_" . str_replace(' ', '', $numeroLoteRaw)),
+                    strtolower("{$identificacion}_{$prefijoBloque}_" . str_replace(' ', '', $numeroLoteRaw)),
+                    strtolower("{$identificacion}_{$nombreBloque}_" . ltrim($numeroLoteRaw, '0')),
+                    strtolower("{$identificacion}_{$prefijoBloque}_" . ltrim($numeroLoteRaw, '0')),
+                ];
+
+                foreach ($lotesIndividuales as $ld) {
+                    $clavesMapeo[] = strtolower("{$identificacion}_{$nombreBloque}_{$ld}");
+                    $clavesMapeo[] = strtolower("{$identificacion}_{$prefijoBloque}_{$ld}");
+                    $clavesMapeo[] = strtolower("{$identificacion}_{$bloque->nombre}_{$ld}");
+                    $clavesMapeo[] = strtolower("{$identificacion}_{$nombreBloque}_" . ltrim($ld, '0'));
+                    $clavesMapeo[] = strtolower("{$identificacion}_{$prefijoBloque}_" . ltrim($ld, '0'));
+                }
+                $clavesMapeo = array_unique($clavesMapeo);
 
                 if ($historialVigente) {
                     $ventaExistente = Venta::withoutGlobalScope("lotificacion")->find($historialVigente->id_venta);
                     $idVentaExistente = $ventaExistente ? $ventaExistente->id_venta : $historialVigente->id_venta;
                     
-                    $advertencias[] = "[Lista Oficial F{$numFila}] Lote {$nombreBloque}-{$numeroLote} ya tiene contrato activo en {$lotificacion->nombre} (Contrato #{$idVentaExistente}). Se reutiliza para procesar abonos nuevos.";
+                    $advertencias[] = "[Lista Oficial F{$numFila}] Lote(s) {$nombreBloque}-{$numeroLoteRaw} ya tienen contrato activo para {$cliente->nombres_apellidos} en {$lotificacion->nombre} (Contrato #{$idVentaExistente}). Se reutiliza para procesar abonos nuevos.";
 
-                    // Registrar en mapeo de ventas para que la hoja ABONOS pueda encontrarlo y procesar pagos nuevos
-                    $clavesMapeo = [
-                        $claveAbonos,
-                        $claveAbonosPrefijo,
-                        $claveAbonosLoteClean,
-                        strtolower("{$identificacion}_{$bloque->nombre}_{$numeroLote}"),
-                        strtolower("{$identificacion}_{$bloque->nombre}_" . ltrim($numeroLote, '0')),
-                        strtolower("{$identificacion}_{$prefijoBloque}_" . ltrim($numeroLote, '0')),
-                    ];
                     foreach ($clavesMapeo as $cm) {
                         $mapeoVentas[$cm] = $idVentaExistente;
                     }
@@ -750,7 +832,13 @@ class ImportacionController extends Controller
                 }
 
                 // 2.5 Deducir fecha de venta del primer abono o fecha actual
-                $infoAbonos = $abonosPorLote[$claveAbonos] ?? $abonosPorLote[$claveAbonosPrefijo] ?? $abonosPorLote[$claveAbonosLoteClean] ?? null;
+                $infoAbonos = null;
+                foreach ($clavesMapeo as $cm) {
+                    if (isset($abonosPorLote[$cm])) {
+                        $infoAbonos = $abonosPorLote[$cm];
+                        break;
+                    }
+                }
 
                 $fechaVenta = Carbon::now()->format('Y-m-d');
                 if ($infoAbonos && !empty($infoAbonos['fechas'])) {
@@ -766,7 +854,7 @@ class ImportacionController extends Controller
                 $saldoCalculado = max(0, $montoLote - $totalAbonadoReal);
                 $estadoContrato = ($saldoCalculado <= 0.01 && $totalAbonadoReal > 0) ? 'Finalizado' : 'Vigente';
 
-                // 2.7 Crear Venta
+                // 2.7 Crear Venta (1 registro por contrato con los valores financieros totales oficiales)
                 $venta = Venta::create([
                     "id_cliente"         => $cliente->id_cliente,
                     "lotificacion_id"    => $lotificacion->id,
@@ -774,35 +862,31 @@ class ImportacionController extends Controller
                     "precio_final"       => $montoLote,
                     "plazo_meses"        => $plazoMeses,
                     "cuota_mensual"      => $montoCuota,
-                    "extension_lote"     => $lote->area_metros . " m²",
+                    "extension_lote"     => $areaTotalContrato . " m²",
                     "estado_contrato"    => $estadoContrato,
                 ]);
 
-                // 2.8 Asignar historial de lote
-                HistorialLote::create([
-                    "id_lote"          => $lote->id_lote,
-                    "id_venta"         => $venta->id_venta,
-                    "estado"           => "Activo",
-                    "fecha_asignacion" => $fechaVenta,
-                ]);
+                // 2.8 Asignar historial de lote para CADA uno de los lotes individuales
+                foreach ($lotesObjetos as $loteObj) {
+                    HistorialLote::create([
+                        "id_lote"          => $loteObj->id_lote,
+                        "id_venta"         => $venta->id_venta,
+                        "estado"           => "Activo",
+                        "fecha_asignacion" => $fechaVenta,
+                    ]);
 
-                $lote->estado = "Vendido";
-                $lote->save();
+                    if ($loteObj->estado !== "Vendido") {
+                        $loteObj->estado = "Vendido";
+                        $loteObj->save();
+                    }
+                }
 
-                // 2.9 Generar Plan de Cuotas
+                // 2.9 Generar Plan de Cuotas (Inserción optimizada en lote)
                 if ($plazoMeses > 0) {
                     $this->generarPlanCuotas($venta, $fechaVenta);
                 }
 
                 // Registrar en mapeo de ventas
-                $clavesMapeo = [
-                    $claveAbonos,
-                    $claveAbonosPrefijo,
-                    $claveAbonosLoteClean,
-                    strtolower("{$identificacion}_{$bloque->nombre}_{$numeroLote}"),
-                    strtolower("{$identificacion}_{$bloque->nombre}_" . ltrim($numeroLote, '0')),
-                    strtolower("{$identificacion}_{$prefijoBloque}_" . ltrim($numeroLote, '0')),
-                ];
                 foreach ($clavesMapeo as $cm) {
                     $mapeoVentas[$cm] = $venta->id_venta;
                 }
@@ -817,6 +901,16 @@ class ImportacionController extends Controller
 
             // 3. Procesar Hoja de ABONOS
             if (!empty($hojaAbonos)) {
+                // Precarga optimizada de correlativo de recibos
+                $maxRecibo = Abono::withoutGlobalScope('lotificacion')
+                    ->whereHas('venta', fn($q) => $q->withoutGlobalScope('lotificacion')->where('lotificacion_id', $lotificacion->id))
+                    ->max('numero_recibo') ?? 0;
+                $siguienteRecibo = (int)$maxRecibo + 1;
+
+                $tipoNumeracion = (string) setting('tipo_numeracion_recibo', 'proyecto_correlativo', $lotificacion->id);
+                $prefijoRecibo  = (string) setting('prefijo_recibo', '', $lotificacion->id);
+                $longitudRecibo = (int) setting('longitud_digitos_recibo', 1, $lotificacion->id);
+
                 foreach ($hojaAbonos as $j => $filaAbn) {
                     $numFila = $j + 2;
 
@@ -834,7 +928,7 @@ class ImportacionController extends Controller
                     $cedRaw = (string)$this->obtenerValorColumna($filaAbn, ['cedula', 'identificacion', 'n_de_identificacion', 'no_identificacion', 'identificacion_cliente'], '');
                     $identificacion = $this->normalizarCedula($cedRaw);
                     $nombreBloque = trim((string)$this->obtenerValorColumna($filaAbn, ['bloque', 'n_bloque', 'nombre_bloque'], ''));
-                    $numeroLote = trim((string)$this->obtenerValorColumna($filaAbn, ['lote', 'n_lote', 'numero_lote'], ''));
+                    $numeroLoteRaw = trim((string)$this->obtenerValorColumna($filaAbn, ['lote', 'n_lote', 'numero_lote'], ''));
                     $fechaPago = (string)$this->obtenerValorColumna($filaAbn, ['fecha', 'fecha_pago'], '');
                     $monto = (float)$this->obtenerValorColumna($filaAbn, ['abonocancelacion', 'abono_cancelacion', 'abono', 'monto_abonado', 'monto', 'valor'], 0);
                     $pvNum = (string)$this->obtenerValorColumna($filaAbn, ['n_pv', 'numero_pv', 'pv_num', 'pv', 'no_pv'], '');
@@ -844,11 +938,11 @@ class ImportacionController extends Controller
                     $fechaTransferencia = (string)$this->obtenerValorColumna($filaAbn, ['fecha_transferencia', 'fecha_transf'], '');
                     $cuentaDestino = (string)$this->obtenerValorColumna($filaAbn, ['a_la_cuenta_de', 'a_la_cuenta_de_', 'cuenta_destino', 'cuenta', 'banco'], '');
 
-                    if (empty($identificacion) && empty($nombreBloque) && empty($numeroLote) && $monto <= 0) {
+                    if (empty($identificacion) && empty($nombreBloque) && empty($numeroLoteRaw) && $monto <= 0) {
                         continue;
                     }
 
-                    if (empty($identificacion) || empty($nombreBloque) || empty($numeroLote)) {
+                    if (empty($identificacion) || empty($nombreBloque) || empty($numeroLoteRaw)) {
                         $advertencias[] = "[Abonos F{$numFila}] Fila con datos de identificación incompletos. Omitida.";
                         continue;
                     }
@@ -876,14 +970,27 @@ class ImportacionController extends Controller
 
                     $fechaTransfParsed = !empty($fechaTransferencia) ? $this->parsearFecha($fechaTransferencia) : ($metodoPago !== 'Efectivo' ? $fechaPagoParsed : null);
 
-                    // Buscar venta asociada
+                    // Buscar venta asociada con soporte compuesto e individual de multilote
+                    $prefijoB = trim(str_ireplace("Bloque", "", $nombreBloque));
+                    $lotesDescompAbono = $this->descomponerNumerosLote($numeroLoteRaw);
+
                     $posiblesClaves = [
-                        strtolower("{$identificacion}_{$nombreBloque}_{$numeroLote}"),
-                        strtolower("{$identificacion}_Bloque {$nombreBloque}_{$numeroLote}"),
-                        strtolower("{$identificacion}_" . trim(str_ireplace("Bloque", "", $nombreBloque)) . "_{$numeroLote}"),
-                        strtolower("{$identificacion}_{$nombreBloque}_" . ltrim($numeroLote, '0')),
-                        strtolower("{$identificacion}_" . trim(str_ireplace("Bloque", "", $nombreBloque)) . "_" . ltrim($numeroLote, '0')),
+                        strtolower("{$identificacion}_{$nombreBloque}_{$numeroLoteRaw}"),
+                        strtolower("{$identificacion}_{$prefijoB}_{$numeroLoteRaw}"),
+                        strtolower("{$identificacion}_Bloque {$prefijoB}_{$numeroLoteRaw}"),
+                        strtolower("{$identificacion}_{$nombreBloque}_" . str_replace(' ', '', $numeroLoteRaw)),
+                        strtolower("{$identificacion}_{$prefijoB}_" . str_replace(' ', '', $numeroLoteRaw)),
+                        strtolower("{$identificacion}_{$nombreBloque}_" . ltrim($numeroLoteRaw, '0')),
+                        strtolower("{$identificacion}_{$prefijoB}_" . ltrim($numeroLoteRaw, '0')),
                     ];
+
+                    foreach ($lotesDescompAbono as $lda) {
+                        $posiblesClaves[] = strtolower("{$identificacion}_{$nombreBloque}_{$lda}");
+                        $posiblesClaves[] = strtolower("{$identificacion}_{$prefijoB}_{$lda}");
+                        $posiblesClaves[] = strtolower("{$identificacion}_Bloque {$prefijoB}_{$lda}");
+                        $posiblesClaves[] = strtolower("{$identificacion}_{$nombreBloque}_" . ltrim($lda, '0'));
+                        $posiblesClaves[] = strtolower("{$identificacion}_{$prefijoB}_" . ltrim($lda, '0'));
+                    }
 
                     $idVenta = null;
                     foreach ($posiblesClaves as $k) {
@@ -894,7 +1001,7 @@ class ImportacionController extends Controller
                     }
 
                     if (!$idVenta) {
-                        $advertencias[] = "[Abonos F{$numFila}] No se encontró contrato para Cédula: {$identificacion}, Bloque: {$nombreBloque}, Lote: {$numeroLote}. Abono omitido.";
+                        $advertencias[] = "[Abonos F{$numFila}] No se encontró contrato para Cédula: {$identificacion}, Bloque: {$nombreBloque}, Lote: {$numeroLoteRaw}. Abono omitido.";
                         continue;
                     }
 
@@ -907,7 +1014,6 @@ class ImportacionController extends Controller
                     $abonoExistente = null;
 
                     if (!empty($referencia)) {
-                        // Coincidencia por referencia o ID de transferencia
                         $abonoExistente = (clone $abonoExistenteQuery)
                             ->where(function($q) use ($referencia, $pvNum) {
                                 $q->where('referencia', $referencia)
@@ -920,7 +1026,6 @@ class ImportacionController extends Controller
                             })
                             ->first();
                     } elseif (!empty($pvNum)) {
-                        // Coincidencia por N° PV
                         $abonoExistente = (clone $abonoExistenteQuery)
                             ->where(function($q) use ($pvNum) {
                                 $q->where('codigo_recibo', "PV-{$pvNum}")
@@ -929,7 +1034,6 @@ class ImportacionController extends Controller
                             })
                             ->first();
                     } else {
-                        // Coincidencia por contrato + fecha + monto + método de pago
                         $abonoExistente = (clone $abonoExistenteQuery)
                             ->where('metodo_pago', $metodoPago)
                             ->first();
@@ -940,9 +1044,14 @@ class ImportacionController extends Controller
                         continue;
                     }
 
-                    // 3.2 Crear nuevo Abono si no existe
-                    $datosRecibo = Abono::generarSiguienteNumeroRecibo($lotificacion->id);
-                    $codRecibo = !empty($pvNum) ? "PV-{$pvNum}" : (!empty($referencia) ? $referencia : $datosRecibo["codigo_recibo"]);
+                    // 3.2 Generar Recibo en memoria
+                    $numRecibo = $siguienteRecibo++;
+                    $numStr = (string) $numRecibo;
+                    if ($longitudRecibo > 1) {
+                        $numStr = str_pad($numStr, $longitudRecibo, '0', STR_PAD_LEFT);
+                    }
+                    $codigoReciboCalc = $prefijoRecibo . $numStr;
+                    $codRecibo = !empty($pvNum) ? "PV-{$pvNum}" : (!empty($referencia) ? $referencia : $codigoReciboCalc);
 
                     Abono::create([
                         "id_venta"            => $idVenta,
@@ -954,7 +1063,7 @@ class ImportacionController extends Controller
                         "cuenta_destino"      => !empty($cuentaDestino) ? $cuentaDestino : null,
                         "fecha_transferencia" => $fechaTransfParsed,
                         "comentario"          => !empty($observaciones) ? $observaciones : null,
-                        "numero_recibo"       => $datosRecibo["numero_recibo"],
+                        "numero_recibo"       => $numRecibo,
                         "codigo_recibo"       => $codRecibo,
                         "es_migracion"        => true,
                     ]);
@@ -1346,10 +1455,13 @@ class ImportacionController extends Controller
         $cuota = $venta->cuota_mensual;
         $saldo = $venta->precio_final;
         $fechaInicial = Carbon::parse($fechaInicio);
+        $cuotas = [];
+        $now = now();
+
         for ($i = 1; $i <= $plazo; $i++) {
             $fechaVencimiento = (clone $fechaInicial)->addMonths($i - 1);
             $montoCuota = ($i === $plazo) ? $saldo : $cuota;
-            Cuota::create([
+            $cuotas[] = [
                 "id_venta"          => $venta->id_venta,
                 "numero_cuota"      => $i,
                 "fecha_vencimiento" => $fechaVencimiento->format("Y-m-d"),
@@ -1357,9 +1469,18 @@ class ImportacionController extends Controller
                 "capital"           => $montoCuota,
                 "interes"           => 0,
                 "saldo_restante"    => $montoCuota,
-                "estado"            => "Pendiente"
-            ]);
+                "mora_calculada"    => 0,
+                "mora_exonerada"    => 0,
+                "mora_pagada"       => 0,
+                "estado"            => "Pendiente",
+                "created_at"        => $now,
+                "updated_at"        => $now,
+            ];
             $saldo -= $montoCuota;
+        }
+
+        if (!empty($cuotas)) {
+            Cuota::insert($cuotas);
         }
     }
 
