@@ -108,6 +108,27 @@ try {
             }
         }
 
+        // 4.1 Asegurar existencia de tabla configuraciones
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('configuraciones')) {
+                \Illuminate\Support\Facades\Schema::create('configuraciones', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('lotificacion_id')->index();
+                    $table->string('clave', 100);
+                    $table->text('valor')->nullable();
+                    $table->string('tipo', 30)->default('string');
+                    $table->string('grupo', 50)->default('general');
+                    $table->string('descripcion', 255)->nullable();
+                    $table->timestamps();
+
+                    $table->unique(['lotificacion_id', 'clave']);
+                });
+                $columnFixes[] = "✔ Tabla 'configuraciones' creada exitosamente en la base de datos.";
+            }
+        } catch (\Throwable $e) {
+            // Ignorar si falla
+        }
+
         // 5. Limpiar caché desde Artisan
         try {
             \Illuminate\Support\Facades\Artisan::call('view:clear');

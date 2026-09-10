@@ -35,20 +35,17 @@ class Configuracion extends Model
             return $lotificacionId;
         }
 
-        if (session()->has('lotificacion_id')) {
+        if (session()->has('lotificacion_id') && session('lotificacion_id')) {
             return (int) session('lotificacion_id');
         }
 
-        try {
-            $active = app(\App\Services\LotificacionService::class)->getActiveLotificacion();
-            if ($active) {
-                return (int) $active->id;
-            }
-        } catch (\Exception $e) {}
-
         // Fallback a la primera lotificación disponible
-        $primera = Lotificacion::first();
-        return $primera ? (int) $primera->id : null;
+        try {
+            $primera = Lotificacion::first();
+            return $primera ? (int) $primera->id : null;
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /**
@@ -56,21 +53,28 @@ class Configuracion extends Model
      */
     public static function get(string $clave, mixed $default = null, ?int $lotificacionId = null): mixed
     {
-        $lotId = self::resolveLotificacionId($lotificacionId);
-        if (!$lotId) {
-            return $default;
-        }
-
-        $cacheKey = "config_{$lotId}_{$clave}";
-
-        return Cache::remember($cacheKey, 3600, function () use ($lotId, $clave, $default) {
-            $config = self::where('lotificacion_id', $lotId)->where('clave', $clave)->first();
-            if (!$config) {
+        try {
+            $lotId = self::resolveLotificacionId($lotificacionId);
+            if (!$lotId) {
                 return $default;
             }
 
-            return self::castValue($config->valor, $config->tipo);
-        });
+            $cacheKey = "config_{$lotId}_{$clave}";
+
+            return Cache::remember($cacheKey, 3600, function () use ($lotId, $clave, $default) {
+                if (!\Illuminate\Support\Facades\Schema::hasTable('configuraciones')) {
+                    return $default;
+                }
+                $config = self::where('lotificacion_id', $lotId)->where('clave', $clave)->first();
+                if (!$config) {
+                    return $default;
+                }
+
+                return self::castValue($config->valor, $config->tipo);
+            });
+        } catch (\Throwable $e) {
+            return $default;
+        }
     }
 
     /**

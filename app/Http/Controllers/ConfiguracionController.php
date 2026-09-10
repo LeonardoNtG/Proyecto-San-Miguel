@@ -19,6 +19,24 @@ class ConfiguracionController extends Controller
      */
     public function index(Request $request)
     {
+        // Auto-crear tabla configuraciones si aún no existe en producción
+        try {
+            if (!\Illuminate\Support\Facades\Schema::hasTable('configuraciones')) {
+                \Illuminate\Support\Facades\Schema::create('configuraciones', function (\Illuminate\Database\Schema\Blueprint $table) {
+                    $table->id();
+                    $table->unsignedBigInteger('lotificacion_id')->index();
+                    $table->string('clave', 100);
+                    $table->text('valor')->nullable();
+                    $table->string('tipo', 30)->default('string');
+                    $table->string('grupo', 50)->default('general');
+                    $table->string('descripcion', 255)->nullable();
+                    $table->timestamps();
+
+                    $table->unique(['lotificacion_id', 'clave']);
+                });
+            }
+        } catch (\Throwable $e) {}
+
         // 1. Obtener todas las lotificaciones
         $lotificaciones = Lotificacion::orderBy('nombre')->get();
 
@@ -35,9 +53,16 @@ class ConfiguracionController extends Controller
         $grupos = Configuracion::getParametrosDefinicion();
 
         // 4. Obtener las configuraciones guardadas en BD para esta lotificación
-        $configuracionesGuardadas = Configuracion::where('lotificacion_id', $targetLotificacionId)
-            ->pluck('valor', 'clave')
-            ->toArray();
+        $configuracionesGuardadas = [];
+        try {
+            if ($targetLotificacionId && \Illuminate\Support\Facades\Schema::hasTable('configuraciones')) {
+                $configuracionesGuardadas = Configuracion::where('lotificacion_id', $targetLotificacionId)
+                    ->pluck('valor', 'clave')
+                    ->toArray();
+            }
+        } catch (\Throwable $e) {
+            $configuracionesGuardadas = [];
+        }
 
         // 5. Fusionar con valores por defecto
         foreach ($grupos as $grupoKey => &$grupoData) {
