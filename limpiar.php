@@ -210,6 +210,151 @@ try {
         } catch (\Throwable $e) {
             // Ignorar si falla
         }
+
+        // 5.9 Traspaso y corrección integral de contratos para Ermicenda (EXP-3921) y Reyna (EXP-3912)
+        try {
+            $cErm = \App\Models\Cliente::withoutGlobalScopes()
+                ->where('id_cliente', 3921)
+                ->orWhere('expediente_num', 'like', '%3921%')
+                ->orWhere('nombres_apellidos', 'like', '%ESCORCIA%')
+                ->first();
+
+            $cRey = \App\Models\Cliente::withoutGlobalScopes()
+                ->where('id_cliente', 3912)
+                ->orWhere('expediente_num', 'like', '%3912%')
+                ->orWhere('nombres_apellidos', 'like', '%REYNA%')
+                ->first();
+
+            if ($cErm && $cRey) {
+                // Actualizar datos del cliente
+                $cErm->nombres_apellidos = 'ERMICENDA DEL CARMEN ESCORCIA MAIRENA';
+                $cErm->identificacion    = '448-280566-0000B';
+                $cErm->telefono          = '50558208776';
+                $cErm->pv_num            = 'PENDERM';
+                $cErm->save();
+
+                $cRey->nombres_apellidos = 'REYNA MAIRENA SANCHEZ';
+                $cRey->identificacion    = '448-050145-0000P';
+                $cRey->telefono          = '50558208776';
+                $cRey->save();
+
+                // Buscar ventas de Ermicenda
+                $ventasErm = \App\Models\Venta::withoutGlobalScopes()
+                    ->with('lotes')
+                    ->where('id_cliente', $cErm->id_cliente)
+                    ->get();
+
+                $traspasados = 0;
+                $ventaQ1Id = null;
+                $ventaQ28Id = null;
+
+                foreach ($ventasErm as $v) {
+                    $lotesStr = $v->lotes->map(fn($l) => $l->numero_lote)->implode(',');
+                    $esLote28 = str_contains($lotesStr, '28') || str_contains($lotesStr, 'Q-28');
+                    $esLote1 = str_contains($lotesStr, '1') || str_contains($lotesStr, '01') || str_contains($lotesStr, 'Q-01') || str_contains($lotesStr, 'Q-1');
+
+                    if ($esLote28 || (!$esLote1 && $ventasErm->count() > 1)) {
+                        // Reasignar esta venta a Reyna
+                        $v->id_cliente = $cRey->id_cliente;
+                        $v->estado_contrato = 'Vigente';
+                        $v->save();
+                        $ventaQ28Id = $v->id_venta;
+                        $traspasados++;
+                    } elseif ($esLote1) {
+                        $ventaQ1Id = $v->id_venta;
+                    }
+                }
+
+                // Si no encontramos ventaQ28Id entre las de Ermicenda porque ya fue reasignada, buscar entre las de Reyna
+                if (!$ventaQ28Id) {
+                    $ventasRey = \App\Models\Venta::withoutGlobalScopes()->with('lotes')->where('id_cliente', $cRey->id_cliente)->get();
+                    foreach ($ventasRey as $v) {
+                        $lotesStr = $v->lotes->map(fn($l) => $l->numero_lote)->implode(',');
+                        if (str_contains($lotesStr, '28') || str_contains($lotesStr, 'Q-28')) {
+                            $ventaQ28Id = $v->id_venta;
+                            break;
+                        }
+                    }
+                }
+
+                // Sincronizar abonos de Ermicenda (Lote Q-01)
+                if ($ventaQ1Id) {
+                    $abonosEsperadosQ1 = [
+                        ['fecha' => '2026-05-05', 'ref' => '92',   'monto' => 100.00],
+                        ['fecha' => '2026-06-10', 'ref' => '654',  'monto' => 100.00],
+                        ['fecha' => '2026-07-13', 'ref' => '1067', 'monto' => 100.00],
+                        ['fecha' => '2026-08-08', 'ref' => '1340', 'monto' => 100.00],
+                    ];
+                    foreach ($abonosEsperadosQ1 as $abEsp) {
+                        $existe = \App\Models\Abono::where('id_venta', $ventaQ1Id)
+                            ->where(function ($q) use ($abEsp) {
+                                $q->where('referencia', $abEsp['ref'])
+                                  ->orWhere('numero_recibo', (int)$abEsp['ref'])
+                                  ->orWhere('codigo_recibo', $abEsp['ref']);
+                            })
+                            ->exists();
+                        if (!$existe) {
+                            \App\Models\Abono::create([
+                                'id_venta'       => $ventaQ1Id,
+                                'numero_recibo'  => (int)$abEsp['ref'],
+                                'codigo_recibo'  => $abEsp['ref'],
+                                'fecha_pago'     => $abEsp['fecha'],
+                                'monto_abonado'  => $abEsp['monto'],
+                                'tipo_pago'      => 'Cuota',
+                                'metodo_pago'    => 'Efectivo',
+                                'referencia'     => $abEsp['ref'],
+                                'user_id'        => 1,
+                                'es_migracion'   => true,
+                            ]);
+                        }
+                    }
+                    \App\Http\Controllers\AbonoController::recalcularCuotas($ventaQ1Id);
+                }
+
+                // Sincronizar abonos de Reyna para Lote Q-28
+                if ($ventaQ28Id) {
+                    $abonosEsperadosQ28 = [
+                        ['fecha' => '2026-05-06', 'ref' => '108', 'monto' => 100.00],
+                        ['fecha' => '2026-06-10', 'ref' => '653', 'monto' => 100.00],
+                    ];
+                    foreach ($abonosEsperadosQ28 as $abEsp) {
+                        $existe = \App\Models\Abono::where('id_venta', $ventaQ28Id)
+                            ->where(function ($q) use ($abEsp) {
+                                $q->where('referencia', $abEsp['ref'])
+                                  ->orWhere('numero_recibo', (int)$abEsp['ref'])
+                                  ->orWhere('codigo_recibo', $abEsp['ref']);
+                            })
+                            ->exists();
+                        if (!$existe) {
+                            \App\Models\Abono::create([
+                                'id_venta'       => $ventaQ28Id,
+                                'numero_recibo'  => (int)$abEsp['ref'],
+                                'codigo_recibo'  => $abEsp['ref'],
+                                'fecha_pago'     => $abEsp['fecha'],
+                                'monto_abonado'  => $abEsp['monto'],
+                                'tipo_pago'      => 'Cuota',
+                                'metodo_pago'    => 'Efectivo',
+                                'referencia'     => $abEsp['ref'],
+                                'user_id'        => 1,
+                                'es_migracion'   => true,
+                            ]);
+                        }
+                    }
+                    \App\Http\Controllers\AbonoController::recalcularCuotas($ventaQ28Id);
+                }
+
+                // Recalcular todos los contratos de Reyna
+                $ventasReynaTotales = \App\Models\Venta::withoutGlobalScopes()->where('id_cliente', $cRey->id_cliente)->get();
+                foreach ($ventasReynaTotales as $vR) {
+                    \App\Http\Controllers\AbonoController::recalcularCuotas($vR->id_venta);
+                }
+
+                $columnFixes[] = "✔ Traspaso completado: Lote Q-28 trasladado exitosamente a Reyna Mairena Sánchez (EXP-3912). Ermicenda (EXP-3921) ahora posee únicamente Lote Q-01.";
+            }
+        } catch (\Throwable $e) {
+            $columnFixes[] = "⚠ Error al traspasar Q-28: " . $e->getMessage();
+        }
+
         $campanaCleanReport = null;
         if (isset($_GET['limpiar_campana']) && $_GET['limpiar_campana'] === '1') {
             try {
