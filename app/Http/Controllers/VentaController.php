@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Venta;
+use App\Models\Cliente;
 use App\Models\Lote;
 use App\Models\HistorialLote;
 use App\Models\Abono;
@@ -578,12 +579,15 @@ class VentaController extends Controller
 
             Auditoria::log('Traspaso de Contrato', 'Venta', $venta->id_venta, $detalles);
 
+            // Recalcular cuotas del contrato traspasado
+            \App\Http\Controllers\AbonoController::recalcularCuotas($venta->id_venta);
+
             DB::commit();
 
             return redirect()->route('registro.show', ['cliente' => $clienteDestino->id_cliente, 'venta_id' => $venta->id_venta])
                 ->with('success', "¡El contrato ({$lotesNombres}) fue traspasado exitosamente a {$clienteDestino->nombres_apellidos} (Exp: {$clienteDestino->expediente_num})!");
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
             return back()->with('error', 'Error al realizar el traspaso del contrato: ' . $e->getMessage());
         }
