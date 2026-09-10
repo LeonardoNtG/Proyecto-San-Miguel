@@ -716,6 +716,9 @@
         </div>
     </div>
 
+@endsection
+
+@section('scripts')
 @php
     $lotesVentaUnicaArray = (isset($venta) && $venta->lotes) ? $venta->lotes->map(function($l) {
         return [
@@ -724,8 +727,6 @@
         ];
     })->values()->toArray() : [];
 @endphp
-
-@section('scripts')
 <script>
     var saldoActualVenta = {{ (float)$saldoPendiente }};
     var tieneMultiplesLotes = {{ $ventas->count() > 1 ? 'true' : 'false' }};
