@@ -47,27 +47,25 @@
         padding: 0;
     }
     .logo-box {
-        width: 130px;
-        height: 60px;
-        border: 1px dashed #cbd5e1;
-        border-radius: 4px;
-        text-align: center;
+        width: 175px;
+        text-align: left;
         vertical-align: middle;
-        background-color: #ffffff;
-        padding: 4px;
+        background-color: transparent;
+        padding: 0;
     }
     .logo-box img {
-        max-width: 120px;
-        max-height: 52px;
+        max-width: 170px;
+        max-height: 75px;
         object-fit: contain;
     }
     .logo-placeholder {
-        font-size: 8.5px;
+        font-size: 9px;
         font-weight: bold;
         color: #64748b;
         letter-spacing: 0.5px;
         line-height: 14px;
-        padding-top: 14px;
+        padding: 10px 0;
+        text-transform: uppercase;
     }
     .header-title-td {
         padding-left: 14px;
@@ -282,7 +280,7 @@
     {{-- ENCABEZADO --}}
     <table class="header-table">
         <tr>
-            <td style="width: 135px;">
+            <td style="width: 175px;">
                 <div class="logo-box">
                     @if(!empty($logoBase64))
                         <img src="{{ $logoBase64 }}" alt="Logo">
