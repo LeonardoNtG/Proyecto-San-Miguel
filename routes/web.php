@@ -51,6 +51,7 @@ Route::middleware(['auth'])->group(function () {
     // Proyecto Activo, Rescisión y Edición Integral de Contrato
     Route::post('/lotificacion/{id}/activa', [LotificacionController::class, 'setLotificacionActiva'])->name('lotificacion.setActiva');
     Route::post('/ventas/{id}/rescindir', [VentaController::class, 'rescindir'])->name('ventas.rescindir');
+    Route::post('/ventas/{id}/traspasar', [VentaController::class, 'traspasarContrato'])->name('ventas.traspasar');
     Route::get('/ventas/{id}/editar-completo', [VentaController::class, 'editCompleto'])->name('ventas.edit_completo');
     Route::put('/ventas/{id}/actualizar-completo', [VentaController::class, 'updateCompleto'])->name('ventas.update_completo');
 

@@ -521,4 +521,71 @@ class VentaController extends Controller
             return back()->withInput()->with('error', 'Error al actualizar el contrato: ' . $e->getMessage());
         }
     }
+
+    /**
+     * Procesa el traspaso / cesión de un contrato hacia otro cliente.
+     */
+    public function traspasarContrato(Request $request, $id_venta)
+    {
+        $request->validate([
+            'cliente_destino' => 'required|string|max:255',
+            'motivo_traspaso' => 'required|string|min:3|max:1000',
+        ], [
+            'cliente_destino.required' => 'Debe ingresar el número de expediente, cédula o nombre del cliente destino.',
+            'motivo_traspaso.required' => 'Debe ingresar el motivo del traspaso para la bitácora de auditoría.',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $venta = Venta::withoutGlobalScope('lotificacion')->with(['cliente', 'lotes.bloque', 'abonos'])->findOrFail($id_venta);
+            $clienteOrigen = $venta->cliente;
+
+            $termino = trim((string)$request->cliente_destino);
+
+            // Buscar cliente destino por expediente, cédula o nombre
+            $clienteDestino = Cliente::withoutGlobalScope('lotificacion')
+                ->where('expediente_num', $termino)
+                ->orWhere('expediente_num', 'like', "%{$termino}%")
+                ->orWhere('identificacion', $termino)
+                ->orWhere('nombres_apellidos', $termino)
+                ->orWhere('nombres_apellidos', 'like', "%{$termino}%")
+                ->first();
+
+            if (!$clienteDestino) {
+                return back()->with('error', "No se encontró ningún cliente con el término '{$termino}'. Por favor verifique que el cliente esté registrado en el sistema con su N° de Expediente o Cédula.");
+            }
+
+            if ($clienteDestino->id_cliente === $clienteOrigen->id_cliente) {
+                return back()->with('error', 'El cliente destino no puede ser el mismo cliente actual.');
+            }
+
+            $lotesNombres = $venta->lotes->map(fn($l) => 'Bloque ' . ($l->bloque->nombre ?? 'N/A') . ' - Lote ' . $l->numero_lote)->implode(', ') ?: "Contrato #{$venta->id_venta}";
+            $totalAbonado = (float)$venta->abonos->sum('monto_abonado');
+            $saldoRestante = max(0, (float)$venta->precio_final - $totalAbonado);
+
+            // Transferir propiedad de la venta
+            $venta->id_cliente = $clienteDestino->id_cliente;
+            $venta->save();
+
+            // Registrar Auditoría Permanente
+            $detalles = "<strong>Traspaso de Contrato / Reasignación de Titular:</strong><br>" .
+                        "• <strong>Lote(s):</strong> <span class='text-primary fw-bold'>{$lotesNombres}</span><br>" .
+                        "• <strong>Titular Anterior:</strong> {$clienteOrigen->nombres_apellidos} (Exp: {$clienteOrigen->expediente_num})<br>" .
+                        "• <strong>Nuevo Titular:</strong> {$clienteDestino->nombres_apellidos} (Exp: {$clienteDestino->expediente_num})<br>" .
+                        "• <strong>Total Abonado Trasladado:</strong> $" . number_format($totalAbonado, 2) . "<br>" .
+                        "• <strong>Saldo Restante:</strong> $" . number_format($saldoRestante, 2) . "<br>" .
+                        "• <strong>Motivo:</strong> " . e($request->motivo_traspaso);
+
+            Auditoria::log('Traspaso de Contrato', 'Venta', $venta->id_venta, $detalles);
+
+            DB::commit();
+
+            return redirect()->route('registro.show', ['cliente' => $clienteDestino->id_cliente, 'venta_id' => $venta->id_venta])
+                ->with('success', "¡El contrato ({$lotesNombres}) fue traspasado exitosamente a {$clienteDestino->nombres_apellidos} (Exp: {$clienteDestino->expediente_num})!");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Error al realizar el traspaso del contrato: ' . $e->getMessage());
+        }
+    }
 }

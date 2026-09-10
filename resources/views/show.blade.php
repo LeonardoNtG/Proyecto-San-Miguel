@@ -82,6 +82,9 @@
                 @endif
                 
                 @if($venta && $venta->estado_contrato !== 'Rescindido')
+                <button type="button" class="btn btn-primary fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#traspasarModal" title="Traspasar o ceder este contrato a otro cliente">
+                    <i class="fas fa-exchange-alt me-1"></i> Traspasar Contrato
+                </button>
                 <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#rescindirModal">
                     <i class="fas fa-ban"></i> Rescindir Venta
                 </button>
@@ -565,6 +568,63 @@
             </div>
         </div>
     </div>
+
+    {{-- Modal de Traspaso / Cesión de Contrato --}}
+    @if($venta && $venta->estado_contrato !== 'Rescindido')
+    <div class="modal fade" id="traspasarModal" tabindex="-1" aria-labelledby="traspasarModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow border-0">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title fw-bold" id="traspasarModalLabel">
+                        <i class="fas fa-exchange-alt me-2"></i> Traspasar / Ceder Contrato
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <form action="{{ route('ventas.traspasar', $venta->id_venta) }}" method="POST" onsubmit="return confirm('¿Está seguro de que desea transferir este contrato y todos sus pagos al nuevo cliente?');">
+                    @csrf
+                    <div class="modal-body p-4">
+                        <div class="alert alert-info py-2 px-3 small mb-3">
+                            <i class="fas fa-info-circle me-1"></i> Esta acción trasladará el contrato seleccionado (junto con su historial de cuotas y abonos ya pagados) al expediente del nuevo titular, <strong>sin contar como rescisión</strong>.
+                        </div>
+                        
+                        <div class="p-3 bg-light rounded border mb-3">
+                            <span class="text-muted small d-block">Contrato a Transferir:</span>
+                            <strong class="text-dark fs-6">
+                                <i class="fas fa-map-marker-alt text-primary me-1"></i>
+                                {{ $venta->lotes->map(fn($l) => 'Bloque '.($l->bloque->nombre ?? '').' - Lote '.$l->numero_lote)->implode(', ') ?: 'Contrato #'.$venta->id_venta }}
+                            </strong>
+                            <div class="d-flex justify-content-between mt-2 pt-2 border-top small">
+                                <span>Abonado: <strong class="text-success">${{ number_format($venta->total_abonado, 2) }}</strong></span>
+                                <span>Deuda: <strong class="text-danger">${{ number_format(max(0, $venta->precio_final - $venta->total_abonado), 2) }}</strong></span>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="cliente_destino_busqueda" class="form-label fw-bold small text-dark">
+                                Cliente Destino (N° Expediente, Cédula o Nombre) <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" class="form-control" id="cliente_destino_busqueda" name="cliente_destino" placeholder="Ej: EXP-3912 o REYNA MAIRENA SANCHEZ" required>
+                            <small class="text-muted">Ingrese el número de expediente exacto (ej: <strong>EXP-3912</strong>) o nombre del cliente receptor.</small>
+                        </div>
+
+                        <div class="mb-2">
+                            <label for="motivo_traspaso" class="form-label fw-bold small text-dark">
+                                Motivo / Justificación del Traspaso <span class="text-danger">*</span>
+                            </label>
+                            <textarea class="form-control" id="motivo_traspaso" name="motivo_traspaso" rows="2" placeholder="Ej: Corrección de importación de datos / Cesión de derechos de lote" required>Corrección de importación de datos</textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer bg-light">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-primary fw-bold px-4">
+                            <i class="fas fa-check-circle me-1"></i> Confirmar Traspaso
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
 
     {{-- Modal de Rescisión / Desistimiento de Lotes --}}
     @if($venta && $venta->estado_contrato !== 'Rescindido')
