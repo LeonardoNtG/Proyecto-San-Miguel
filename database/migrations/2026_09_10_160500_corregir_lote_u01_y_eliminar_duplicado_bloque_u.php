@@ -64,7 +64,6 @@ return new class extends Migration
                         ->get();
 
                     foreach ($historiales as $h) {
-                        // Verificar si ya existe relación activa para el lote real
                         $existeHist = DB::table('historial_lotes')
                             ->where('id_lote', $loteRealU01->id_lote)
                             ->where('id_venta', $h->id_venta)
@@ -78,12 +77,11 @@ return new class extends Migration
                             DB::table('historial_lotes')->where('id', $h->id)->delete();
                         }
 
-                        // Recalcular cuotas de la venta del cliente (Ángel Josué Castillo)
                         \App\Http\Controllers\AbonoController::recalcularCuotas($h->id_venta);
                     }
 
-                    // Eliminar cualquier reserva vinculada al placeholder
-                    DB::table('reservas')->where('id_lote', $lotePlaceholder->id_lote)->update(['id_lote' => $loteRealU01->id_lote]);
+                    // Eliminar cualquier historial remanente del placeholder
+                    DB::table('historial_lotes')->where('id_lote', $lotePlaceholder->id_lote)->delete();
 
                     // Eliminar el lote placeholder de 150 m2
                     $lotePlaceholder->delete();
@@ -125,7 +123,6 @@ return new class extends Migration
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            // Continuar sin romper migraciones
         }
     }
 

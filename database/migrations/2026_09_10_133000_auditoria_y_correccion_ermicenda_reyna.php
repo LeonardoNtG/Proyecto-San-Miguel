@@ -210,12 +210,12 @@ return new class extends Migration
             if (DB::getSchemaBuilder()->hasTable('auditorias')) {
                 DB::table('auditorias')->insert([
                     'accion'      => 'Auditoría y Corrección de Cartera',
-                    'modulo'      => 'Clientes / Ventas',
-                    'id_registro' => $clienteReyna->id_cliente,
+                    'modelo'      => 'Cliente',
+                    'modelo_id'   => $clienteReyna->id_cliente,
+                    'user_id'     => 1,
                     'detalles'    => "<strong>Corrección Integral de Estados de Cuenta:</strong><br>" .
                                      "• <strong>Ermicenda Escorcia (EXP-3921):</strong> 1 Contrato (Q-01), 4 abonos (Total $400.00), Saldo pendiente: $8,100.00.<br>" .
                                      "• <strong>Reyna Mairena (EXP-3912):</strong> 3 Contratos (Q-24, Q-25/26/27, Q-28), 6 abonos (Total $1,000.00), Saldo pendiente: $41,500.00.",
-                    'user_id'     => 1,
                     'created_at'  => now(),
                     'updated_at'  => now(),
                 ]);

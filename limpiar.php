@@ -193,7 +193,7 @@ try {
                         \App\Http\Controllers\AbonoController::recalcularCuotas($h->id_venta);
                     }
 
-                    \Illuminate\Support\Facades\DB::table('reservas')->where('id_lote', $lotePlaceholder->id_lote)->update(['id_lote' => $loteRealU01->id_lote]);
+                    \Illuminate\Support\Facades\DB::table('historial_lotes')->where('id_lote', $lotePlaceholder->id_lote)->delete();
                     $lotePlaceholder->delete();
                     $columnFixes[] = "✔ Bloque U ajustado: Lote U-01 corregido con área 208.54 m² (295.80 vrs²), reasignado a contrato de Ángel Josué Castillo Castro y eliminado lote duplicado. Total de lotes: 608.";
                 }
