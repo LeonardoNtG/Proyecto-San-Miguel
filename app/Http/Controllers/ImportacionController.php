@@ -574,17 +574,54 @@ class ImportacionController extends Controller
             foreach ($hojaLista as $i => $fila) {
                 $numFila = $i + 2;
 
-                $nombres = mb_strtoupper((string)$this->obtenerValorColumna($fila, ['nombre_del_cliente', 'nombre_cliente', 'nombres_apellidos', 'cliente', 'nombre'], ''), 'UTF-8');
-                $identificacionRaw = (string)$this->obtenerValorColumna($fila, ['n_de_identificacion', 'numero_de_identificacion', 'identificacion', 'cedula', 'no_de_identificacion', 'identificacion_cliente'], '');
+                $nombres = mb_strtoupper((string)$this->obtenerValorColumna($fila, ['nombre_del_cliente', 'nombre_cliente', 'nombres_apellidos', 'cliente', 'nombre', 'nombres'], ''), 'UTF-8');
+                $identificacionRaw = (string)$this->obtenerValorColumna($fila, ['n_de_identificacion', 'numero_de_identificacion', 'identificacion', 'cedula', 'no_de_identificacion', 'identificacion_cliente', 'n_identificacion', 'no_identificacion', 'doc_identidad', 'dni', 'c_dula', 'identificaci_n', 'n_de_identificaci_n'], '');
+                $telefono = (string)$this->obtenerValorColumna($fila, ['n_telefono', 'numero_telefono', 'telefono', 'celular', 'tel', 'no_telefono', 'n_de_telefono', 'n_tel_fono'], '');
+                $nombreBloque = trim((string)$this->obtenerValorColumna($fila, ['n_bloque', 'numero_bloque', 'bloque', 'nombre_bloque', 'no_bloque', 'n_de_bloque'], ''));
+                $numeroLote = trim((string)$this->obtenerValorColumna($fila, ['n_lote', 'numero_lote', 'lote', 'no_lote', 'n_de_lote'], ''));
+                $montoLote = (float)$this->obtenerValorColumna($fila, ['monto_lote', 'monto_del_lote', 'precio_lote', 'precio_final', 'monto', 'precio', 'valor_lote', 'precio_total'], 0);
+                $plazoMeses = (int)$this->obtenerValorColumna($fila, ['plazo_cuotas', 'plazo', 'plazo_meses', 'meses', 'plazo_de_cuotas', 'cuotas'], 0);
+                $montoCuota = (float)$this->obtenerValorColumna($fila, ['monto_cuota', 'cuota_mensual', 'cuota', 'monto_de_cuota', 'valor_cuota'], 0);
+                $abonoActual = (float)$this->obtenerValorColumna($fila, ['abono_actual', 'abonos_actuales', 'total_abonado', 'abonos', 'abono', 'abonado'], 0);
+                $saldo = (float)$this->obtenerValorColumna($fila, ['saldo', 'saldo_pendiente', 'saldo_actual', 'saldo_restante'], 0);
+
+                // Desambiguación inteligente entre Nombre del Cliente e Identificación
+                $tieneDigitosNombre = (bool)preg_match('/[0-9]/', $nombres);
+                $tieneDigitosCedula = (bool)preg_match('/[0-9]/', $identificacionRaw);
+
+                // Caso A: Si los campos quedaron invertidos (cédula en nombre y nombre en cédula)
+                if ($tieneDigitosNombre && !$tieneDigitosCedula && strlen($identificacionRaw) > 3) {
+                    $temp = $nombres;
+                    $nombres = $identificacionRaw;
+                    $identificacionRaw = $temp;
+                }
+
+                // Caso B: Si la identificación es idéntica al nombre completo o es un texto largo sin dígitos
+                if ($identificacionRaw === $nombres || (strlen($identificacionRaw) > 20 && !$tieneDigitosCedula)) {
+                    // Buscar la cédula real de este cliente/lote en la hoja de ABONOS pre-indexada
+                    $cedulaDesdeAbonos = null;
+                    if (!empty($abonosPorLote)) {
+                        foreach ($abonosPorLote as $abnInfo) {
+                            if (!empty($abnInfo['filas'])) {
+                                foreach ($abnInfo['filas'] as $abnF) {
+                                    $abnLt = trim((string)$this->obtenerValorColumna($abnF, ['lote', 'n_lote', 'numero_lote'], ''));
+                                    $abnBlq = trim((string)$this->obtenerValorColumna($abnF, ['bloque', 'n_bloque', 'nombre_bloque'], ''));
+                                    if ($abnBlq === $nombreBloque && ($abnLt === $numeroLote || ltrim($abnLt, '0') === ltrim($numeroLote, '0'))) {
+                                        $cedulaDesdeAbonos = (string)$this->obtenerValorColumna($abnF, ['cedula', 'identificacion', 'n_de_identificacion'], '');
+                                        if (!empty($cedulaDesdeAbonos)) {
+                                            break 2;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (!empty($cedulaDesdeAbonos)) {
+                        $identificacionRaw = $cedulaDesdeAbonos;
+                    }
+                }
+
                 $identificacion = $this->normalizarCedula($identificacionRaw);
-                $telefono = (string)$this->obtenerValorColumna($fila, ['n_telefono', 'numero_telefono', 'telefono', 'celular'], '');
-                $nombreBloque = trim((string)$this->obtenerValorColumna($fila, ['n_bloque', 'numero_bloque', 'bloque', 'nombre_bloque'], ''));
-                $numeroLote = trim((string)$this->obtenerValorColumna($fila, ['n_lote', 'numero_lote', 'lote'], ''));
-                $montoLote = (float)$this->obtenerValorColumna($fila, ['monto_lote', 'monto_del_lote', 'precio_lote', 'precio_final', 'monto', 'precio'], 0);
-                $plazoMeses = (int)$this->obtenerValorColumna($fila, ['plazo_cuotas', 'plazo', 'plazo_meses', 'meses'], 0);
-                $montoCuota = (float)$this->obtenerValorColumna($fila, ['monto_cuota', 'cuota_mensual', 'cuota', 'monto_de_cuota'], 0);
-                $abonoActual = (float)$this->obtenerValorColumna($fila, ['abono_actual', 'abonos_actuales', 'total_abonado', 'abonos'], 0);
-                $saldo = (float)$this->obtenerValorColumna($fila, ['saldo', 'saldo_pendiente', 'saldo_actual'], 0);
 
                 // Ignorar filas sin datos
                 if (empty($nombres) && empty($identificacion) && empty($nombreBloque) && empty($numeroLote)) {
@@ -1544,7 +1581,14 @@ class ImportacionController extends Controller
         ];
 
         $normalizarEncabezado = function($txt) {
-            return strtolower(trim(preg_replace('/_+/', '_', preg_replace('/[^A-Za-z0-9]/', '_', trim((string)$txt))), '_'));
+            $txt = (string)$txt;
+            $unaccented = strtr(utf8_decode($txt), 
+                utf8_decode('àáâãäçèéêëìíîïñòóôõöùúûüýÿÀÁÂÃÄÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝ'), 
+                'aaaaaceeeeiiiinooooouuuuyyAAAAACEEEEIIIINOOOOOUUUUY');
+            if (empty($unaccented) && !empty($txt)) {
+                $unaccented = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $txt) ?: $txt;
+            }
+            return strtolower(trim(preg_replace('/_+/', '_', preg_replace('/[^A-Za-z0-9]/', '_', trim($unaccented))), '_'));
         };
 
         // 1. Extraer todas las filas no vacías del XML
