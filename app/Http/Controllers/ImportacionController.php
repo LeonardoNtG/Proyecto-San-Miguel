@@ -881,9 +881,9 @@ class ImportacionController extends Controller
                     }
                 }
 
-                // 2.9 Generar Plan de Cuotas (Inserción optimizada en lote)
+                // 2.9 Generar Plan de Cuotas con aplicación de abonos iniciales
                 if ($plazoMeses > 0) {
-                    $this->generarPlanCuotas($venta, $fechaVenta);
+                    $this->generarPlanCuotas($venta, $fechaVenta, (float)$totalAbonadoReal);
                 }
 
                 // Registrar en mapeo de ventas
@@ -1449,7 +1449,7 @@ class ImportacionController extends Controller
         return [$errores, $advertencias, $procesados];
     }
 
-    private function generarPlanCuotas(Venta $venta, string $fechaInicio): void
+    private function generarPlanCuotas(Venta $venta, string $fechaInicio, float $totalAbonado = 0.0): void
     {
         $plazo = $venta->plazo_meses;
         $cuota = $venta->cuota_mensual;
@@ -1457,10 +1457,25 @@ class ImportacionController extends Controller
         $fechaInicial = Carbon::parse($fechaInicio);
         $cuotas = [];
         $now = now();
+        $abonoRestante = max(0.0, (float)$totalAbonado);
 
         for ($i = 1; $i <= $plazo; $i++) {
             $fechaVencimiento = (clone $fechaInicial)->addMonths($i - 1);
             $montoCuota = ($i === $plazo) ? $saldo : $cuota;
+
+            if ($abonoRestante >= (float)$montoCuota) {
+                $saldoRestante = 0.0;
+                $estado = "Pagada";
+                $abonoRestante -= (float)$montoCuota;
+            } elseif ($abonoRestante > 0) {
+                $saldoRestante = round((float)$montoCuota - $abonoRestante, 2);
+                $estado = "Parcial";
+                $abonoRestante = 0.0;
+            } else {
+                $saldoRestante = (float)$montoCuota;
+                $estado = "Pendiente";
+            }
+
             $cuotas[] = [
                 "id_venta"          => $venta->id_venta,
                 "numero_cuota"      => $i,
@@ -1468,11 +1483,11 @@ class ImportacionController extends Controller
                 "monto_total"       => $montoCuota,
                 "capital"           => $montoCuota,
                 "interes"           => 0,
-                "saldo_restante"    => $montoCuota,
+                "saldo_restante"    => $saldoRestante,
                 "mora_calculada"    => 0,
                 "mora_exonerada"    => 0,
                 "mora_pagada"       => 0,
-                "estado"            => "Pendiente",
+                "estado"            => $estado,
                 "created_at"        => $now,
                 "updated_at"        => $now,
             ];
@@ -1482,6 +1497,53 @@ class ImportacionController extends Controller
         if (!empty($cuotas)) {
             Cuota::insert($cuotas);
         }
+    }
+
+    /**
+     * Recalcula y sincroniza el estado de las cuotas contra los abonos registrados de un proyecto.
+     */
+    public function recalcularCuotasProyecto(Request $request)
+    {
+        @set_time_limit(300);
+        $lotificacionId = $request->get('lotificacion_id', 1);
+        $ventas = Venta::withoutGlobalScope('lotificacion')
+            ->where('lotificacion_id', $lotificacionId)
+            ->with(['abonos', 'cuotas'])
+            ->get();
+
+        $count = 0;
+        foreach ($ventas as $venta) {
+            $totalAbonado = (float)$venta->abonos->sum('monto_abonado');
+            $cuotas = $venta->cuotas->sortBy('numero_cuota');
+            $abonoRestante = $totalAbonado;
+
+            foreach ($cuotas as $cuota) {
+                $montoCuota = (float)$cuota->monto_total;
+                if ($abonoRestante >= $montoCuota) {
+                    $cuota->saldo_restante = 0.0;
+                    $cuota->estado = 'Pagada';
+                    $abonoRestante -= $montoCuota;
+                } elseif ($abonoRestante > 0) {
+                    $cuota->saldo_restante = round($montoCuota - $abonoRestante, 2);
+                    $cuota->estado = 'Parcial';
+                    $abonoRestante = 0.0;
+                } else {
+                    $cuota->saldo_restante = $montoCuota;
+                    $cuota->estado = 'Pendiente';
+                }
+                $cuota->save();
+            }
+
+            $saldoRestanteTotal = $cuotas->sum('saldo_restante');
+            if ($saldoRestanteTotal <= 0 && $totalAbonado > 0) {
+                $venta->estado_contrato = 'Finalizado';
+                $venta->save();
+            }
+
+            $count++;
+        }
+
+        return redirect()->back()->with('success', "Se recalcularon y sincronizaron las cuotas de {$count} contratos exitosamente.");
     }
 
     /**

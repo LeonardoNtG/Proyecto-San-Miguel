@@ -224,6 +224,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('importacion/plantilla', [ImportacionController::class, 'descargarPlantilla'])->name('importacion.plantilla');
         Route::get('importacion/plantilla-campana', [ImportacionController::class, 'descargarPlantillaCampana'])->name('importacion.plantilla_campana');
         Route::post('importacion/procesar', [ImportacionController::class, 'procesar'])->name('importacion.procesar');
+        Route::match(['get', 'post'], 'importacion/recalcular-cuotas', [ImportacionController::class, 'recalcularCuotasProyecto'])->name('importacion.recalcular_cuotas');
 
         // Gestión del Sistema
         Route::resource('usuarios', UsuarioController::class);

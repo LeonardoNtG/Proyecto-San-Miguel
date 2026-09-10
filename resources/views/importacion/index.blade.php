@@ -14,6 +14,13 @@
         </p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
+        <form action="{{ route('importacion.recalcular_cuotas') }}" method="POST" class="d-inline" onsubmit="return confirm('¿Desea sincronizar y actualizar el estado de las cuotas pagadas según los abonos registrados?');">
+            @csrf
+            <input type="hidden" name="lotificacion_id" value="1">
+            <button type="submit" class="btn btn-warning btn-sm shadow-sm font-weight-bold text-dark">
+                <i class="fas fa-sync-alt me-1"></i> Sincronizar Cuotas Pagadas (La Campana)
+            </button>
+        </form>
         <a href="{{ route('importacion.plantilla_campana') }}" class="btn btn-success btn-sm shadow-sm">
             <i class="fas fa-file-excel me-1"></i> Descargar Formato La Campana (2 Hojas)
         </a>
