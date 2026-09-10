@@ -15,19 +15,45 @@ class ReportesController extends Controller
     public function cierreCaja(Request $request)
     {
         $fecha = $request->input('fecha', Carbon::today()->format('Y-m-d'));
-        
-        $userId = auth()->id();
-        if (auth()->user()->hasRole('Administrador') && $request->filled('user_id')) {
-            $userId = (int) $request->input('user_id');
-        }
-        $usuarioSeleccionado = \App\Models\User::find($userId) ?? auth()->user();
+        $isAdmin = auth()->user()->hasRole('Administrador');
 
-        // Obtener abonos de la fecha seleccionada (por fecha de pago real, para no afectar cierres con recibos de migración histórica)
-        $abonos = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
-            ->whereDate('fecha_pago', $fecha)
-            ->where('user_id', $userId)
+        // Todos los usuarios para el selector de admin
+        $todosLosCajeros = \App\Models\User::orderBy('name', 'asc')->get();
+
+        // Cajeros que registraron abonos en esta fecha para la lotificación activa
+        $cajerosConMovimientos = Abono::whereDate('fecha_pago', $fecha)
             ->where('es_migracion', false)
-            ->get();
+            ->with('user')
+            ->get()
+            ->pluck('user')
+            ->filter()
+            ->unique('id');
+
+        $userId = null;
+        if ($request->filled('user_id')) {
+            if ($request->input('user_id') !== 'todos') {
+                $userId = (int) $request->input('user_id');
+            }
+        } elseif (!$isAdmin) {
+            $userId = auth()->id();
+        } else {
+            // Si es Administrador y no especificó user_id:
+            // Si solo un cajero registró movimientos, seleccionarlo por defecto
+            if ($cajerosConMovimientos->count() === 1) {
+                $userId = $cajerosConMovimientos->first()->id;
+            }
+        }
+
+        $usuarioSeleccionado = $userId ? \App\Models\User::find($userId) : null;
+
+        // Obtener abonos de la fecha seleccionada (por fecha de pago real)
+        $abonosQuery = Abono::with(['venta.cliente', 'venta.lotes.bloque', 'user'])
+            ->whereDate('fecha_pago', $fecha)
+            ->where('es_migracion', false);
+        if ($userId) {
+            $abonosQuery->where('user_id', $userId);
+        }
+        $abonos = $abonosQuery->get();
 
         // Calcular totales por método de pago
         $totales = [
@@ -37,7 +63,7 @@ class ReportesController extends Controller
             'Cheque' => $abonos->where('metodo_pago', 'Cheque')->sum('monto_abonado'),
         ];
         
-        // Sumar todos los abonos que no sean Efectivo/Transferencia/Depósito/Cheque por si acaso hay viejos
+        // Sumar todos los abonos que no sean Efectivo/Transferencia/Depósito/Cheque
         $otros = $abonos->whereNotIn('metodo_pago', ['Efectivo', 'Transferencia Bancaria', 'Depósito Bancario', 'Cheque'])->sum('monto_abonado');
         if ($otros > 0) {
             $totales['Otros/Antiguos'] = $otros;
@@ -46,13 +72,19 @@ class ReportesController extends Controller
         $totalGeneral = $abonos->sum('monto_abonado');
 
         // Obtener salidas (egresos) del día
-        $salidas = Salida::whereDate('fecha', $fecha)->where('user_id', $userId)->get();
+        $salidasQuery = Salida::whereDate('fecha', $fecha);
+        if ($userId) {
+            $salidasQuery->where('user_id', $userId);
+        }
+        $salidas = $salidasQuery->get();
 
         // Obtener rescisiones del día (informativo, no afecta sumas de caja operativa)
-        $rescisiones = \App\Models\Rescision::with(['cliente', 'user'])
-            ->whereDate('created_at', $fecha)
-            ->where('user_id', $userId)
-            ->get();
+        $rescisionesQuery = \App\Models\Rescision::with(['cliente', 'user'])
+            ->whereDate('created_at', $fecha);
+        if ($userId) {
+            $rescisionesQuery->where('user_id', $userId);
+        }
+        $rescisiones = $rescisionesQuery->get();
         $totalRescisiones = (float) $rescisiones->sum('monto_abonos_lote');
 
         $totalEgresos = $salidas->sum('monto');
@@ -69,43 +101,68 @@ class ReportesController extends Controller
             'totalEgresos', 
             'flujoNeto', 
             'usuarioSeleccionado', 
-            'userId'
+            'userId',
+            'todosLosCajeros',
+            'cajerosConMovimientos'
         ));
     }
 
     public function imprimirCierreCajaPdf(Request $request)
     {
         $fecha = $request->input('fecha', Carbon::today()->format('Y-m-d'));
+        $isAdmin = auth()->user()->hasRole('Administrador');
         
-        $userId = auth()->id();
-        if (auth()->user()->hasRole('Administrador') && $request->filled('user_id')) {
-            $userId = (int) $request->input('user_id');
-        }
-        $usuarioObj = \App\Models\User::find($userId) ?? auth()->user();
-
-        // 1. Obtener abonos de la fecha por fecha de pago real (evita que recibos históricos de migración afecten el cierre de hoy)
-        $abonos = Abono::with(['venta.cliente', 'venta.lotes.bloque'])
-            ->whereDate('fecha_pago', $fecha)
-            ->where('user_id', $userId)
+        $cajerosConMovimientos = Abono::whereDate('fecha_pago', $fecha)
             ->where('es_migracion', false)
-            ->get();
+            ->with('user')
+            ->get()
+            ->pluck('user')
+            ->filter()
+            ->unique('id');
+
+        $userId = null;
+        if ($request->filled('user_id')) {
+            if ($request->input('user_id') !== 'todos') {
+                $userId = (int) $request->input('user_id');
+            }
+        } elseif (!$isAdmin) {
+            $userId = auth()->id();
+        } else {
+            if ($cajerosConMovimientos->count() === 1) {
+                $userId = $cajerosConMovimientos->first()->id;
+            }
+        }
+
+        $usuarioObj = $userId ? \App\Models\User::find($userId) : null;
+
+        // 1. Obtener abonos de la fecha por fecha de pago real
+        $abonosQuery = Abono::with(['venta.cliente', 'venta.lotes.bloque', 'user'])
+            ->whereDate('fecha_pago', $fecha)
+            ->where('es_migracion', false);
+        if ($userId) {
+            $abonosQuery->where('user_id', $userId);
+        }
+        $abonos = $abonosQuery->get();
 
         // 2. Obtener salidas de la fecha
-        $salidas = Salida::whereDate('fecha', $fecha)
-            ->where('user_id', $userId)
-            ->get();
+        $salidasQuery = Salida::whereDate('fecha', $fecha);
+        if ($userId) {
+            $salidasQuery->where('user_id', $userId);
+        }
+        $salidas = $salidasQuery->get();
 
         // 3. Apertura de caja para saldo inicial
-        $apertura = AperturaCaja::where('fecha', $fecha)
-            ->where('user_id', $userId)
-            ->latest()
-            ->first();
+        $aperturaQuery = AperturaCaja::where('fecha', $fecha);
+        if ($userId) {
+            $aperturaQuery->where('user_id', $userId);
+        }
+        $apertura = $aperturaQuery->latest()->first();
         $saldoInicial = $apertura ? (float)$apertura->monto_inicial : 0.0;
 
         $rawEfectivo = [];
         $rawTransferencias = [];
         $totalEfectivo = 0.0;
-        $totalTransferencias = 0.0;
+        $totalTransferencias = 0.0;cias = 0.0;
 
         foreach ($abonos as $abono) {
             $cliente = $abono->venta && $abono->venta->cliente ? $abono->venta->cliente->nombres_apellidos : 'Cliente Desconocido';
@@ -274,10 +331,12 @@ class ReportesController extends Controller
         $existenciaEnCaja = $saldoInicial + $totalEfectivo - $totalSalidasEfectivo;
 
         // 4. Rescisiones del día (informativo, no altera los totales de caja)
-        $rescisiones = \App\Models\Rescision::with(['cliente', 'user'])
-            ->whereDate('created_at', $fecha)
-            ->where('user_id', $userId)
-            ->get();
+        $rescisionesQuery = \App\Models\Rescision::with(['cliente', 'user'])
+            ->whereDate('created_at', $fecha);
+        if ($userId) {
+            $rescisionesQuery->where('user_id', $userId);
+        }
+        $rescisiones = $rescisionesQuery->get();
 
         $rescisionesData = [];
         $totalRescisiones = 0.0;
@@ -307,7 +366,13 @@ class ReportesController extends Controller
             ];
         }
 
-        $cajeroNombre = $usuarioObj ? $usuarioObj->name : (auth()->user() ? auth()->user()->name : 'Cajero');
+        if ($usuarioObj) {
+            $cajeroNombre = $usuarioObj->name;
+        } elseif ($cajerosConMovimientos->count() === 1) {
+            $cajeroNombre = $cajerosConMovimientos->first()->name;
+        } else {
+            $cajeroNombre = 'CONSOLIDADO DE LOTIFICACIÓN';
+        }
 
         $data = [
             'fechaFormateada' => Carbon::parse($fecha)->format('d/m/Y'),

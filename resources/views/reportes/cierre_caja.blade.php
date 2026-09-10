@@ -88,8 +88,10 @@
                     </h3>
                     <p class="text-muted small mb-0">
                         Movimientos registrados del día: <strong class="text-dark">{{ \Carbon\Carbon::parse($fecha)->locale('es')->isoFormat('dddd, D [de] MMMM [de] YYYY') }}</strong>
-                        @if(isset($usuarioSeleccionado) && $usuarioSeleccionado->id !== auth()->id())
-                            — Visualizando reporte del usuario: <strong class="text-primary">{{ $usuarioSeleccionado->name }}</strong>
+                        @if(isset($usuarioSeleccionado))
+                            — Cajero: <strong class="text-primary">{{ $usuarioSeleccionado->name }}</strong>
+                        @else
+                            — Vista: <strong class="text-primary">Consolidado de la Lotificación</strong>
                         @endif
                     </p>
                 </div>
@@ -97,21 +99,28 @@
                 <div class="d-flex align-items-center flex-wrap gap-2 no-print">
                     {{-- Accesos rápidos de fecha --}}
                     <div class="btn-group btn-group-sm" role="group">
-                        <a href="{{ route('reportes.cierre_caja', ['fecha' => \Carbon\Carbon::today()->format('Y-m-d'), 'user_id' => $userId ?? null]) }}" 
+                        <a href="{{ route('reportes.cierre_caja', ['fecha' => \Carbon\Carbon::today()->format('Y-m-d'), 'user_id' => $userId ?? 'todos']) }}" 
                            class="btn {{ $fecha == \Carbon\Carbon::today()->format('Y-m-d') ? 'btn-primary fw-bold' : 'btn-outline-secondary' }}">
                             Hoy
                         </a>
-                        <a href="{{ route('reportes.cierre_caja', ['fecha' => \Carbon\Carbon::yesterday()->format('Y-m-d'), 'user_id' => $userId ?? null]) }}" 
+                        <a href="{{ route('reportes.cierre_caja', ['fecha' => \Carbon\Carbon::yesterday()->format('Y-m-d'), 'user_id' => $userId ?? 'todos']) }}" 
                            class="btn {{ $fecha == \Carbon\Carbon::yesterday()->format('Y-m-d') ? 'btn-primary fw-bold' : 'btn-outline-secondary' }}">
                             Ayer
                         </a>
                     </div>
 
-                    {{-- Selector de Fecha --}}
-                    <form method="GET" action="{{ route('reportes.cierre_caja') }}" class="d-flex align-items-center gap-1">
-                        @if(isset($userId) && $userId != auth()->id())
-                            <input type="hidden" name="user_id" value="{{ $userId }}">
-                        @endif
+                    {{-- Selector de Fecha y Cajero --}}
+                    <form method="GET" action="{{ route('reportes.cierre_caja') }}" class="d-flex align-items-center flex-wrap gap-1">
+                        @role('Administrador')
+                            <select name="user_id" class="form-select form-select-sm" style="min-width: 180px;" onchange="this.form.submit()">
+                                <option value="todos" {{ empty($userId) ? 'selected' : '' }}>-- Consolidado (Todos) --</option>
+                                @foreach($todosLosCajeros as $caj)
+                                    <option value="{{ $caj->id }}" {{ (isset($userId) && $userId == $caj->id) ? 'selected' : '' }}>
+                                        {{ $caj->name }} {{ $cajerosConMovimientos->contains('id', $caj->id) ? '(Con cobros)' : '' }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        @endrole
                         <input type="date" id="fecha" name="fecha" value="{{ $fecha }}" class="form-control form-control-sm" onchange="this.form.submit()">
                         <button type="submit" class="btn btn-sm btn-primary" title="Consultar Fecha">
                             <i class="fas fa-search"></i>
@@ -119,7 +128,7 @@
                     </form>
 
                     {{-- Botón Imprimir Reporte PDF Oficial --}}
-                    <a href="{{ route('reportes.cierre_caja.pdf', ['fecha' => $fecha, 'user_id' => $userId ?? null]) }}" target="_blank" class="btn btn-sm btn-dark fw-bold px-3 ms-1 shadow-sm">
+                    <a href="{{ route('reportes.cierre_caja.pdf', ['fecha' => $fecha, 'user_id' => $userId ?? 'todos']) }}" target="_blank" class="btn btn-sm btn-dark fw-bold px-3 ms-1 shadow-sm">
                         <i class="fas fa-file-pdf text-danger me-1"></i> Imprimir Reporte PDF
                     </a>
 
