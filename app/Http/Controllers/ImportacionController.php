@@ -647,9 +647,11 @@ class ImportacionController extends Controller
                     $bloque = Bloque::create([
                         "nombre"          => str_starts_with(strtoupper($nombreBloque), 'BLOQUE') ? $nombreBloque : 'Bloque ' . $nombreBloque,
                         "lotificacion_id" => $lotificacion->id,
-                        "prefijo"         => trim(str_ireplace("Bloque", "", $nombreBloque)),
+                        "descripcion"     => "Bloque " . trim(str_ireplace("Bloque", "", $nombreBloque)),
                     ]);
                 }
+
+                $prefijoBloque = trim(str_ireplace("Bloque", "", $bloque->nombre));
 
                 // 2.3 Buscar o crear Lote dentro del Bloque
                 $posiblesLotes = array_unique(array_filter([
@@ -659,8 +661,8 @@ class ImportacionController extends Controller
                     ltrim(preg_replace('/^' . preg_quote($bloque->nombre, '/') . '[\s\-_]*/i', '', $numeroLote), '0'),
                     $bloque->nombre . '-' . $numeroLote,
                     $bloque->nombre . '-' . str_pad($numeroLote, 2, '0', STR_PAD_LEFT),
-                    $bloque->prefijo . '-' . $numeroLote,
-                    $bloque->prefijo . '-' . str_pad($numeroLote, 2, '0', STR_PAD_LEFT),
+                    $prefijoBloque . '-' . $numeroLote,
+                    $prefijoBloque . '-' . str_pad($numeroLote, 2, '0', STR_PAD_LEFT),
                 ]));
 
                 $lote = Lote::withoutGlobalScope("lotificacion")
@@ -686,7 +688,7 @@ class ImportacionController extends Controller
                     ->first();
 
                 $claveAbonos = strtolower("{$identificacion}_{$nombreBloque}_{$numeroLote}");
-                $claveAbonosPrefijo = strtolower("{$identificacion}_{$bloque->prefijo}_{$numeroLote}");
+                $claveAbonosPrefijo = strtolower("{$identificacion}_{$prefijoBloque}_{$numeroLote}");
                 $claveAbonosLoteClean = strtolower("{$identificacion}_{$nombreBloque}_" . ltrim($numeroLote, '0'));
 
                 if ($historialVigente) {
@@ -702,7 +704,7 @@ class ImportacionController extends Controller
                         $claveAbonosLoteClean,
                         strtolower("{$identificacion}_{$bloque->nombre}_{$numeroLote}"),
                         strtolower("{$identificacion}_{$bloque->nombre}_" . ltrim($numeroLote, '0')),
-                        strtolower("{$identificacion}_{$bloque->prefijo}_" . ltrim($numeroLote, '0')),
+                        strtolower("{$identificacion}_{$prefijoBloque}_" . ltrim($numeroLote, '0')),
                     ];
                     foreach ($clavesMapeo as $cm) {
                         $mapeoVentas[$cm] = $idVentaExistente;
@@ -762,7 +764,7 @@ class ImportacionController extends Controller
                     $claveAbonosLoteClean,
                     strtolower("{$identificacion}_{$bloque->nombre}_{$numeroLote}"),
                     strtolower("{$identificacion}_{$bloque->nombre}_" . ltrim($numeroLote, '0')),
-                    strtolower("{$identificacion}_{$bloque->prefijo}_" . ltrim($numeroLote, '0')),
+                    strtolower("{$identificacion}_{$prefijoBloque}_" . ltrim($numeroLote, '0')),
                 ];
                 foreach ($clavesMapeo as $cm) {
                     $mapeoVentas[$cm] = $venta->id_venta;
@@ -1521,7 +1523,6 @@ class ImportacionController extends Controller
     private function parsearHoja(string $xml, array $sharedStrings, array $dateStyleIds): array
     {
         $sheet = simplexml_load_string($xml);
-        $filas = []; $header = [];
         if (!$sheet || !isset($sheet->sheetData->row)) {
             return [];
         }
@@ -1531,16 +1532,23 @@ class ImportacionController extends Controller
             'identificacion_cliente', 'nombre_bloque', 'bloque', 'numero_lote', 'lote',
             'fecha_venta', 'precio_final', 'plazo_meses', 'cuota_mensual', 'estado_contrato',
             'fecha_pago', 'monto_abonado', 'tipo_pago', 'area_metros', 'precio_base',
-            'nombre_del_cliente', 'n_de_identificacion', 'n_telefono', 'n_bloque', 'n_lote',
-            'cantidad_lotes', 'monto_lote', 'plazo_cuotas', 'monto_cuota', 'abono_actual', 'saldo',
-            'n_pv', 'abonocancelacion', 'observaciones', 'tipo_abono', 'id_transferencia',
-            'fecha_transferencia', 'a_la_cuenta_de', 'reciboanulado', 'rechazadoxbanco', 'cedula'
+            'nombre_del_cliente', 'nombre_cliente', 'n_de_identificacion', 'numero_de_identificacion',
+            'n_identificacion', 'cedula', 'n_telefono', 'numero_telefono', 'telefono', 'celular',
+            'n_bloque', 'numero_bloque', 'n_lote', 'numero_lote', 'cantidad_lotes', 'cantidad_de_lotes',
+            'monto_lote', 'monto_del_lote', 'precio_lote', 'plazo_cuotas', 'plazo_de_cuotas',
+            'monto_cuota', 'monto_de_cuota', 'abono_actual', 'abonos_actuales', 'total_abonado',
+            'saldo', 'saldo_pendiente', 'saldo_actual',
+            'n_pv', 'numero_pv', 'abonocancelacion', 'abono_cancelacion', 'observaciones',
+            'tipo_abono', 'tipo_de_abono', 'id_transferencia', 'referencia',
+            'fecha_transferencia', 'a_la_cuenta_de', 'reciboanulado', 'rechazadoxbanco'
         ];
 
         $normalizarEncabezado = function($txt) {
             return strtolower(trim(preg_replace('/_+/', '_', preg_replace('/[^A-Za-z0-9]/', '_', trim((string)$txt))), '_'));
         };
 
+        // 1. Extraer todas las filas no vacías del XML
+        $todasFilas = [];
         foreach ($sheet->sheetData->row as $row) {
             $rowData = [];
             foreach ($row->c as $cell) {
@@ -1566,42 +1574,67 @@ class ImportacionController extends Controller
                 $rowData[$col] = trim($valor);
             }
 
-            // Ignorar filas completamente vacías
-            if (empty(array_filter($rowData, fn($v) => $v !== ""))) {
-                continue;
-            }
-
-            // Detección inteligente de fila de encabezados:
-            if (empty($header)) {
-                $filaTexto = array_map($normalizarEncabezado, $rowData);
-                $coincidencias = count(array_intersect($filaTexto, $palabrasClaveEncabezado));
-
-                // Si tiene al menos 2 columnas que coinciden con los nombres de campos estándar:
-                if ($coincidencias >= 2) {
-                    foreach ($rowData as $col => $enc) {
-                        $header[$col] = $normalizarEncabezado($enc);
-                    }
-                    continue;
-                }
-
-                // O si es la primera fila con más de 3 celdas no vacías y no es banner:
-                $primeraCelda = strtolower(reset($rowData) ?: '');
-                if (!str_starts_with($primeraCelda, 'hoja') && !str_starts_with($primeraCelda, 'guia') && !str_starts_with($primeraCelda, 'lotes colocados') && count($rowData) >= 4) {
-                    foreach ($rowData as $col => $enc) {
-                        $header[$col] = $normalizarEncabezado($enc);
-                    }
-                    continue;
-                }
-
-                continue; // Saltar fila de título / banner
-            } else {
-                $filaMapeada = [];
-                foreach ($header as $col => $campo) {
-                    $filaMapeada[$campo] = $rowData[$col] ?? "";
-                }
-                $filas[] = $filaMapeada;
+            if (!empty(array_filter($rowData, fn($v) => $v !== ""))) {
+                $todasFilas[] = $rowData;
             }
         }
+
+        if (empty($todasFilas)) {
+            return [];
+        }
+
+        // 2. Encontrar la fila con mayor puntuación de encabezado (para omitir banners, subtítulos, etc.)
+        $mejorIndiceHeader = -1;
+        $maxCoincidencias = 0;
+
+        foreach ($todasFilas as $idx => $rData) {
+            $filaNorm = array_map($normalizarEncabezado, $rData);
+            $coincidencias = count(array_intersect($filaNorm, $palabrasClaveEncabezado));
+
+            // Puntuación adicional por coincidencias semánticas
+            foreach ($filaNorm as $fn) {
+                if (!in_array($fn, $palabrasClaveEncabezado)) {
+                    foreach (['cliente', 'nombre', 'identificacion', 'cedula', 'bloque', 'lote', 'cuota', 'monto', 'saldo', 'fecha', 'abono', 'recibo'] as $kw) {
+                        if (str_contains($fn, $kw)) {
+                            $coincidencias++;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if ($coincidencias > $maxCoincidencias) {
+                $maxCoincidencias = $coincidencias;
+                $mejorIndiceHeader = $idx;
+            }
+
+            // Si tiene 4 o más coincidencias directas, es inequívocamente la fila de encabezados
+            if ($maxCoincidencias >= 4) {
+                break;
+            }
+        }
+
+        if ($mejorIndiceHeader === -1 || $maxCoincidencias < 2) {
+            $mejorIndiceHeader = 0;
+        }
+
+        $headerRow = $todasFilas[$mejorIndiceHeader];
+        $header = [];
+        foreach ($headerRow as $col => $enc) {
+            $header[$col] = $normalizarEncabezado($enc);
+        }
+
+        // 3. Mapear datos a partir de la fila siguiente al encabezado
+        $filas = [];
+        for ($i = $mejorIndiceHeader + 1; $i < count($todasFilas); $i++) {
+            $rData = $todasFilas[$i];
+            $filaMapeada = [];
+            foreach ($header as $col => $campo) {
+                $filaMapeada[$campo] = $rData[$col] ?? "";
+            }
+            $filas[] = $filaMapeada;
+        }
+
         return $filas;
     }
 
