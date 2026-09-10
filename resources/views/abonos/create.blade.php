@@ -232,15 +232,12 @@
                                         <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 pb-2 mb-2 border-bottom">
                                             <div class="d-flex align-items-center gap-2">
                                                 <input class="form-check-input check-lote-abono fs-4 m-0" type="checkbox" name="ventas_ids[]" id="chk_venta_{{ $v->id_venta }}" value="{{ $v->id_venta }}" data-cuota="{{ $v->cuota_mensual }}" data-saldo="{{ $saldoVenta }}" data-nombre="{{ $nombreL }}" checked onclick="event.stopPropagation();" onchange="sincronizarCardLote(this)">
-                                                <div>
-                                                    <span class="fw-bold text-dark fs-6">
-                                                        <i class="fas fa-file-contract text-primary me-1"></i> Contrato #{{ $v->id_venta }}
-                                                    </span>
-                                                    <span class="badge bg-light text-secondary border ms-1">
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <span class="badge bg-light text-secondary border">
                                                         {{ $v->beneficiario_final ? 'Beneficiario: '.$v->beneficiario_final : 'Titular directo' }}
                                                     </span>
                                                     @if($totalLotes > 1)
-                                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">
+                                                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
                                                             <i class="fas fa-layer-group me-1"></i>{{ $totalLotes }} Lotes asociados
                                                         </span>
                                                     @endif
@@ -260,9 +257,6 @@
 
                                         {{-- LISTADO ADAPTABLE Y DETALLADO DE LOTES --}}
                                         <div class="d-flex flex-wrap gap-2 pt-1 align-items-center">
-                                            <span class="text-muted small fw-bold text-uppercase me-1" style="font-size: 0.75rem;">
-                                                <i class="fas fa-map-marked-alt text-primary me-1"></i>Lotes incluidos:
-                                            </span>
                                             @forelse($v->lotes as $lote)
                                                 <div class="d-inline-flex align-items-center bg-white border border-primary-subtle rounded px-2 py-1 shadow-sm">
                                                     <span class="badge bg-primary text-white me-1.5 px-2 py-1" style="font-size: 0.8rem;">
