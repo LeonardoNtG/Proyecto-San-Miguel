@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Rescision extends Model
 {
-    use HasFactory;
+    use HasFactory, \App\Traits\ScopedByLotificacion;
 
     protected $table = 'rescisiones';
     protected $primaryKey = 'id_rescision';

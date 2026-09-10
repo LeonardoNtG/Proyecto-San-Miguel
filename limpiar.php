@@ -190,6 +190,27 @@ try {
             // Ignorar si falla
         }
 
+        // 5.8 Backfill lotificacion_id en rescisiones
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('rescisiones')) {
+                $resSinLotif = \App\Models\Rescision::withoutGlobalScopes()->whereNull('lotificacion_id')->get();
+                $actualizadasRes = 0;
+                foreach ($resSinLotif as $r) {
+                    $v = \App\Models\Venta::withoutGlobalScopes()->find($r->id_venta);
+                    if ($v && $v->lotificacion_id) {
+                        $r->lotificacion_id = $v->lotificacion_id;
+                        $r->save();
+                        $actualizadasRes++;
+                    }
+                }
+                if ($actualizadasRes > 0) {
+                    $columnFixes[] = "✔ Asignado lotificacion_id a {$actualizadasRes} rescisiones que no tenían proyecto asignado.";
+                }
+            }
+        } catch (\Throwable $e) {
+            // Ignorar si falla
+        }
+
         // 6. Verificar tablas críticas
         $tablesToVerify = ['users', 'lotificaciones', 'lotificacion_user', 'clientes', 'ventas', 'cuotas', 'abonos', 'historial_lotes', 'apertura_cajas', 'cierre_cajas', 'salidas', 'configuraciones', 'rescisiones', 'cuentas_bancarias'];
         foreach ($tablesToVerify as $t) {
