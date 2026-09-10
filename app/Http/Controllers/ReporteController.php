@@ -1087,9 +1087,9 @@ class ReporteController extends Controller
                     ->where('created_at', '>=', $ultimaApertura->created_at);
 
                 if (!$esGlobal && $targetLotificacionId) {
-                    $salidasTurnoQuery->where(function($q) use ($targetLotificacionId, $userPerteneceAProyecto) {
+                    $salidasTurnoQuery->where(function($q) use ($targetLotificacionId, $userTieneSoloEsteProyecto) {
                         $q->where('lotificacion_id', $targetLotificacionId);
-                        if ($userPerteneceAProyecto) {
+                        if ($userTieneSoloEsteProyecto) {
                             $q->orWhereNull('lotificacion_id');
                         }
                     });
