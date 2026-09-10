@@ -685,16 +685,32 @@ class ImportacionController extends Controller
                     ->whereHas("venta", fn($q) => $q->withoutGlobalScope("lotificacion")->where("lotificacion_id", $lotificacion->id)->where("estado_contrato", "Vigente"))
                     ->first();
 
-                if ($historialVigente) {
-                    $advertencias[] = "[Lista Oficial F{$numFila}] Lote {$nombreBloque}-{$numeroLote} ya tiene contrato activo en {$lotificacion->nombre}. Omitido.";
-                    continue;
-                }
-
-                // 2.5 Deducir fecha de venta del primer abono o fecha actual
                 $claveAbonos = strtolower("{$identificacion}_{$nombreBloque}_{$numeroLote}");
                 $claveAbonosPrefijo = strtolower("{$identificacion}_{$bloque->prefijo}_{$numeroLote}");
                 $claveAbonosLoteClean = strtolower("{$identificacion}_{$nombreBloque}_" . ltrim($numeroLote, '0'));
 
+                if ($historialVigente) {
+                    $ventaExistente = Venta::withoutGlobalScope("lotificacion")->find($historialVigente->id_venta);
+                    $idVentaExistente = $ventaExistente ? $ventaExistente->id_venta : $historialVigente->id_venta;
+                    
+                    $advertencias[] = "[Lista Oficial F{$numFila}] Lote {$nombreBloque}-{$numeroLote} ya tiene contrato activo en {$lotificacion->nombre} (Contrato #{$idVentaExistente}). Se reutiliza para procesar abonos nuevos.";
+
+                    // Registrar en mapeo de ventas para que la hoja ABONOS pueda encontrarlo y procesar pagos nuevos
+                    $clavesMapeo = [
+                        $claveAbonos,
+                        $claveAbonosPrefijo,
+                        $claveAbonosLoteClean,
+                        strtolower("{$identificacion}_{$bloque->nombre}_{$numeroLote}"),
+                        strtolower("{$identificacion}_{$bloque->nombre}_" . ltrim($numeroLote, '0')),
+                        strtolower("{$identificacion}_{$bloque->prefijo}_" . ltrim($numeroLote, '0')),
+                    ];
+                    foreach ($clavesMapeo as $cm) {
+                        $mapeoVentas[$cm] = $idVentaExistente;
+                    }
+                    continue;
+                }
+
+                // 2.5 Deducir fecha de venta del primer abono o fecha actual
                 $infoAbonos = $abonosPorLote[$claveAbonos] ?? $abonosPorLote[$claveAbonosPrefijo] ?? $abonosPorLote[$claveAbonosLoteClean] ?? null;
 
                 $fechaVenta = Carbon::now()->format('Y-m-d');
@@ -843,6 +859,49 @@ class ImportacionController extends Controller
                         continue;
                     }
 
+                    // 3.1 IDEMPOTENCIA Y PREVENCIÓN DE DUPLICADOS DE ABONOS
+                    $abonoExistenteQuery = Abono::withoutGlobalScope("lotificacion")
+                        ->where("id_venta", $idVenta)
+                        ->where("monto_abonado", $monto)
+                        ->where("fecha_pago", $fechaPagoParsed);
+
+                    $abonoExistente = null;
+
+                    if (!empty($referencia)) {
+                        // Coincidencia por referencia o ID de transferencia
+                        $abonoExistente = (clone $abonoExistenteQuery)
+                            ->where(function($q) use ($referencia, $pvNum) {
+                                $q->where('referencia', $referencia)
+                                  ->orWhere('codigo_recibo', $referencia)
+                                  ->orWhere('referencia', 'like', "%{$referencia}%");
+                                if (!empty($pvNum)) {
+                                    $q->orWhere('codigo_recibo', "PV-{$pvNum}")
+                                      ->orWhere('referencia', "PV-{$pvNum}");
+                                }
+                            })
+                            ->first();
+                    } elseif (!empty($pvNum)) {
+                        // Coincidencia por N° PV
+                        $abonoExistente = (clone $abonoExistenteQuery)
+                            ->where(function($q) use ($pvNum) {
+                                $q->where('codigo_recibo', "PV-{$pvNum}")
+                                  ->orWhere('referencia', "PV-{$pvNum}")
+                                  ->orWhere('referencia', 'like', "%{$pvNum}%");
+                            })
+                            ->first();
+                    } else {
+                        // Coincidencia por contrato + fecha + monto + método de pago
+                        $abonoExistente = (clone $abonoExistenteQuery)
+                            ->where('metodo_pago', $metodoPago)
+                            ->first();
+                    }
+
+                    if ($abonoExistente) {
+                        $advertencias[] = "[Abonos F{$numFila}] Abono de \${$monto} ({$fechaPago}) para contrato #{$idVenta} ya existe registrado (Recibo #{$abonoExistente->numero_recibo}). Omitido.";
+                        continue;
+                    }
+
+                    // 3.2 Crear nuevo Abono si no existe
                     $datosRecibo = Abono::generarSiguienteNumeroRecibo($lotificacion->id);
                     $codRecibo = !empty($pvNum) ? "PV-{$pvNum}" : (!empty($referencia) ? $referencia : $datosRecibo["codigo_recibo"]);
 
