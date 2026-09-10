@@ -949,7 +949,7 @@ class ReporteController extends Controller
             $etiquetaProyecto = $lotObj ? $lotObj->nombre : 'Proyecto Activo';
         }
 
-        // Obtener IDs de usuarios con movimientos en la fecha dada para el proyecto seleccionado
+        // Obtener IDs de usuarios con movimientos de abonos en la fecha dada para el proyecto seleccionado
         $userIdsConAbonos = Abono::withoutGlobalScope('lotificacion')
             ->whereDate('fecha_pago', $fecha)
             ->where('es_migracion', false)
@@ -959,43 +959,17 @@ class ReporteController extends Controller
             ->pluck('user_id')
             ->filter();
 
-        $userIdsConSalidas = Salida::withoutGlobalScope('lotificacion')
-            ->whereDate('fecha', $fecha)
-            ->when(!$esGlobal && $targetLotificacionId, function($q) use ($targetLotificacionId) {
-                $q->where(function($sq) use ($targetLotificacionId) {
-                    $sq->where('lotificacion_id', $targetLotificacionId)->orWhereNull('lotificacion_id');
-                });
-            })
-            ->pluck('user_id')
-            ->filter();
-
-        $userIdsConAperturas = \App\Models\AperturaCaja::whereDate('fecha', $fecha)
-            ->when(!$esGlobal && $targetLotificacionId, function($q) use ($targetLotificacionId) {
-                $q->where(function($aq) use ($targetLotificacionId) {
-                    $aq->where('lotificacion_id', $targetLotificacionId)->orWhereNull('lotificacion_id');
-                });
-            })
-            ->pluck('user_id')
-            ->filter();
-
-        // Obtener usuarios a mostrar
+        // Obtener usuarios a mostrar: estrictamente asignados a este proyecto o que hayan cobrado abonos en este proyecto hoy
         $usuariosQuery = \App\Models\User::with(['roles', 'lotificaciones'])->orderBy('name', 'asc');
         if ($filtroUsuarioId) {
             $usuariosQuery->where('id', $filtroUsuarioId);
         } elseif (!$esGlobal && $targetLotificacionId) {
-            $usuariosQuery->where(function($q) use ($targetLotificacionId, $userIdsConAbonos, $userIdsConSalidas, $userIdsConAperturas) {
+            $usuariosQuery->where(function($q) use ($targetLotificacionId, $userIdsConAbonos) {
                 $q->whereHas('lotificaciones', fn($lq) => $lq->where('lotificaciones.id', $targetLotificacionId))
-                  ->orWhereIn('id', $userIdsConAbonos)
-                  ->orWhereIn('id', $userIdsConSalidas)
-                  ->orWhereIn('id', $userIdsConAperturas)
-                  ->orWhereHas('roles', fn($rq) => $rq->where('name', 'Administrador'));
+                  ->orWhereIn('id', $userIdsConAbonos);
             });
         }
         $usuarios = $usuariosQuery->get();
-
-        if ($usuarios->isEmpty() && !$filtroUsuarioId) {
-            $usuarios = \App\Models\User::with(['roles', 'lotificaciones'])->orderBy('name', 'asc')->get();
-        }
 
         $usuariosData = [];
         $totalRecaudadoGlobal = 0.0;
@@ -1006,12 +980,17 @@ class ReporteController extends Controller
         $totalCierresRealizados = 0;
 
         foreach ($usuarios as $user) {
+            $userPerteneceAProyecto = $user->lotificaciones->contains('id', $targetLotificacionId);
+
             // Aperturas del día para este usuario
             $aperturasQuery = \App\Models\AperturaCaja::whereDate('fecha', $fecha)
                 ->where('user_id', $user->id);
             if (!$esGlobal && $targetLotificacionId) {
-                $aperturasQuery->where(function($q) use ($targetLotificacionId) {
-                    $q->where('lotificacion_id', $targetLotificacionId)->orWhereNull('lotificacion_id');
+                $aperturasQuery->where(function($q) use ($targetLotificacionId, $userPerteneceAProyecto) {
+                    $q->where('lotificacion_id', $targetLotificacionId);
+                    if ($userPerteneceAProyecto) {
+                        $q->orWhereNull('lotificacion_id');
+                    }
                 });
             }
             $aperturas = $aperturasQuery->orderBy('created_at', 'asc')->get();
@@ -1020,8 +999,11 @@ class ReporteController extends Controller
             $cierresQuery = \App\Models\CierreCaja::whereDate('fecha', $fecha)
                 ->where('user_id', $user->id);
             if (!$esGlobal && $targetLotificacionId) {
-                $cierresQuery->where(function($q) use ($targetLotificacionId) {
-                    $q->where('lotificacion_id', $targetLotificacionId)->orWhereNull('lotificacion_id');
+                $cierresQuery->where(function($q) use ($targetLotificacionId, $userPerteneceAProyecto) {
+                    $q->where('lotificacion_id', $targetLotificacionId);
+                    if ($userPerteneceAProyecto) {
+                        $q->orWhereNull('lotificacion_id');
+                    }
                 });
             }
             $cierres = $cierresQuery->orderBy('created_at', 'asc')->get();
@@ -1050,8 +1032,11 @@ class ReporteController extends Controller
                 ->where('user_id', $user->id);
 
             if (!$esGlobal && $targetLotificacionId) {
-                $salidasDiaQuery->where(function($q) use ($targetLotificacionId) {
-                    $q->where('lotificacion_id', $targetLotificacionId)->orWhereNull('lotificacion_id');
+                $salidasDiaQuery->where(function($q) use ($targetLotificacionId, $userPerteneceAProyecto) {
+                    $q->where('lotificacion_id', $targetLotificacionId);
+                    if ($userPerteneceAProyecto) {
+                        $q->orWhereNull('lotificacion_id');
+                    }
                 });
             }
             $salidasDia = $salidasDiaQuery->orderBy('created_at', 'desc')->get();
@@ -1102,8 +1087,11 @@ class ReporteController extends Controller
                     ->where('created_at', '>=', $ultimaApertura->created_at);
 
                 if (!$esGlobal && $targetLotificacionId) {
-                    $salidasTurnoQuery->where(function($q) use ($targetLotificacionId) {
-                        $q->where('lotificacion_id', $targetLotificacionId)->orWhereNull('lotificacion_id');
+                    $salidasTurnoQuery->where(function($q) use ($targetLotificacionId, $userPerteneceAProyecto) {
+                        $q->where('lotificacion_id', $targetLotificacionId);
+                        if ($userPerteneceAProyecto) {
+                            $q->orWhereNull('lotificacion_id');
+                        }
                     });
                 }
                 $salidasTurno = $salidasTurnoQuery->orderBy('created_at', 'desc')->get();
@@ -1190,7 +1178,11 @@ class ReporteController extends Controller
             'totalUsuariosActivos' => count(array_filter($usuariosData, fn($u) => $u['tieneActividad'])),
         ];
 
-        $todosLosUsuarios = \App\Models\User::orderBy('name', 'asc')->get();
+        $todosLosUsuariosQuery = \App\Models\User::orderBy('name', 'asc');
+        if (!$esGlobal && $targetLotificacionId) {
+            $todosLosUsuariosQuery->whereHas('lotificaciones', fn($lq) => $lq->where('lotificaciones.id', $targetLotificacionId));
+        }
+        $todosLosUsuarios = $todosLosUsuariosQuery->get();
 
         return view('reportes.monitor_cajas', compact(
             'fecha',
