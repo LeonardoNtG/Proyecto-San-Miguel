@@ -130,6 +130,108 @@ try {
             $columnFixes[] = "Aviso en verificación de columnas: " . $e->getMessage();
         }
 
+        // 4.2 Asegurar corrección de Bloque U (Lote U-01 con 208.54 m2 para Angel Josue Castillo Castro)
+        try {
+            $campana = \App\Models\Lotificacion::where('nombre', 'like', '%Campana%')->orWhere('id', 1)->first();
+            $lotifId = $campana ? $campana->id : 1;
+
+            $bloqueU = \App\Models\Bloque::withoutGlobalScopes()
+                ->where('lotificacion_id', $lotifId)
+                ->where(function ($q) {
+                    $q->where('nombre', 'U')->orWhere('nombre', 'Bloque U');
+                })
+                ->first();
+
+            if ($bloqueU) {
+                $loteRealU01 = \App\Models\Lote::withoutGlobalScopes()
+                    ->where('id_bloque', $bloqueU->id_bloque)
+                    ->where(function ($q) {
+                        $q->where('numero_lote', 'T-01')
+                          ->orWhere('numero_lote', 'U-01')
+                          ->orWhere('area_metros', 208.54);
+                    })
+                    ->first();
+
+                $lotePlaceholder = \App\Models\Lote::withoutGlobalScopes()
+                    ->where('id_bloque', $bloqueU->id_bloque)
+                    ->where(function ($q) {
+                        $q->where('numero_lote', '1')
+                          ->orWhere('numero_lote', '01')
+                          ->orWhere(function ($q2) {
+                              $q2->where('area_metros', 150.00)->where('precio_base', 0);
+                          });
+                    })
+                    ->where('id_lote', '!=', $loteRealU01 ? $loteRealU01->id_lote : 0)
+                    ->first();
+
+                if ($loteRealU01) {
+                    $loteRealU01->numero_lote = 'U-01';
+                    $loteRealU01->area_metros = 208.54;
+                    $loteRealU01->precio_base = 10057.15;
+                    $loteRealU01->estado = 'Vendido';
+                    $loteRealU01->save();
+                }
+
+                if ($lotePlaceholder && $loteRealU01) {
+                    $historiales = \Illuminate\Support\Facades\DB::table('historial_lotes')
+                        ->where('id_lote', $lotePlaceholder->id_lote)
+                        ->get();
+
+                    foreach ($historiales as $h) {
+                        $existeHist = \Illuminate\Support\Facades\DB::table('historial_lotes')
+                            ->where('id_lote', $loteRealU01->id_lote)
+                            ->where('id_venta', $h->id_venta)
+                            ->exists();
+
+                        if (!$existeHist) {
+                            \Illuminate\Support\Facades\DB::table('historial_lotes')
+                                ->where('id', $h->id)
+                                ->update(['id_lote' => $loteRealU01->id_lote]);
+                        } else {
+                            \Illuminate\Support\Facades\DB::table('historial_lotes')->where('id', $h->id)->delete();
+                        }
+                        \App\Http\Controllers\AbonoController::recalcularCuotas($h->id_venta);
+                    }
+
+                    \Illuminate\Support\Facades\DB::table('reservas')->where('id_lote', $lotePlaceholder->id_lote)->update(['id_lote' => $loteRealU01->id_lote]);
+                    $lotePlaceholder->delete();
+                    $columnFixes[] = "✔ Bloque U ajustado: Lote U-01 corregido con área 208.54 m² (295.80 vrs²), reasignado a contrato de Ángel Josué Castillo Castro y eliminado lote duplicado. Total de lotes: 608.";
+                }
+
+                $clienteAngel = \App\Models\Cliente::withoutGlobalScopes()
+                    ->where('nombres_apellidos', 'like', '%CASTILLO CASTRO%')
+                    ->orWhere('nombres_apellidos', 'like', '%ANGEL JOSUE%')
+                    ->first();
+
+                if ($clienteAngel && $loteRealU01) {
+                    $ventasAngel = \App\Models\Venta::withoutGlobalScopes()
+                        ->where('id_cliente', $clienteAngel->id_cliente)
+                        ->get();
+
+                    foreach ($ventasAngel as $va) {
+                        $tieneHist = \Illuminate\Support\Facades\DB::table('historial_lotes')
+                            ->where('id_venta', $va->id_venta)
+                            ->where('id_lote', $loteRealU01->id_lote)
+                            ->exists();
+
+                        if (!$tieneHist) {
+                            \Illuminate\Support\Facades\DB::table('historial_lotes')->insert([
+                                'id_venta' => $va->id_venta,
+                                'id_lote' => $loteRealU01->id_lote,
+                                'estado' => 'Activo',
+                                'fecha_asignacion' => $va->fecha_venta ?? now(),
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
+                        }
+                        \App\Http\Controllers\AbonoController::recalcularCuotas($va->id_venta);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            $columnFixes[] = "Aviso en corrección de Bloque U: " . $e->getMessage();
+        }
+
         // 5. Limpiar caché desde Artisan
         try {
             \Illuminate\Support\Facades\Artisan::call('view:clear');
