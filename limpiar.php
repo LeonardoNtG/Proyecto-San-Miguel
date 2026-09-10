@@ -376,6 +376,61 @@ try {
             $columnFixes[] = "⚠ Error al traspasar Q-28: " . $e->getMessage();
         }
 
+        // 5.10 Auditoría detallada de inventario de lotes
+        $auditoriaLotes = [];
+        try {
+            $lotificacionesList = \App\Models\Lotificacion::all();
+            foreach ($lotificacionesList as $lotif) {
+                $bloques = \App\Models\Bloque::withoutGlobalScope('lotificacion')
+                    ->where('lotificacion_id', $lotif->id)
+                    ->with(['lotes' => function($q) {
+                        $q->withoutGlobalScope('lotificacion')->orderBy('id_lote');
+                    }])
+                    ->orderBy('nombre')
+                    ->get();
+
+                $totalLotesLotif = 0;
+                $detallesBloques = [];
+                $duplicados = [];
+                $lotesEspeciales = [];
+
+                foreach ($bloques as $b) {
+                    $cant = $b->lotes->count();
+                    $totalLotesLotif += $cant;
+                    
+                    $lotesNums = $b->lotes->pluck('numero_lote')->toArray();
+                    $conteoNums = array_count_values(array_map('strval', $lotesNums));
+                    foreach ($conteoNums as $num => $rep) {
+                        if ($rep > 1) {
+                            $duplicados[] = "Bloque {$b->nombre} tiene el Lote {$num} repetido {$rep} veces";
+                        }
+                    }
+
+                    // Chequear si hay lotes no numéricos o especiales (0, Área Verde, etc.)
+                    foreach ($b->lotes as $lt) {
+                        if (!is_numeric($lt->numero_lote) || (int)$lt->numero_lote === 0) {
+                            $lotesEspeciales[] = "Bloque {$b->nombre} - Lote: '{$lt->numero_lote}' (ID: {$lt->id_lote})";
+                        }
+                    }
+
+                    $detallesBloques[] = "Bloque {$b->nombre}: <strong>{$cant} lotes</strong> (" . implode(', ', array_slice($lotesNums, 0, 3)) . " ... " . end($lotesNums) . ")";
+                }
+
+                $auditoriaLotes[] = [
+                    'proyecto' => $lotif->nombre,
+                    'proyecto_id' => $lotif->id,
+                    'total_lotes' => $totalLotesLotif,
+                    'bloques' => $detallesBloques,
+                    'duplicados' => $duplicados,
+                    'lotes_especiales' => $lotesEspeciales
+                ];
+            }
+        } catch (\Throwable $e) {
+            $auditoriaLotes = [
+                ['proyecto' => 'Error', 'total_lotes' => 0, 'bloques' => [$e->getMessage()], 'duplicados' => [], 'lotes_especiales' => []]
+            ];
+        }
+
         $campanaCleanReport = null;
         if (isset($_GET['limpiar_campana']) && $_GET['limpiar_campana'] === '1') {
             try {
@@ -561,6 +616,41 @@ if (file_exists($logFile)) {
         <?php if(!empty($migrationOutput)): ?>
             <h2 style="margin-top: 20px;">⚙️ Salida de Migraciones (php artisan migrate)</h2>
             <pre><?= htmlspecialchars($migrationOutput) ?></pre>
+        <?php endif; ?>
+    </div>
+
+    <div class="card">
+        <h2>🏡 Auditoría de Inventario de Lotes por Bloque</h2>
+        <?php if(!empty($auditoriaLotes)): ?>
+            <?php foreach($auditoriaLotes as $audit): ?>
+                <div style="background: #0f172a; padding: 15px; border-radius: 8px; margin-bottom: 12px; border: 1px solid #334155;">
+                    <h3 style="margin: 0 0 10px 0; color: #38bdf8;">
+                        Proyecto: <?= htmlspecialchars($audit['proyecto']) ?> &mdash; <span style="color: #4ade80;"><?= $audit['total_lotes'] ?> Lotes en Total</span>
+                    </h3>
+                    
+                    <?php if(!empty($audit['duplicados'])): ?>
+                        <div style="background: #7f1d1d; color: #fca5a5; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; font-weight: bold;">
+                            ⚠ Lotes Duplicados Detectados:<br>
+                            <?= implode("<br>", $audit['duplicados']) ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if(!empty($audit['lotes_especiales'])): ?>
+                        <div style="background: #854d0e; color: #fef08a; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px;">
+                            ℹ Lotes Especiales / No Numéricos:<br>
+                            <?= implode("<br>", $audit['lotes_especiales']) ?>
+                        </div>
+                    <?php endif; ?>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; font-size: 0.85rem;">
+                        <?php foreach($audit['bloques'] as $blq): ?>
+                            <div style="background: #1e293b; padding: 6px 10px; border-radius: 4px; border: 1px solid #475569;">
+                                <?= $blq ?>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
         <?php endif; ?>
     </div>
 
