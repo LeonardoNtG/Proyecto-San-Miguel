@@ -27,11 +27,11 @@
         left: 0;
         right: 0;
         text-align: center;
-        opacity: 0.045;
+        opacity: 0.45;
         z-index: -1000;
     }
     .watermark img {
-        width: 380px;
+        width: 400px;
         height: auto;
     }
 
@@ -47,15 +47,15 @@
         padding: 0;
     }
     .logo-box {
-        width: 175px;
+        width: 195px;
         text-align: left;
         vertical-align: middle;
         background-color: transparent;
         padding: 0;
     }
     .logo-box img {
-        max-width: 170px;
-        max-height: 75px;
+        max-width: 190px;
+        max-height: 85px;
         object-fit: contain;
     }
     .logo-placeholder {
@@ -112,7 +112,7 @@
 
     /* BARRAS DE SECCIÓN */
     .section-header {
-        background-color: #1e3a5f;
+        background-color: #3b597d;
         color: #ffffff;
         font-size: 9.5px;
         font-weight: bold;
@@ -131,14 +131,14 @@
         table-layout: fixed;
     }
     .table-data th {
-        background-color: #334e68;
+        background-color: #4b6584;
         color: #ffffff;
         font-size: 8.5px;
         font-weight: bold;
         text-transform: uppercase;
         letter-spacing: 0.3px;
         padding: 5px 6px;
-        border: 1px solid #243b53;
+        border: 1px solid #3b506a;
         text-align: left;
     }
     .table-data td {
@@ -174,13 +174,13 @@
         margin-bottom: 12px;
     }
     .summary-table th {
-        background-color: #1e3a5f;
+        background-color: #3b597d;
         color: #ffffff;
         font-size: 8.5px;
         font-weight: bold;
         text-transform: uppercase;
         padding: 5px 8px;
-        border: 1px solid #102a43;
+        border: 1px solid #2d4563;
     }
     .summary-table td {
         padding: 4px 8px;
@@ -291,7 +291,7 @@
     {{-- ENCABEZADO --}}
     <table class="header-table">
         <tr>
-            <td style="width: 175px;">
+            <td style="width: 195px;">
                 <div class="logo-box">
                     @if(!empty($logoBase64))
                         <img src="{{ $logoBase64 }}" alt="Logo">
@@ -478,7 +478,7 @@
             <tr class="total-row">
                 <td colspan="3" style="text-align: right; text-transform: uppercase;">TOTAL RESCISIONES:</td>
                 <td class="num-col"><strong>${{ number_format($totalRescisiones ?? 0, 2) }}</strong></td>
-                <td colspan="2" style="font-size: 8px; color: #64748b; font-style: italic;">* Movimiento contable informativo</td>
+                <td colspan="2" style="font-size: 8px; color: #475569; font-style: italic;">* Movimiento informativo: No suma ni resta a la existencia en caja diaria</td>
             </tr>
         </tbody>
     </table>
