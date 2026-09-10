@@ -91,7 +91,7 @@
         width: 135px;
         border: 1px solid #cbd5e1;
         border-radius: 4px;
-        background-color: #f8fafc;
+        background-color: transparent;
         text-align: center;
         padding: 6px 4px;
     }
@@ -112,7 +112,7 @@
 
     /* BARRAS DE SECCIÓN */
     .section-header {
-        background-color: #3b597d;
+        background-color: #475569;
         color: #ffffff;
         font-size: 9.5px;
         font-weight: bold;
@@ -129,16 +129,17 @@
         border-collapse: collapse;
         margin-bottom: 12px;
         table-layout: fixed;
+        background-color: transparent;
     }
     .table-data th {
-        background-color: #4b6584;
+        background-color: #64748b;
         color: #ffffff;
         font-size: 8.5px;
         font-weight: bold;
         text-transform: uppercase;
         letter-spacing: 0.3px;
         padding: 5px 6px;
-        border: 1px solid #3b506a;
+        border: 1px solid #475569;
         text-align: left;
     }
     .table-data td {
@@ -147,24 +148,25 @@
         border: 1px solid #e2e8f0;
         vertical-align: middle;
         word-wrap: break-word;
+        background-color: transparent;
     }
-    .table-data tr:nth-child(even) td {
-        background-color: #f8fafc;
+    .table-data tr td {
+        background-color: transparent;
     }
     .table-data .total-row td {
-        background-color: #e2e8f0 !important;
+        background-color: transparent !important;
         font-weight: bold;
         color: #0f172a;
         font-size: 9px;
-        border-top: 1.5px solid #94a3b8;
-        border-bottom: 1.5px solid #94a3b8;
+        border-top: 1.5px solid #64748b;
+        border-bottom: 1.5px solid #64748b;
     }
     .table-data .empty-row td {
         text-align: center;
         color: #64748b;
         font-style: italic;
         padding: 8px;
-        background-color: #ffffff;
+        background-color: transparent;
     }
 
     /* RESUMEN FINANCIERO DEL DÍA */
@@ -172,31 +174,33 @@
         width: 100%;
         border-collapse: collapse;
         margin-bottom: 12px;
+        background-color: transparent;
     }
     .summary-table th {
-        background-color: #3b597d;
+        background-color: #475569;
         color: #ffffff;
         font-size: 8.5px;
         font-weight: bold;
         text-transform: uppercase;
         padding: 5px 8px;
-        border: 1px solid #2d4563;
+        border: 1px solid #334155;
     }
     .summary-table td {
         padding: 4px 8px;
         font-size: 9px;
         border: 1px solid #e2e8f0;
+        background-color: transparent;
     }
-    .summary-table tr:nth-child(even) td {
-        background-color: #f8fafc;
+    .summary-table tr td {
+        background-color: transparent;
     }
     .summary-table .final-row td {
-        background-color: #e2e8f0 !important;
+        background-color: transparent !important;
         font-weight: bold;
         color: #0f172a;
         font-size: 10px;
-        border-top: 1.5px solid #94a3b8;
-        border-bottom: 1.5px solid #94a3b8;
+        border-top: 1.5px solid #64748b;
+        border-bottom: 1.5px solid #64748b;
     }
 
     /* BADGES Y FORMATOS */
@@ -223,7 +227,7 @@
         border: 1px solid #cbd5e1;
         border-radius: 4px;
         padding: 6px 8px;
-        background-color: #f8fafc;
+        background-color: transparent;
         min-height: 38px;
         font-size: 8.5px;
         color: #334155;
