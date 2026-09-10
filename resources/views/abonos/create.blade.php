@@ -983,7 +983,8 @@
         var contenedorLotesModal = document.getElementById('resumen-lotes-container');
         var saldoCalculadoTotal = saldoActualVenta;
 
-        if (chksSeleccionados.length > 0 && contenedorLotesModal) {
+        if (chksSeleccionados.length > 1 && contenedorLotesModal) {
+            // Múltiples contratos seleccionados: Mostrar distribución clara
             contenedorLotesModal.innerHTML = '';
             var sumaCuotasSel = 0;
             var sumaSaldosSel = 0;
@@ -1015,28 +1016,33 @@
                     acumAsignado += asignadoL;
                 }
 
-                var badgeSpan = document.createElement('div');
-                badgeSpan.className = 'p-2 bg-white rounded border d-flex justify-content-between align-items-center w-100 mb-1 shadow-sm';
-                badgeSpan.innerHTML = '<div class="fw-bold text-dark"><i class="fas fa-map-marker-alt me-2 text-primary"></i>' + nomL + '</div>' +
-                                      '<div><span class="badge bg-success fs-6 fw-bold px-2 py-1">$' + asignadoL.toFixed(2) + '</span></div>';
-                contenedorLotesModal.appendChild(badgeSpan);
+                var cardItem = document.createElement('div');
+                cardItem.className = 'p-2 bg-white rounded border d-flex justify-content-between align-items-center w-100 mb-1 shadow-sm';
+                cardItem.innerHTML = '<div><strong class="text-dark"><i class="fas fa-map-marker-alt me-2 text-primary"></i>' + nomL + '</strong></div>' +
+                                      '<div class="text-end small"><span class="text-muted me-1">Abono asignado:</span> <strong class="text-success fs-6">$' + asignadoL.toFixed(2) + '</strong></div>';
+                contenedorLotesModal.appendChild(cardItem);
             });
         } else if (contenedorLotesModal) {
+            // Contrato individual o 1 solo contrato seleccionado: Mostrar únicamente los lotes como identificadores limpios
             contenedorLotesModal.innerHTML = '';
-            if (typeof lotesVentaUnicaArray !== 'undefined' && lotesVentaUnicaArray.length > 0) {
+            if (chksSeleccionados.length === 1) {
+                var nomSel = chksSeleccionados[0].getAttribute('data-nombre');
+                var badge = document.createElement('span');
+                badge.className = 'badge bg-white text-dark border border-primary-subtle shadow-sm px-3 py-2 fs-6 fw-bold d-inline-flex align-items-center me-1 mb-1';
+                badge.innerHTML = '<i class="fas fa-map-marker-alt text-primary me-2"></i> ' + nomSel;
+                contenedorLotesModal.appendChild(badge);
+            } else if (typeof lotesVentaUnicaArray !== 'undefined' && lotesVentaUnicaArray.length > 0) {
                 lotesVentaUnicaArray.forEach(function(loteItem) {
-                    var badgeSpan = document.createElement('div');
-                    badgeSpan.className = 'p-2 bg-white rounded border d-flex justify-content-between align-items-center w-100 mb-1 shadow-sm';
-                    badgeSpan.innerHTML = '<div class="fw-bold text-dark"><i class="fas fa-map-marker-alt me-2 text-primary"></i>' + loteItem.nombre + (loteItem.area ? ' <span class="text-muted small fw-normal">(' + loteItem.area + ')</span>' : '') + '</div>' +
-                                          '<div><span class="badge bg-success fs-6 fw-bold px-2 py-1">$' + montoVal.toFixed(2) + '</span></div>';
-                    contenedorLotesModal.appendChild(badgeSpan);
+                    var badge = document.createElement('span');
+                    badge.className = 'badge bg-white text-dark border border-primary-subtle shadow-sm px-3 py-2 fs-6 fw-bold d-inline-flex align-items-center me-1 mb-1';
+                    badge.innerHTML = '<i class="fas fa-map-marker-alt text-primary me-2"></i> ' + loteItem.nombre + (loteItem.area ? ' <span class="text-muted ms-1 fw-normal small">(' + loteItem.area + ')</span>' : '');
+                    contenedorLotesModal.appendChild(badge);
                 });
             } else {
-                var badgeSpan = document.createElement('div');
-                badgeSpan.className = 'p-2 bg-white rounded border d-flex justify-content-between align-items-center w-100 mb-1 shadow-sm';
-                badgeSpan.innerHTML = '<div class="fw-bold text-dark"><i class="fas fa-file-contract me-2 text-primary"></i>Contrato Asignado</div>' +
-                                      '<div><span class="badge bg-success fs-6 fw-bold px-2 py-1">$' + montoVal.toFixed(2) + '</span></div>';
-                contenedorLotesModal.appendChild(badgeSpan);
+                var badge = document.createElement('span');
+                badge.className = 'badge bg-white text-dark border border-primary-subtle shadow-sm px-3 py-2 fs-6 fw-bold d-inline-flex align-items-center me-1 mb-1';
+                badge.innerHTML = '<i class="fas fa-file-contract text-primary me-2"></i> Contrato Asignado';
+                contenedorLotesModal.appendChild(badge);
             }
         }
 
