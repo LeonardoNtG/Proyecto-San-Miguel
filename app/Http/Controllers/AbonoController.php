@@ -265,7 +265,14 @@ class AbonoController extends Controller
                 self::recalcularCuotas($venta->id_venta);
 
                 if (DB::transactionLevel() > 0) DB::commit();
-                \App\Models\Auditoria::log('Registró Abono', 'Abono', $abono->id_abono, "Recibo: {$datosRecibo['codigo_recibo']} - Monto: $" . number_format($montoTotalAbonado, 2) . " - " . $request->metodo_pago);
+                
+                $lotesTexto = $venta->lotes->map(fn($l) => ($l->bloque ? $l->bloque->nombre . ' - ' : '') . 'Lote ' . $l->numero_lote)->implode(', ');
+                $detallesAbono = "<strong>Abono Registrado:</strong> Recibo <span class='badge bg-primary'>#{$datosRecibo['codigo_recibo']}</span> por <span class='text-success fw-bold'>$" . number_format($montoTotalAbonado, 2) . "</span><br>" .
+                    "• <strong>Cliente:</strong> {$cliente->nombres_apellidos}<br>" .
+                    "• <strong>Lote:</strong> " . ($lotesTexto ?: 'Contrato #' . $venta->id_venta) . "<br>" .
+                    "• <strong>Método:</strong> {$request->metodo_pago}" . ($request->cuenta_destino ? " ({$request->cuenta_destino} | Ref: " . ($request->referencia ?: 'N/D') . ")" : '');
+
+                \App\Models\Auditoria::log('Registró Abono', 'Abono', $abono->id_abono, $detallesAbono);
                 return redirect()->route('registro.show', $cliente->id_cliente)
                     ->with('success', "¡Abono registrado exitosamente! Recibo N° {$datosRecibo['codigo_recibo']}")
                     ->with('imprimir_abonos', [$abono->id_abono]);
@@ -343,7 +350,17 @@ class AbonoController extends Controller
             }
 
             if (DB::transactionLevel() > 0) DB::commit();
-            \App\Models\Auditoria::log('Registró Abono Múltiple', 'Cliente', $cliente->id_cliente, "Monto Total: $" . number_format($montoTotalAbonado, 2) . " distribuido en {$totalVentas} lotes - Recibo N° {$datosRecibo['codigo_recibo']}");
+            
+            $distribucionTexto = $ventasTarget->map(function($vt) {
+                return $vt->lotes->map(fn($l) => 'Lote ' . $l->numero_lote)->implode(', ');
+            })->implode(' + ');
+            
+            $detallesAbonoMulti = "<strong>Abono Consolidado Registrado:</strong> Recibo <span class='badge bg-primary'>#{$datosRecibo['codigo_recibo']}</span> por <span class='text-success fw-bold'>$" . number_format($montoTotalAbonado, 2) . "</span><br>" .
+                "• <strong>Cliente:</strong> {$cliente->nombres_apellidos}<br>" .
+                "• <strong>Lotes cubiertos ({$totalVentas}):</strong> {$distribucionTexto}<br>" .
+                "• <strong>Método:</strong> {$request->metodo_pago}" . ($request->cuenta_destino ? " ({$request->cuenta_destino} | Ref: " . ($request->referencia ?: 'N/D') . ")" : '');
+
+            \App\Models\Auditoria::log('Registró Abono Múltiple', 'Cliente', $cliente->id_cliente, $detallesAbonoMulti);
             return redirect()->route('registro.show', $cliente->id_cliente)
                 ->with('success', "¡Abono consolidado de $" . number_format($montoTotalAbonado, 2) . " registrado exitosamente para {$totalVentas} lotes!")
                 ->with('imprimir_abonos', $abonosCreadosIds)
@@ -422,12 +439,6 @@ class AbonoController extends Controller
 
     public static function recalcularCuotas($id_venta) {
         $venta = \App\Models\Venta::withoutGlobalScope('lotificacion')->findOrFail($id_venta);
-
-        // Rec.5: Registrar en auditoría cada vez que se recalculan cuotas
-        \App\Models\Auditoria::log('Recalculó Cuotas', 'Venta', $id_venta,
-            'Recálculo disparado para contrato #' . $id_venta .
-            ' (cliente #' . $venta->id_cliente . ')'
-        );
         
         // 1. Sincronizar fechas de vencimiento de las cuotas con la fecha base del contrato (Mes 0 para Cuota 1)
         $fechaBase = $venta->fecha_venta ?: ($venta->created_at ? $venta->created_at->format('Y-m-d') : now()->format('Y-m-d'));

@@ -513,7 +513,7 @@ class ClienteController extends Controller
                 $valorNuevo = trim((string)($datosActualizados[$campo] ?? ''));
 
                 if ($valorAnterior !== $valorNuevo) {
-                    $cambios[] = "• <strong>{$etiqueta}:</strong> '{$valorAnterior}' ➔ '{$valorNuevo}'";
+                    $cambios[] = "• <strong>{$etiqueta}:</strong> <span class='badge bg-danger-subtle text-danger border border-danger-subtle'>{$valorAnterior}</span> ➔ <span class='badge bg-success-subtle text-success border border-success-subtle fw-bold'>{$valorNuevo}</span>";
                     if ($campo === 'nombres_apellidos' || $campo === 'identificacion') {
                         $esCesion = true;
                     }

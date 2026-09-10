@@ -379,10 +379,30 @@ class VentaController extends Controller
                 'nota_beneficiario'  => $request->nota_beneficiario ? trim($request->nota_beneficiario) : null,
             ];
 
+            $etiquetasCampos = [
+                'fecha_venta'        => 'Fecha de Venta',
+                'precio_final'       => 'Precio Final del Contrato',
+                'plazo_meses'        => 'Plazo',
+                'cuota_mensual'      => 'Cuota Mensual',
+                'beneficiario_final' => 'Beneficiario',
+                'nota_beneficiario'  => 'Nota de Beneficiario',
+            ];
+
             foreach ($camposFinancieros as $key => $val) {
                 $oldVal = is_float($val) || is_int($val) ? (float)$venta->{$key} : trim((string)$venta->{$key});
                 if ($oldVal != $val) {
-                    $cambios[] = "• <strong>Contrato {$key}:</strong> '{$oldVal}' ➔ '{$val}'";
+                    $nombreLegible = $etiquetasCampos[$key] ?? $key;
+                    if ($key === 'precio_final' || $key === 'cuota_mensual') {
+                        $oldFormatted = '$' . number_format((float)$oldVal, 2);
+                        $newFormatted = '$' . number_format((float)$val, 2);
+                    } elseif ($key === 'plazo_meses') {
+                        $oldFormatted = $oldVal . ' meses';
+                        $newFormatted = $val . ' meses';
+                    } else {
+                        $oldFormatted = empty($oldVal) ? 'Sin asignar' : "'{$oldVal}'";
+                        $newFormatted = empty($val) ? 'Sin asignar' : "'{$val}'";
+                    }
+                    $cambios[] = "• <strong>{$nombreLegible}:</strong> <span class='badge bg-danger-subtle text-danger border border-danger-subtle'>{$oldFormatted}</span> ➔ <span class='badge bg-success-subtle text-success border border-success-subtle fw-bold'>{$newFormatted}</span>";
                 }
             }
             $venta->update($camposFinancieros);
@@ -398,7 +418,7 @@ class VentaController extends Controller
                     $abonoExistente = Abono::where('id_venta', $venta->id_venta)->where('id_abono', $idAbono)->first();
                     if ($abonoExistente) {
                         if ($eliminar) {
-                            $cambios[] = "• <strong>Abono Eliminado:</strong> Recibo #{$abonoExistente->numero_recibo} por \${$abonoExistente->monto_abonado} ({$abonoExistente->fecha_pago})";
+                            $cambios[] = "• <strong>Abono Eliminado:</strong> Recibo #{$abonoExistente->numero_recibo} por <span class='text-danger fw-bold'>\${$abonoExistente->monto_abonado}</span> ({$abonoExistente->fecha_pago})";
                             $abonoExistente->delete();
                             continue;
                         }
@@ -413,8 +433,28 @@ class VentaController extends Controller
                         $cuentaNueva = $item['cuenta_destino'] ?? $abonoExistente->cuenta_destino;
                         $comentNuevo = $item['comentario'] ?? $abonoExistente->comentario;
 
-                        if ($abonoExistente->monto_abonado != $montoNuevo || $abonoExistente->fecha_pago != $fechaNueva || $abonoExistente->numero_recibo != $reciboNuevo) {
-                            $cambios[] = "• <strong>Abono Modificado (ID {$idAbono}):</strong> Recibo #{$reciboNuevo}, Monto \${$montoNuevo}, Fecha {$fechaNueva}";
+                        $detallesAbonoCambios = [];
+                        if (round((float)$abonoExistente->monto_abonado, 2) != round($montoNuevo, 2)) {
+                            $detallesAbonoCambios[] = "Monto: <span class='text-danger'>$" . number_format($abonoExistente->monto_abonado, 2) . "</span> ➔ <span class='text-success fw-bold'>$" . number_format($montoNuevo, 2) . "</span>";
+                        }
+                        if ($abonoExistente->fecha_pago != $fechaNueva) {
+                            $detallesAbonoCambios[] = "F. Pago: <span class='text-danger'>" . ($abonoExistente->fecha_pago ? \Carbon\Carbon::parse($abonoExistente->fecha_pago)->format('d/m/Y') : 'N/D') . "</span> ➔ <span class='text-success fw-bold'>" . \Carbon\Carbon::parse($fechaNueva)->format('d/m/Y') . "</span>";
+                        }
+                        if ($abonoExistente->fecha_transferencia != $fechaTransfNueva && !empty($fechaTransfNueva)) {
+                            $detallesAbonoCambios[] = "F. Transf: <span class='text-danger'>" . ($abonoExistente->fecha_transferencia ? \Carbon\Carbon::parse($abonoExistente->fecha_transferencia)->format('d/m/Y') : 'Ninguna') . "</span> ➔ <span class='text-success fw-bold'>" . \Carbon\Carbon::parse($fechaTransfNueva)->format('d/m/Y') . "</span>";
+                        }
+                        if ($abonoExistente->metodo_pago != $metodoNuevo) {
+                            $detallesAbonoCambios[] = "Método: <span class='text-danger'>" . ($abonoExistente->metodo_pago ?: 'Efectivo') . "</span> ➔ <span class='text-success fw-bold'>{$metodoNuevo}</span>";
+                        }
+                        if ($abonoExistente->numero_recibo != $reciboNuevo) {
+                            $detallesAbonoCambios[] = "N° Recibo: <span class='text-danger'>#{$abonoExistente->numero_recibo}</span> ➔ <span class='text-success fw-bold'>#{$reciboNuevo}</span>";
+                        }
+                        if ($abonoExistente->referencia != $refNueva) {
+                            $detallesAbonoCambios[] = "Referencia: <span class='text-danger'>" . ($abonoExistente->referencia ?: 'Sin ref') . "</span> ➔ <span class='text-success fw-bold'>" . ($refNueva ?: 'Sin ref') . "</span>";
+                        }
+
+                        if (!empty($detallesAbonoCambios)) {
+                            $cambios[] = "• <strong>Abono Recibo #{$reciboNuevo}:</strong> " . implode(' | ', $detallesAbonoCambios);
                         }
 
                         $abonoExistente->update([
