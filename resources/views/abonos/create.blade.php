@@ -716,13 +716,21 @@
         </div>
     </div>
 
-@endsection
+@php
+    $lotesVentaUnicaArray = (isset($venta) && $venta->lotes) ? $venta->lotes->map(function($l) {
+        return [
+            'nombre' => 'Bloque ' . ($l->bloque->nombre ?? 'N/A') . ' - Lote ' . $l->numero_lote,
+            'area' => $l->area_metros ? number_format($l->area_metros, 2) . ' m²' : '',
+        ];
+    })->values()->toArray() : [];
+@endphp
 
 @section('scripts')
 <script>
     var saldoActualVenta = {{ (float)$saldoPendiente }};
     var tieneMultiplesLotes = {{ $ventas->count() > 1 ? 'true' : 'false' }};
     var pasoActual = tieneMultiplesLotes ? 1 : 2;
+    var lotesVentaUnicaArray = @json($lotesVentaUnicaArray);
 
     function irAlPaso(numPaso) {
         if (numPaso === 2 && tieneMultiplesLotes) {
@@ -1013,6 +1021,23 @@
                                       '<div><span class="badge bg-success fs-6 fw-bold px-2 py-1">$' + asignadoL.toFixed(2) + '</span></div>';
                 contenedorLotesModal.appendChild(badgeSpan);
             });
+        } else if (contenedorLotesModal) {
+            contenedorLotesModal.innerHTML = '';
+            if (typeof lotesVentaUnicaArray !== 'undefined' && lotesVentaUnicaArray.length > 0) {
+                lotesVentaUnicaArray.forEach(function(loteItem) {
+                    var badgeSpan = document.createElement('div');
+                    badgeSpan.className = 'p-2 bg-white rounded border d-flex justify-content-between align-items-center w-100 mb-1 shadow-sm';
+                    badgeSpan.innerHTML = '<div class="fw-bold text-dark"><i class="fas fa-map-marker-alt me-2 text-primary"></i>' + loteItem.nombre + (loteItem.area ? ' <span class="text-muted small fw-normal">(' + loteItem.area + ')</span>' : '') + '</div>' +
+                                          '<div><span class="badge bg-success fs-6 fw-bold px-2 py-1">$' + montoVal.toFixed(2) + '</span></div>';
+                    contenedorLotesModal.appendChild(badgeSpan);
+                });
+            } else {
+                var badgeSpan = document.createElement('div');
+                badgeSpan.className = 'p-2 bg-white rounded border d-flex justify-content-between align-items-center w-100 mb-1 shadow-sm';
+                badgeSpan.innerHTML = '<div class="fw-bold text-dark"><i class="fas fa-file-contract me-2 text-primary"></i>Contrato Asignado</div>' +
+                                      '<div><span class="badge bg-success fs-6 fw-bold px-2 py-1">$' + montoVal.toFixed(2) + '</span></div>';
+                contenedorLotesModal.appendChild(badgeSpan);
+            }
         }
 
         document.getElementById('resumen-monto').textContent = '$' + montoVal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
