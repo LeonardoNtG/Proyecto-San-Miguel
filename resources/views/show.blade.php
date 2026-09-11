@@ -307,6 +307,9 @@
                             Saldo Restante: <strong class="text-danger">${{ number_format(max(0, $venta->precio_final - $venta->total_abonado), 2) }}</strong>
                         </div>
                     </div>
+                    @php
+                        $todosAbonosCliente = ($cliente->ventas) ? $cliente->ventas->flatMap->abonos : collect();
+                    @endphp
                     <div class="table-responsive">
                         <table class="table table-striped table-hover table-sm align-middle">
                             <thead class="bg-light">
@@ -318,12 +321,25 @@
                                     <th>Referencia / Banco</th>
                                     <th class="text-center">Recibo Firmado</th>
                                     <th class="text-center">Soporte Bancario</th>
-                                    <th class="text-center">Recibo Original</th>
+                                    <th class="text-center" style="min-width: 140px;">Recibo Original</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 @forelse($venta->abonos as $abono)
-                                @php $esProvisional = ($abono->tipo_pago === 'Recibo Provisional'); @endphp
+                                @php 
+                                    $esProvisional = ($abono->tipo_pago === 'Recibo Provisional'); 
+                                    $esConsolidado = !empty($abono->grupo_recibo);
+                                    if (!$esConsolidado && $cliente->ventas && $cliente->ventas->count() > 1 && $abono->created_at) {
+                                        $esConsolidado = $todosAbonosCliente->contains(function($otro) use ($abono) {
+                                            return $otro->id_abono !== $abono->id_abono
+                                                && $otro->id_venta !== $abono->id_venta
+                                                && $otro->fecha_pago === $abono->fecha_pago
+                                                && $otro->metodo_pago === $abono->metodo_pago
+                                                && $otro->created_at 
+                                                && abs($otro->created_at->diffInMinutes($abono->created_at)) <= 5;
+                                        });
+                                    }
+                                @endphp
                                 <tr class="{{ $esProvisional ? 'table-warning' : '' }}">
                                     <td>
                                         <span class="fw-bold">{{ \Carbon\Carbon::parse($abono->fecha_pago)->format('d/m/Y') }}</span>
@@ -382,10 +398,21 @@
                                             <span class="text-muted small">Sin adjunto</span>
                                         @endif
                                     </td>
-                                    <td class="text-center">
-                                        <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm {{ $esProvisional ? 'btn-warning text-dark fw-bold' : ($abono->grupo_recibo ? 'btn-primary fw-bold shadow-sm' : 'btn-outline-secondary') }}" title="{{ $abono->grupo_recibo ? 'Imprimir Recibo Unificado' : 'Imprimir Recibo' }}">
-                                            <i class="fas fa-print me-1"></i> {{ $abono->grupo_recibo ? 'Recibo Unificado' : 'Imprimir' }}
-                                        </a>
+                                    <td class="text-center align-middle">
+                                        @if($esConsolidado)
+                                            <div class="d-inline-flex flex-column gap-1 w-100" style="min-width: 125px; max-width: 145px;">
+                                                <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-xs btn-primary fw-bold py-1 px-2 shadow-sm text-nowrap" style="font-size: 0.76rem;" title="Imprimir Recibo Unificado (Engloba todos los lotes del cliente)">
+                                                    <i class="fas fa-layer-group me-1"></i> Imp/Unificado
+                                                </a>
+                                                <a href="{{ route('abonos.imprimir', [$abono->id_abono, 'individual' => 1]) }}" target="_blank" class="btn btn-xs btn-outline-secondary py-1 px-2 text-nowrap" style="font-size: 0.76rem;" title="Imprimir Recibo Individual (${{ number_format($abono->monto_abonado, 2) }} - Solo este contrato)">
+                                                    <i class="fas fa-file-alt me-1"></i> Imp/Individual
+                                                </a>
+                                            </div>
+                                        @else
+                                            <a href="{{ route('abonos.imprimir', $abono->id_abono) }}" target="_blank" class="btn btn-sm {{ $esProvisional ? 'btn-warning text-dark fw-bold' : 'btn-outline-secondary' }} py-1 px-2 text-nowrap" style="font-size: 0.82rem;" title="Imprimir Recibo">
+                                                <i class="fas fa-print me-1"></i> Imprimir
+                                            </a>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
