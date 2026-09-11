@@ -297,6 +297,8 @@
         @endforeach
     </tbody>
 </table>
+@endif
+
 @if(count($filasRescisiones) > 0)
 <div class="section-title" style="border-left-color: #dc2626; color: #dc2626;">
     {{ $esGlobal ? '4' : '3' }}. Registro de Rescisiones y Devoluciones Contables
