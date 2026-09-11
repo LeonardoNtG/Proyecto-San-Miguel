@@ -1,43 +1,39 @@
-# ESTADO DEL PROYECTO SAN MIGUEL
+# 📌 Estado Detallado del Proyecto - Sistema AMSA (Proyecto San Miguel)
 
-## 1. Estado actual
-El sistema ha evolucionado de un MVP básico a un ERP inmobiliario más maduro. Se han implementado con éxito la multi-lotificación, el manejo de planes de pago (cuotas con simulación de mora), un portal público para clientes, el historial de rescisiones y los cierres de caja diarios. 
+*Documento de seguimiento y contexto técnico para desarrolladores.*  
+*Última actualización: Septiembre 2026*
 
-## 2. Stack tecnológico
-- **Laravel:** v9.19
-- **PHP:** ^8.0.2
-- **Roles:** spatie/laravel-permission v5.7
-- **Frontend:** Vite v4.0, Blade
-- **PDF:** barryvdh/laravel-dompdf v3.1
+---
 
-## 3. Módulos existentes
+## 1. Resumen Ejecutivo
+El sistema **AMSA** es una solución web para la gestión de bienes raíces, urbanizaciones y loteamiento. Se encuentra actualmente en producción en **BanaHosting** bajo la rama `Production` de GitHub.
 
-| Módulo         | Estado                     | Observaciones |
-| -------------- | -------------------------- | ------------- |
-| Usuarios       | Completo                   | CRUD básico, control por lotificación. |
-| Lotificaciones | Completo                   | Relaciones y scopes globales. Selector de contexto en UI. |
-| Bloques        | Completo                   | Conectado a Lotificaciones, ScopeGlobal activo. |
-| Lotes          | Completo                   | Incluye historial de estados y rescisiones (Fase 2). |
-| Clientes       | Completo                   | CRUD operativo. Portal Público agregado (Fase 6). |
-| Ventas         | Completo                   | Lógica de generación automática de Cuotas implementada. |
-| Reservas       | Completo                   | Flujo de reservas con vigencia y formalización a Venta (Fase 3). |
-| Cuotas y Mora  | Completo                   | Generación, simulación y cobro de mora (5%) automatizado (Fases 4 y 5). |
-| Abonos         | Completo                   | Los abonos aplican a cuotas, validando mora y capital. |
-| Cierre de Caja | Completo                   | Módulo financiero filtrado por fecha y método de pago (Fase 7). |
-| Egresos        | Parcial                    | Existe como "Salidas". |
-| Auditoría      | **Pendiente**              | No hay bitácora de acciones críticas o logs de movimientos. |
+---
 
-## 4. Funcionalidades terminadas (Roadmap Completado)
-- **Fase 1:** Arquitectura Multi-Lotificación (Contexto de acceso).
-- **Fase 2:** Restructuración de Venta-Lote para soportar historial de rescisiones.
-- **Fase 3:** Flujo de Reservas (creación, anulación, formalización a venta).
-- **Fase 4:** Plan de Pagos / Cuotas automatizadas al vender.
-- **Fase 5:** Sistema de Mora (simulación al vuelo y cobro priorizado).
-- **Fase 6:** Portal Cliente (Enlaces públicos con token para ver estado de cuenta).
-- **Fase 7:** Contabilidad y Cierre de Caja (Separación de concepto de pago y método/banco destino).
+## 2. Estado de Módulos
 
-## 5. Próximo paso recomendado
-Con las fases principales de negocio completadas, las siguientes etapas podrían enfocarse en:
-1. **Auditoría (Bitácoras):** Registrar quién hizo qué (ej. "Admin rescindió el contrato #5", "Usuario X exoneró la mora de Y").
-2. **Módulo de Egresos Avanzado:** Integrar las salidas de dinero a los reportes financieros para obtener ganancias netas reales.
-3. **Roles Granulares:** Asegurar que los vendedores/usuarios normales no puedan ver o modificar Cierres de Caja o configuraciones.
+| Módulo | Estado | Descripción & Notas Técnicas |
+| :--- | :--- | :--- |
+| **Multi-Lotificación** | ✅ Completo | Implementado mediante Scopes Globales (`ScopedByLotificacion`) y selector de proyecto en sesión. |
+| **Inventario (Lotes y Bloques)** | ✅ Completo | Soporte para medidas en $m^2$ y $vrs^2$. Inventario auditado (608 lotes en La Campana, 385 en Colinas Santa Clara). |
+| **Clientes** | ✅ Completo | Gestión de expedientes, historial de compras, documentos y generación de tokens para portal público. |
+| **Contratos / Ventas** | ✅ Completo | Soporte de contratos de un solo lote y multilotes. Generación automatizada del plan de cuotas. |
+| **Abonos y Cobranza** | ✅ Completo | Métodos de pago (Efectivo, Transferencia, Depósito), conciliación de cuentas bancarias y recibos firmados. |
+| **Recibos y PDFs** | ✅ Completo | Emisión de comprobantes en PDF (formato estándar y térmico), conversión de montos a letras y marca de agua sutil (30% opacidad). |
+| **Cierre de Caja** | ✅ Completo | Apertura, balance diario por turnos y reportes financieros con exportación a PDF y Excel. |
+| **Rescisiones y Reasignaciones**| ✅ Completo | Historial de rescisiones con liberación de inventario y reasignación de contratos. |
+| **Parámetros del Sistema** | ✅ Completo | Módulo dinámico en `/configuracion/parametros` (permite ocultar/mostrar opciones como Traspasos). |
+| **Portal Público de Clientes** | ✅ Completo | Acceso sin login mediante token seguro para consulta de saldos y cuotas. |
+| **Diagnóstico en Servidor** | ✅ Completo | Script optimizado `limpiar.php` para limpieza de caché, migraciones y auditoría en BanaHosting. |
+
+---
+
+## 3. Convenciones y Reglas de Desarrollo
+
+1. **Recálculo de Cuotas:** Siempre que se inserte, edite o elimine un Abono o Venta, se debe invocar `\App\Http\Controllers\AbonoController::recalcularCuotas($id_venta)`.
+2. **Consultas sin Scope de Lotificación:** Cuando se requiera acceder a datos globales o de migración administrativa, utilizar `withoutGlobalScopes()` o `withoutGlobalScope('lotificacion')`.
+3. **Control de Cambios y Despliegues:**
+   - La rama principal de producción es `Production`.
+   - Cada push a `Production` dispara el workflow de GitHub Actions que sube los cambios por FTP.
+   - Después de cada despliegue con cambios de base de datos o vistas, acceder a `https://proyectosanmiguel.com/AMSAsystem/limpiar.php`.
+4. **Sincronización de Diagnóstico:** `limpiar.php` en la raíz y `public/limpiar.php` deben mantenerse idénticos.
