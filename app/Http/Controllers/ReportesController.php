@@ -15,9 +15,9 @@ class ReportesController extends Controller
     public function cierreCaja(Request $request)
     {
         $fecha = $request->input('fecha', Carbon::today()->format('Y-m-d'));
-        $isAdmin = auth()->user()->hasRole('Administrador');
+        $puedeFiltrarCajeros = auth()->user()->hasAnyRole(['Administrador', 'Gerente', 'Agente']);
 
-        // Todos los usuarios para el selector de admin
+        // Todos los usuarios para el selector de cajeros
         $todosLosCajeros = \App\Models\User::orderBy('name', 'asc')->get();
 
         // Cajeros que registraron abonos en esta fecha para la lotificación activa
@@ -34,10 +34,10 @@ class ReportesController extends Controller
             if ($request->input('user_id') !== 'todos') {
                 $userId = (int) $request->input('user_id');
             }
-        } elseif (!$isAdmin) {
+        } elseif (!$puedeFiltrarCajeros) {
             $userId = auth()->id();
         } else {
-            // Si es Administrador y no especificó user_id:
+            // Si tiene permiso para filtrar y no especificó user_id:
             // Si solo un cajero registró movimientos, seleccionarlo por defecto
             if ($cajerosConMovimientos->count() === 1) {
                 $userId = $cajerosConMovimientos->first()->id;
@@ -110,7 +110,7 @@ class ReportesController extends Controller
     public function imprimirCierreCajaPdf(Request $request)
     {
         $fecha = $request->input('fecha', Carbon::today()->format('Y-m-d'));
-        $isAdmin = auth()->user()->hasRole('Administrador');
+        $puedeFiltrarCajeros = auth()->user()->hasAnyRole(['Administrador', 'Gerente', 'Agente']);
         
         $cajerosConMovimientos = Abono::whereDate('fecha_pago', $fecha)
             ->where('es_migracion', false)
@@ -125,7 +125,7 @@ class ReportesController extends Controller
             if ($request->input('user_id') !== 'todos') {
                 $userId = (int) $request->input('user_id');
             }
-        } elseif (!$isAdmin) {
+        } elseif (!$puedeFiltrarCajeros) {
             $userId = auth()->id();
         } else {
             if ($cajerosConMovimientos->count() === 1) {

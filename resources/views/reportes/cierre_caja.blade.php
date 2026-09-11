@@ -111,7 +111,7 @@
 
                     {{-- Selector de Fecha y Cajero --}}
                     <form method="GET" action="{{ route('reportes.cierre_caja') }}" class="d-flex align-items-center flex-wrap gap-1">
-                        @role('Administrador')
+                        @if(auth()->user()->hasAnyRole(['Administrador', 'Gerente', 'Agente']))
                             <select name="user_id" class="form-select form-select-sm" style="min-width: 180px;" onchange="this.form.submit()">
                                 <option value="todos" {{ empty($userId) ? 'selected' : '' }}>-- Consolidado (Todos) --</option>
                                 @foreach($todosLosCajeros as $caj)
@@ -120,7 +120,7 @@
                                     </option>
                                 @endforeach
                             </select>
-                        @endrole
+                        @endif
                         <input type="date" id="fecha" name="fecha" value="{{ $fecha }}" class="form-control form-control-sm" onchange="this.form.submit()">
                         <button type="submit" class="btn btn-sm btn-primary" title="Consultar Fecha">
                             <i class="fas fa-search"></i>
