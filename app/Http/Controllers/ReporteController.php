@@ -671,7 +671,6 @@ class ReporteController extends Controller
         $abonos = \App\Models\Abono::with(['venta.cliente', 'venta.lotes.bloque'])
             ->where('user_id', $cierre->user_id)
             ->whereBetween('created_at', [$inicioTurno, $finTurno])
-            ->whereDate('fecha_pago', $fechaCierre)
             ->where('es_migracion', false)
             ->get();
 
@@ -955,7 +954,7 @@ class ReporteController extends Controller
 
         // Obtener IDs de usuarios con movimientos de abonos en la fecha dada para el proyecto seleccionado
         $userIdsConAbonos = Abono::withoutGlobalScope('lotificacion')
-            ->whereDate('fecha_pago', $fecha)
+            ->whereDate('created_at', $fecha)
             ->where('es_migracion', false)
             ->when(!$esGlobal && $targetLotificacionId, function($q) use ($targetLotificacionId) {
                 $q->whereHas('venta', fn($vq) => $vq->withoutGlobalScope('lotificacion')->where('lotificacion_id', $targetLotificacionId));
@@ -1021,7 +1020,7 @@ class ReporteController extends Controller
                     'venta.lotes.bloque' => fn($q) => $q->withoutGlobalScope('lotificacion'),
                     'venta.lotificacion' => fn($q) => $q->withoutGlobalScope('lotificacion'),
                 ])
-                ->whereDate('fecha_pago', $fecha)
+                ->whereDate('created_at', $fecha)
                 ->where('user_id', $user->id)
                 ->where('es_migracion', false);
 
@@ -1078,7 +1077,7 @@ class ReporteController extends Controller
                     ])
                     ->where('user_id', $user->id)
                     ->where('created_at', '>=', $ultimaApertura->created_at)
-                    ->whereDate('fecha_pago', $fecha)
+                    ->whereDate('created_at', $fecha)
                     ->where('es_migracion', false);
 
                 if (!$esGlobal && $targetLotificacionId) {

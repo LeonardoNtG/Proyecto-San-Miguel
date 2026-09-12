@@ -21,7 +21,7 @@ class ReportesController extends Controller
         $todosLosCajeros = \App\Models\User::orderBy('name', 'asc')->get();
 
         // Cajeros que registraron abonos en esta fecha para la lotificación activa
-        $cajerosConMovimientos = Abono::whereDate('fecha_pago', $fecha)
+        $cajerosConMovimientos = Abono::whereDate('created_at', $fecha)
             ->where('es_migracion', false)
             ->with('user')
             ->get()
@@ -46,9 +46,9 @@ class ReportesController extends Controller
 
         $usuarioSeleccionado = $userId ? \App\Models\User::find($userId) : null;
 
-        // Obtener abonos de la fecha seleccionada (por fecha de pago real)
+        // Obtener abonos de la fecha seleccionada (por fecha de registro real)
         $abonosQuery = Abono::with(['venta.cliente', 'venta.lotes.bloque', 'user'])
-            ->whereDate('fecha_pago', $fecha)
+            ->whereDate('created_at', $fecha)
             ->where('es_migracion', false);
         if ($userId) {
             $abonosQuery->where('user_id', $userId);
@@ -112,7 +112,7 @@ class ReportesController extends Controller
         $fecha = $request->input('fecha', Carbon::today()->format('Y-m-d'));
         $puedeFiltrarCajeros = auth()->user()->hasAnyRole(['Administrador', 'Gerente', 'Agente']);
         
-        $cajerosConMovimientos = Abono::whereDate('fecha_pago', $fecha)
+        $cajerosConMovimientos = Abono::whereDate('created_at', $fecha)
             ->where('es_migracion', false)
             ->with('user')
             ->get()
@@ -135,9 +135,9 @@ class ReportesController extends Controller
 
         $usuarioObj = $userId ? \App\Models\User::find($userId) : null;
 
-        // 1. Obtener abonos de la fecha por fecha de pago real
+        // 1. Obtener abonos de la fecha por fecha de registro real
         $abonosQuery = Abono::with(['venta.cliente', 'venta.lotes.bloque', 'user'])
-            ->whereDate('fecha_pago', $fecha)
+            ->whereDate('created_at', $fecha)
             ->where('es_migracion', false);
         if ($userId) {
             $abonosQuery->where('user_id', $userId);
